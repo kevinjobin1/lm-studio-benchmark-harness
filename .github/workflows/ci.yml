@@ -7,6 +7,15 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
 jobs:
   dashboard-build:
     name: Build Dashboard
@@ -36,6 +45,11 @@ jobs:
         run: |
           cd dashboard
           npm run build
+
+      - name: Upload build artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: './dashboard/dist'
 
   python-validate:
     name: Validate Python
@@ -90,3 +104,21 @@ jobs:
           assert 'properties' in schema, 'Invalid JSON schema'
           print(f'Config schema valid. Top-level keys: {list(schema.get(\"properties\", {}).keys())}')
           "
+
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: [dashboard-build, python-validate]
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4
