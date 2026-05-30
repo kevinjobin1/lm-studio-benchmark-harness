@@ -1,0 +1,92 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  dashboard-build:
+    name: Build Dashboard
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: dashboard/package-lock.json
+
+      - name: Install dependencies
+        run: |
+          cd dashboard
+          npm ci
+
+      - name: TypeScript check
+        run: |
+          cd dashboard
+          npx tsc --noEmit
+
+      - name: Build Astro site
+        run: |
+          cd dashboard
+          npm run build
+
+  python-validate:
+    name: Validate Python
+    runs-on: ubuntu-latest
+    # Full benchmark suite requires LM Studio on macOS — see benchmark.yml for scheduled runs
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Cache pip packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Validate imports
+        run: |
+          python -c "
+          import benchmark
+          import benchmark.core
+          import scoring
+          import evaluators
+          import config_manager
+          import reporting
+          import prompt_generator
+          import x_thread_generator
+          import results_schema
+          import skill_pack_sdk
+          import apple_silicon_monitor
+          from benchmarks import bfcl, coding, creativity, if_eval, math_benchmarks, memory, mmlu_pro, needle_haystack, speed_latency, swe_bench
+          from integrations import lm_eval_integration, openbench_integration
+          print('All modules imported successfully.')
+          "
+
+      - name: Validate config schema
+        run: |
+          python -c "
+          import json
+          with open('config_schema.json') as f:
+              schema = json.load(f)
+          assert 'properties' in schema, 'Invalid JSON schema'
+          print(f'Config schema valid. Top-level keys: {list(schema.get(\"properties\", {}).keys())}')
+          "

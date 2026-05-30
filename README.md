@@ -1,5 +1,8 @@
 # 🧪 LM Studio Benchmark Harness
 
+[![CI](https://github.com/kevinjobin1/lm-studio-benchmark-harness/actions/workflows/ci.yml/badge.svg)](https://github.com/kevinjobin1/lm-studio-benchmark-harness/actions/workflows/ci.yml)
+[![Deploy Dashboard](https://github.com/kevinjobin1/lm-studio-benchmark-harness/actions/workflows/publish.yml/badge.svg)](https://github.com/kevinjobin1/lm-studio-benchmark-harness/actions/workflows/publish.yml)
+
 > A local-first benchmark framework for evaluating LLMs running in LM Studio on Apple Silicon.
 
 Measure what actually matters:
@@ -178,7 +181,7 @@ All dashboard UI follows the **Kinetic Logic** design system — a precision dev
 - [ ] Ollama integration
 - [ ] Web dashboard (model comparison, radar charts, failure heatmaps)
 - [ ] Community leaderboard
-- [ ] CI regression tracking (GitHub Actions)
+- [x] CI regression tracking (GitHub Actions)
 
 ---
 
