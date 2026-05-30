@@ -1,0 +1,63 @@
+# LM Studio Benchmark Configuration
+
+api:
+  base_url: "http://localhost:1234/v1"
+  api_key: "lm-studio"  # Default key for LM Studio
+  model_name: "local-model"
+  timeout: 120
+  max_retries: 3
+
+model:
+  temperature: 0.0
+  max_tokens: 4096
+  top_p: 1.0
+
+benchmarks:
+  samples_per_benchmark: 100  # Number of samples for each benchmark
+  quick_mode_samples: 10      # Reduced samples for quick mode
+  
+  mmlu_pro:
+    enabled: true
+    subjects: ["math", "physics", "chemistry", "biology", "computer_science"]
+    
+  gsm8k:
+    enabled: true
+    
+  aime:
+    enabled: true
+    
+  humaneval:
+    enabled: true
+    
+  swe_bench_lite:
+    enabled: true
+    max_tasks: 20
+    
+  ifeval:
+    enabled: true
+    
+  needle_in_haystack:
+    enabled: true
+    context_lengths: [4000, 8000, 16000, 32000]
+    
+  bfcl:
+    enabled: true
+    categories: ["simple", "multi_turn", "parallel"]
+    
+  speed_latency:
+    enabled: true
+    prompt_lengths: [100, 500, 1000, 2000]
+    
+  memory:
+    enabled: true
+    monitor_interval: 1.0
+    
+  creativity:
+    enabled: true
+    prompts_file: "data/creativity_prompts.json"
+
+output:
+  directory: "results"
+  formats: ["json", "csv", "html"]
+  save_intermediate: true
+  verbose: true
