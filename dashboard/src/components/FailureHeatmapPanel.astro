@@ -1,0 +1,22 @@
+---
+import FailureHeatmap from './FailureHeatmap';
+import type { BenchmarkResult } from '../lib/loadResults';
+
+interface Props {
+  results: BenchmarkResult[];
+}
+
+const { results } = Astro.props;
+---
+
+<section class="dashboard-failures">
+  <div class="section-header">
+    <h2>Failure Breakdown</h2>
+    <p>What kinds of mistakes each model makes — grouped by failure taxonomy</p>
+  </div>
+  <div class="card" style="height: 380px;">
+    <div style="height: 300px;">
+      <FailureHeatmap client:load results={results} />
+    </div>
+  </div>
+</section>

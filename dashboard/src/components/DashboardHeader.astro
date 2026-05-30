@@ -1,0 +1,25 @@
+---
+interface Props {
+  title: string;
+  subtitle: string;
+}
+
+const { title, subtitle } = Astro.props;
+---
+
+<div class="dashboard-header animate-entrance">
+  <div>
+    <h2 class="dashboard-title">{title}</h2>
+    <p class="dashboard-subtitle">{subtitle}</p>
+  </div>
+  <div class="dashboard-actions">
+    <button class="btn-outline">
+      <span class="material-symbols-outlined" style="font-size:18px">filter_list</span>
+      <span>Filter</span>
+    </button>
+    <button class="btn-outline">
+      <span class="material-symbols-outlined" style="font-size:18px">file_download</span>
+      <span>Export CSV</span>
+    </button>
+  </div>
+</div>

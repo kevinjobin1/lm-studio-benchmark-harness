@@ -1,0 +1,21 @@
+{
+  "id": "debug_race_condition",
+  "prompts": [
+    {
+      "id": "debug_race_001",
+      "task": "Fix race condition in cache layer",
+      "code": "class CacheService {\n  private cache = new Map<string, any>();\n  \n  async get(key: string): Promise<any> {\n    if (this.cache.has(key)) {\n      return this.cache.get(key);\n    }\n    const value = await this.fetchFromDB(key);\n    this.cache.set(key, value);\n    return value;\n  }\n  \n  private async fetchFromDB(key: string): Promise<any> {\n    return { data: key };\n  }\n}",
+      "issue": "Race condition when multiple concurrent requests for same key - duplicate DB calls and inconsistent cache state",
+      "expected_fix": ["Promise.allSettled", "Map<Promise>", "deduplication", "concurrent", "lock", "in-flight"],
+      "difficulty": "hard"
+    },
+    {
+      "id": "debug_race_002",
+      "task": "Fix async state update race in React",
+      "code": "function UserProfile() {\n  const [user, setUser] = useState(null);\n  const [posts, setPosts] = useState([]);\n  \n  useEffect(() => {\n    fetchUser().then(data => setUser(data));\n    fetchPosts().then(posts => setPosts(posts));\n  }, []);\n  \n  return <div>{user?.name}: {posts.length} posts</div>;\n}",
+      "issue": "Race condition - posts may arrive before user, or component might be unmounted before fetch completes",
+      "expected_fix": ["AbortController", "cleanup", "unmount", "loading", "Promise.all", "race"],
+      "difficulty": "hard"
+    }
+  ]
+}

@@ -562,6 +562,23 @@ class DeveloperRealismScorer:
         return max(0.0, min(1.0, score))
 
 
+# ── Coding Agent Scoring (re-exported for discoverability) ─────────
+
+try:
+    from coding_agent_scoring import (
+        CodingAgentEvaluator,
+        CodingAgentScorer,
+        CodingAgentScore,
+        evaluate_coding_agent,
+        ImportCategory,
+        ImportCheck,
+        RefactoringMetrics,
+    )
+    CODING_AGENT_SCORING_AVAILABLE = True
+except ImportError:
+    CODING_AGENT_SCORING_AVAILABLE = False
+
+
 class ComprehensiveEvaluator:
     """Main evaluator combining all scoring components."""
     

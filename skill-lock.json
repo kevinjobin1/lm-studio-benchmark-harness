@@ -1,0 +1,21 @@
+{
+  "skills": {
+    "diff": {
+      "version": "1.0.0",
+      "checksum": ""
+    },
+    "json_parse": {
+      "version": "1.0.0",
+      "checksum": ""
+    },
+    "read_file": {
+      "version": "1.0.0",
+      "checksum": ""
+    },
+    "write_file": {
+      "version": "1.0.0",
+      "checksum": ""
+    }
+  },
+  "mode": "strict"
+}

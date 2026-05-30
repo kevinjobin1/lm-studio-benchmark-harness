@@ -1,0 +1,21 @@
+{
+  "id": "debug_di_bugs",
+  "prompts": [
+    {
+      "id": "debug_di_001",
+      "task": "Fix circular dependency between NestJS services",
+      "code": "@Injectable()\nexport class ServiceA {\n  constructor(private serviceB: ServiceB) {}\n  \n  async processData(data: any) {\n    const result = await this.serviceB.transform(data);\n    return this.format(result);\n  }\n  \n  private format(data: any) { return { formatted: data }; }\n}\n\n@Injectable()\nexport class ServiceB {\n  constructor(private serviceA: ServiceA) {}\n  \n  async transform(data: any) {\n    const processed = await this.serviceA.processData(data);\n    return { transformed: processed };\n  }\n}",
+      "issue": "Circular dependency causing NestJS to fail at startup - ServiceA needs ServiceB and vice versa",
+      "expected_fix": ["forwardRef", "@Inject", "circular", "dependency", "LazyModuleLoader", "refactor"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "debug_di_002",
+      "task": "Fix missing provider injection in NestJS module",
+      "code": "@Module({\n  imports: [HttpModule],\n  controllers: [UserController],\n  providers: [UserRepository]\n})\nexport class UserModule {}\n\n@Controller('users')\nexport class UserController {\n  constructor(private userService: UserService) {}\n\n  @Get()\n  async findAll() {\n    return this.userService.findAll();\n  }\n}",
+      "issue": "UserService is not registered as a provider in UserModule, causing runtime DI error in UserController",
+      "expected_fix": ["@Injectable", "provider", "inject", "module", "providers", "UserService"],
+      "difficulty": "medium"
+    }
+  ]
+}

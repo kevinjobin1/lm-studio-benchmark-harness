@@ -1,0 +1,21 @@
+{
+  "id": "debug_prisma",
+  "prompts": [
+    {
+      "id": "debug_prisma_001",
+      "task": "Fix incorrect Prisma relation query",
+      "code": "const user = await prisma.user.findUnique({\n  where: { id: userId },\n  include: { posts: true }\n});\n\nawait prisma.post.create({\n  data: {\n    title: 'New Post',\n    author: { connect: { id: user.id } }\n  }\n});",
+      "issue": "user might be null (findUnique returns null if not found), causing runtime error on user.id. Missing null check and potential N+1 query pattern.",
+      "expected_fix": ["null", "check", "findUnique", "relation", "include", "error", "handling"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "debug_prisma_002",
+      "task": "Fix incorrect transaction order",
+      "code": "await prisma.$transaction([\n  prisma.user.delete({ where: { id } }),\n  prisma.post.deleteMany({ where: { userId: id } })\n]);",
+      "issue": "Wrong order - user must be deleted after posts due to foreign key constraint. Should delete posts first or use onDelete: Cascade in schema.",
+      "expected_fix": ["transaction", "order", "foreign", "key", "constraint", "cascade", "onDelete"],
+      "difficulty": "easy"
+    }
+  ]
+}

@@ -1,0 +1,40 @@
+{
+  "name": "debugging-pack",
+  "version": "1.0.0",
+  "description": "Real-world debugging scenarios for TypeScript/NestJS/React - race conditions, DI bugs, stale closures, and more",
+  "tags": ["debugging", "typescript", "nestjs", "react", "race-condition"],
+  "generator": "v1",
+  "categories": [
+    {
+      "id": "debug_race_condition",
+      "label": "Race Conditions & Concurrency",
+      "difficulty": ["hard"],
+      "count": 2
+    },
+    {
+      "id": "debug_stale_closure",
+      "label": "Stale Closures & React Lifecycle",
+      "difficulty": ["medium", "hard"],
+      "count": 2
+    },
+    {
+      "id": "debug_di_bugs",
+      "label": "Dependency Injection & Module Issues",
+      "difficulty": ["medium", "hard"],
+      "count": 2
+    },
+    {
+      "id": "debug_type_errors",
+      "label": "TypeScript Type Errors & Generics",
+      "difficulty": ["easy", "medium"],
+      "count": 2
+    },
+    {
+      "id": "debug_prisma",
+      "label": "Prisma Relation & Query Issues",
+      "difficulty": ["medium", "hard"],
+      "count": 2
+    }
+  ],
+  "total_prompts": 10
+}

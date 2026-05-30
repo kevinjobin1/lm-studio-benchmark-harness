@@ -1,0 +1,21 @@
+{
+  "id": "debug_type_errors",
+  "prompts": [
+    {
+      "id": "debug_type_001",
+      "task": "Fix generic constraint error",
+      "code": "function processData<T>(data: T): T {\n  return data.toUpperCase();\n}\n\nfunction getLength<T>(items: T[]): number {\n  return items.length;\n}",
+      "issue": "Generic function lacks proper constraint - toUpperCase() doesn't exist on type T. The getLength function works but lacks type safety for the array elements.",
+      "expected_fix": ["extends", "string", "constraint", "generic", "type", "guard", "narrowing"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "debug_type_002",
+      "task": "Fix type narrowing issues",
+      "code": "interface User { name: string; email: string; }\ninterface Admin { name: string; permissions: string[]; }\ntype Person = User | Admin;\n\nfunction handlePerson(person: Person) {\n  console.log(person.name);\n  \n  if ('email' in person) {\n    console.log(person.email);\n  }\n  \n  if (person.permissions) {\n    console.log(person.permissions.join(', '));\n  }\n}",
+      "issue": "TypeScript error on person.permissions - type narrowing with 'in' operator doesn't cascade to the second check. Need proper discriminated union or type guard.",
+      "expected_fix": ["discriminated", "union", "type", "guard", "narrowing", "in", "typeof", "interface"],
+      "difficulty": "medium"
+    }
+  ]
+}

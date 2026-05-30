@@ -1,0 +1,34 @@
+{
+  "name": "react-pack",
+  "version": "1.0.0",
+  "description": "React/Next.js frontend evaluation pack with hooks, components, animations, and state management",
+  "tags": ["frontend", "react", "nextjs", "typescript"],
+  "generator": "v1",
+  "categories": [
+    {
+      "id": "react_hooks",
+      "label": "Custom Hooks & Patterns",
+      "difficulty": ["easy", "medium", "hard"],
+      "count": 3
+    },
+    {
+      "id": "react_components",
+      "label": "Component Architecture",
+      "difficulty": ["medium", "hard"],
+      "count": 2
+    },
+    {
+      "id": "react_animations",
+      "label": "Animations & Motion",
+      "difficulty": ["easy", "medium", "hard"],
+      "count": 2
+    },
+    {
+      "id": "react_state",
+      "label": "State Management",
+      "difficulty": ["medium", "hard"],
+      "count": 3
+    }
+  ],
+  "total_prompts": 10
+}

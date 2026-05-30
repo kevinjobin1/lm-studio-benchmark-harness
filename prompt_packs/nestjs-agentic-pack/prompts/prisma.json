@@ -1,0 +1,68 @@
+{
+  "id": "nestjs_prisma",
+  "prompts": [
+    {
+      "id": "nestjs_agentic_prisma_001",
+      "task": "Implement user CRUD with Prisma transactions",
+      "difficulty": "medium",
+      "template": "Using NestJS and Prisma, implement a UserService with:\n- createUser (with hashed password)\n- findUserById (with posts relation)\n- updateUserProfile (transactional: update user + log audit)\n\nAvailable skills: {skills}",
+      "params": {
+        "skills": [["read_file", "write_file", "diff"]]
+      },
+      "constraints": [
+        "Use @Injectable() decorator",
+        "Use PrismaService injection",
+        "Use transactions for multi-table operations",
+        "Return proper DTOs, not Prisma models"
+      ],
+      "expected_keywords": ["@Injectable", "PrismaService", "transaction", "bcrypt", "DTO"],
+      "expected_actions": [
+        {"skill": "read_file", "input": {"path": "src/user/user.service.ts"}},
+        {"skill": "read_file", "input": {"path": "src/prisma/prisma.service.ts"}},
+        {"skill": "write_file", "input": {"path": "src/user/user.service.ts"}},
+        {"skill": "diff", "input": {"a": "...", "b": "..."}}
+      ]
+    },
+    {
+      "id": "nestjs_agentic_prisma_002",
+      "task": "Fix N+1 query with Prisma include",
+      "difficulty": "hard",
+      "template": "This code has an N+1 query problem. Fix it using Prisma's include:\n\n```typescript\n@Injectable()\nexport class PostService {\n  async getPostsWithAuthors() {\n    const posts = await this.prisma.post.findMany();\n    for (const post of posts) {\n      post.author = await this.prisma.user.findUnique({ where: { id: post.authorId } });\n    }\n    return posts;\n  }\n}\n```\n\nAvailable skills: {skills}",
+      "params": {
+        "skills": [["read_file", "write_file", "diff"]]
+      },
+      "constraints": [
+        "Use Prisma include or select",
+        "Single query only",
+        "Maintain same return shape"
+      ],
+      "expected_keywords": ["include", "findMany", "author", "relation"],
+      "expected_actions": [
+        {"skill": "read_file", "input": {"path": "src/post/post.service.ts"}},
+        {"skill": "write_file", "input": {"path": "src/post/post.service.ts"}},
+        {"skill": "diff", "input": {"a": "...", "b": "..."}}
+      ]
+    },
+    {
+      "id": "nestjs_agentic_prisma_003",
+      "task": "Design Prisma schema for multi-tenant SaaS",
+      "difficulty": "hard",
+      "template": "Design a Prisma schema for a multi-tenant blog platform with:\n- Organizations (tenants)\n- Users (belong to orgs)\n- Posts (belong to orgs + users)\n- Comments (belong to posts + users)\n- AuditLog (tracks all mutations)\n\nAvailable skills: {skills}",
+      "params": {
+        "skills": [["read_file", "write_file", "diff", "json_parse"]]
+      },
+      "constraints": [
+        "Use composite unique constraints on (orgId + slug)",
+        "Add cascade deletes where appropriate",
+        "Add @@index for common queries",
+        "Include createdAt/updatedAt on all models"
+      ],
+      "expected_keywords": ["model", "relation", "@@index", "@@unique", "cascade"],
+      "expected_actions": [
+        {"skill": "read_file", "input": {"path": "prisma/schema.prisma"}},
+        {"skill": "write_file", "input": {"path": "prisma/schema.prisma"}},
+        {"skill": "diff", "input": {"a": "...", "b": "..."}}
+      ]
+    }
+  ]
+}

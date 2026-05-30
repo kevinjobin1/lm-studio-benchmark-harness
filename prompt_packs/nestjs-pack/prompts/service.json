@@ -1,0 +1,53 @@
+{
+  "id": "nestjs_service",
+  "prompts": [
+    {
+      "id": "nestjs_service_001",
+      "task": "Create a generic CRUD service",
+      "template": "Implement a TypeScript generic repository pattern for NestJS with CRUD operations, pagination with {pagination}, and filtering support using TypeORM.",
+      "params": {
+        "pagination": ["cursor-based", "offset-based", "keyset pagination"]
+      },
+      "constraints": [
+        "Use TypeScript generics",
+        "Support pagination with cursor",
+        "Include filtering by fields",
+        "Add proper error handling"
+      ],
+      "expected_keywords": ["Repository", "Generic", "T", "extends", "find", "paginate", "filter"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "nestjs_service_002",
+      "task": "Create a caching service layer",
+      "template": "Create a NestJS service for {domain} with {caching_strategy} and cache invalidation patterns.",
+      "params": {
+        "domain": ["user management", "data processing", "API integration", "file storage"],
+        "caching_strategy": ["Redis cache", "memory cache", "multi-level cache"]
+      },
+      "constraints": [
+        "Cache-aside pattern",
+        "Handle cache stampede",
+        "Include cache warming",
+        "TypeScript types for cached data"
+      ],
+      "expected_keywords": ["@Injectable", "Cache", "Redis", "TTL", "invalidation", "stampede"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "nestjs_service_003",
+      "task": "Create an event-driven service with message queue",
+      "template": "Implement a NestJS service with event-driven architecture using {broker} for async processing.",
+      "params": {
+        "broker": ["BullMQ", "RabbitMQ", "Kafka"]
+      },
+      "constraints": [
+        "Publish/subscribe pattern",
+        "Dead letter queue handling",
+        "Retry with exponential backoff"
+      ],
+      "expected_keywords": ["@Injectable", "queue", "event", "processor", "handler", "publish"],
+      "difficulty": "hard"
+    }
+  ]
+}

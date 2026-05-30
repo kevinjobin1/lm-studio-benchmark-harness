@@ -1,0 +1,21 @@
+{
+  "id": "debug_stale_closure",
+  "prompts": [
+    {
+      "id": "debug_stale_001",
+      "task": "Fix stale closure in setInterval",
+      "code": "function Counter() {\n  const [count, setCount] = useState(0);\n  \n  useEffect(() => {\n    const interval = setInterval(() => {\n      console.log(count);\n    }, 1000);\n    return () => clearInterval(interval);\n  }, []);\n  \n  return <button onClick={() => setCount(c => c + 1)}>Increment</button>;\n}",
+      "issue": "Stale closure - count always logs 0 because the interval callback captures the initial count value from the first render",
+      "expected_fix": ["useRef", "functional", "update", "stale", "closure", "dependency", "useEffect"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "debug_stale_002",
+      "task": "Fix event handler with stale state",
+      "code": "function Form() {\n  const [value, setValue] = useState('');\n  \n  const handleSubmit = () => {\n    console.log(value);\n  };\n  \n  useEffect(() => {\n    window.addEventListener('submit', handleSubmit);\n    return () => window.removeEventListener('submit', handleSubmit);\n  }, []);\n  \n  return <input onChange={e => setValue(e.target.value)} />;\n}",
+      "issue": "Event listener captures stale handleSubmit which captures stale value - need useRef or functional pattern",
+      "expected_fix": ["useRef", "useCallback", "functional", "stale", "closure", "event", "listener"],
+      "difficulty": "hard"
+    }
+  ]
+}

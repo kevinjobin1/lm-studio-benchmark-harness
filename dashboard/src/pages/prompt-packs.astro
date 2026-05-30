@@ -1,0 +1,126 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import PackCard from '../components/PackCard';
+
+// ── Pack data (sourced from prompt_packs/*/) ───────────────────
+interface PackCategory {
+  id: string;
+  label: string;
+  difficulty: string[];
+  count: number;
+}
+interface PackSkill {
+  name: string;
+  version?: string;
+  description: string;
+}
+interface PackData {
+  name: string;
+  version: string;
+  description: string;
+  tags: string[];
+  categories: PackCategory[];
+  skills: PackSkill[];
+  total_prompts: number;
+  author?: string;
+  license?: string;
+}
+
+const packs: PackData[] = [
+  {
+    name: 'nestjs-agentic-pack',
+    version: '1.0.0',
+    description: 'Agentic tool-use benchmark for NestJS backend development: Prisma, JWT guards, cache interceptors, pipes, Kafka',
+    tags: ['backend', 'nestjs', 'agentic', 'tool-use', 'typescript'],
+    categories: [
+      { id: 'nestjs_prisma', label: 'Prisma ORM Tool Use', difficulty: ['medium', 'hard'], count: 3 },
+      { id: 'nestjs_auth', label: 'JWT Guard & Auth', difficulty: ['medium', 'hard'], count: 3 },
+      { id: 'nestjs_cache', label: 'Cache Interceptor Strategy', difficulty: ['medium'], count: 2 },
+      { id: 'nestjs_pipes', label: 'Validation Pipes & Transformation', difficulty: ['easy', 'medium'], count: 2 },
+      { id: 'nestjs_kafka', label: 'Kafka Client & Event Patterns', difficulty: ['hard'], count: 2 },
+    ],
+    skills: [
+      { name: 'nestjs_prisma_service', version: '1.0.0', description: 'Prisma ORM database operations: findUnique, create, update, delete, transactions' },
+      { name: 'nestjs_jwt_guard', version: '1.0.0', description: 'JWT authentication guard: validate tokens, extract user, role-based access' },
+      { name: 'nestjs_cache_interceptor', version: '1.0.0', description: 'Cache interceptor: set cache TTL, invalidate cache, cache-key strategies' },
+      { name: 'nestjs_validation_pipe', version: '1.0.0', description: 'Validation pipe: validate DTOs, transform types, sanitize input' },
+      { name: 'nestjs_kafka_client', version: '1.0.0', description: 'Kafka client: emit events, subscribe to topics, handle offsets, dead-letter queues' },
+    ],
+    total_prompts: 12,
+    author: 'lmbench',
+    license: 'MIT',
+  },
+  {
+    name: 'react-pack',
+    version: '1.0.0',
+    description: 'React/Next.js frontend evaluation pack with hooks, components, animations, and state management',
+    tags: ['frontend', 'react', 'nextjs', 'typescript'],
+    categories: [
+      { id: 'react_hooks', label: 'Custom Hooks & Patterns', difficulty: ['easy', 'medium', 'hard'], count: 3 },
+      { id: 'react_components', label: 'Component Architecture', difficulty: ['medium', 'hard'], count: 2 },
+      { id: 'react_animations', label: 'Animations & Motion', difficulty: ['easy', 'medium', 'hard'], count: 2 },
+      { id: 'react_state', label: 'State Management', difficulty: ['medium', 'hard'], count: 3 },
+    ],
+    skills: [],
+    total_prompts: 10,
+    author: 'lmbench',
+    license: 'MIT',
+  },
+  {
+    name: 'debugging-pack',
+    version: '1.0.0',
+    description: 'Real-world debugging scenarios for TypeScript/NestJS/React — race conditions, DI bugs, stale closures, and more',
+    tags: ['debugging', 'typescript', 'nestjs', 'react', 'race-condition'],
+    categories: [
+      { id: 'debug_race_condition', label: 'Race Conditions & Concurrency', difficulty: ['hard'], count: 2 },
+      { id: 'debug_stale_closure', label: 'Stale Closures & React Lifecycle', difficulty: ['medium', 'hard'], count: 2 },
+      { id: 'debug_di_bugs', label: 'Dependency Injection & Module Issues', difficulty: ['medium', 'hard'], count: 2 },
+      { id: 'debug_type_errors', label: 'TypeScript Type Errors & Generics', difficulty: ['easy', 'medium'], count: 2 },
+      { id: 'debug_prisma', label: 'Prisma Relation & Query Issues', difficulty: ['medium', 'hard'], count: 2 },
+    ],
+    skills: [],
+    total_prompts: 10,
+    author: 'lmbench',
+    license: 'MIT',
+  },
+  {
+    name: 'nestjs-pack',
+    version: '1.0.0',
+    description: 'Core NestJS evaluation pack: dependency injection, service layer, WebSocket gateways, and authentication patterns',
+    tags: ['backend', 'nestjs', 'typescript'],
+    categories: [
+      { id: 'nestjs_di', label: 'Dependency Injection', difficulty: ['medium', 'hard'], count: 2 },
+      { id: 'nestjs_service', label: 'Service Layer', difficulty: ['medium'], count: 2 },
+      { id: 'nestjs_gateway', label: 'WebSocket Gateways', difficulty: ['medium', 'hard'], count: 2 },
+      { id: 'nestjs_auth', label: 'Authentication', difficulty: ['medium', 'hard'], count: 2 },
+    ],
+    skills: [],
+    total_prompts: 8,
+    author: 'lmbench',
+    license: 'MIT',
+  },
+];
+---
+
+<BaseLayout
+  title="Prompt Packs"
+  description="Registry of benchmark evaluation packs — browse, filter, and explore prompt templates and skill configurations."
+  activeNav="packs"
+>
+  <!-- ═══ Dashboard Header ═══════════════════════════════════════ -->
+  <div class="dashboard-header animate-entrance">
+    <div>
+      <h2 class="dashboard-title">Prompt Packs Registry</h2>
+      <p class="dashboard-subtitle">{packs.length} packs · {packs.reduce((s, p) => s + p.total_prompts, 0)} total prompts across all categories.</p>
+    </div>
+    <div class="dashboard-actions">
+      <button class="btn-outline">
+        <span class="material-symbols-outlined" style="font-size:18px">add</span>
+        <span>New Pack</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ═══ Pack Cards with Filter Sidebar ════════════════════════ -->
+  <PackCard client:load packs={packs} />
+</BaseLayout>

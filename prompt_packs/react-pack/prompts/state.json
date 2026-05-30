@@ -1,0 +1,54 @@
+{
+  "id": "react_state",
+  "prompts": [
+    {
+      "id": "react_state_001",
+      "task": "Implement a state management solution",
+      "template": "Implement a {pattern} state management solution for a {use_case} with TypeScript, middleware, and devtools integration.",
+      "params": {
+        "pattern": ["Context + useReducer", "Zustand-like store", "Jotai-like atoms"],
+        "use_case": ["shopping cart", "multi-step form", "auth session"]
+      },
+      "constraints": [
+        "Immutable state updates",
+        "Selector-based subscriptions",
+        "Middleware support",
+        "Devtools integration"
+      ],
+      "expected_keywords": ["createContext", "useReducer", "dispatch", "selector", "subscribe", "immutable"],
+      "difficulty": "hard"
+    },
+    {
+      "id": "react_state_002",
+      "task": "Fix React stale closure bugs",
+      "template": "Debug and fix stale closure bugs in this React component that uses {api_pattern}. Explain the cause and provide the corrected code.",
+      "params": {
+        "api_pattern": ["setInterval", "event listeners", "async callbacks"]
+      },
+      "constraints": [
+        "Explain the stale closure problem",
+        "Use useRef or functional updates",
+        "Include useEffect cleanup",
+        "Show before/after code"
+      ],
+      "expected_keywords": ["useRef", "useEffect", "stale", "closure", "functional", "update", "cleanup"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "react_state_003",
+      "task": "Create a form state manager",
+      "template": "Implement a React form state manager with {features}, validation, dirty tracking, and TypeScript generics.",
+      "params": {
+        "features": ["touched/dirty tracking", "async validation", "field arrays"]
+      },
+      "constraints": [
+        "TypeScript generics for form values",
+        "Validation schema support",
+        "Touched/dirty/error per field",
+        "Performance optimized (avoid unnecessary rerenders)"
+      ],
+      "expected_keywords": ["useState", "useReducer", "useMemo", "validation", "error", "form", "field"],
+      "difficulty": "hard"
+    }
+  ]
+}

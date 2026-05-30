@@ -1,0 +1,63 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import PlaygroundApp from '../components/PlaygroundApp.tsx';
+---
+
+<BaseLayout title="MCP Playground - LM Bench">
+  <div class="page-header">
+    <h1>🧪 MCP Skill Playground</h1>
+    <p class="subtitle">Interactively test agentic skills against live LM Studio models</p>
+  </div>
+
+  <div class="playground-container">
+    <section class="playground-section">
+      <h2>Select Skills</h2>
+      <p class="help-text">Choose which skills to make available to the model. The model must use ONLY these skills.</p>
+      <PlaygroundApp client:load />
+    </section>
+  </div>
+</BaseLayout>
+
+<style>
+  .page-header {
+    margin-bottom: 2rem;
+  }
+
+  .page-header h1 {
+    font-size: 2.25rem;
+    font-weight: 700;
+    color: var(--color-text);
+    margin-bottom: 0.5rem;
+  }
+
+  .subtitle {
+    font-size: 1.1rem;
+    color: var(--color-dim);
+  }
+
+  .playground-container {
+    max-width: 1200px;
+  }
+
+  .playground-section {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+  }
+
+  .playground-section h2 {
+    font-size: 1.4rem;
+    font-weight: 600;
+    color: var(--color-text);
+    margin-bottom: 0.75rem;
+  }
+
+  .help-text {
+    font-size: 0.95rem;
+    color: var(--color-dim);
+    margin-bottom: 1.5rem;
+    line-height: 1.6;
+  }
+</style>

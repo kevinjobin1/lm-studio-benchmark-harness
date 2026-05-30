@@ -1,0 +1,38 @@
+{
+  "id": "react_components",
+  "prompts": [
+    {
+      "id": "react_components_001",
+      "task": "Implement a compound component pattern",
+      "template": "Implement a React {pattern} for a {component_type} with TypeScript generics and proper accessibility.",
+      "params": {
+        "pattern": ["compound component", "render prop", "higher-order component"],
+        "component_type": ["Select/Dropdown", "Tabs", "Accordion", "Modal"]
+      },
+      "constraints": [
+        "Compound component context sharing",
+        "Full TypeScript generics",
+        "ARIA attributes",
+        "Keyboard navigation"
+      ],
+      "expected_keywords": ["createContext", "useContext", "children", "props", "accessibility", "keyboard"],
+      "difficulty": "hard"
+    },
+    {
+      "id": "react_components_002",
+      "task": "Build a virtualized list component",
+      "template": "Implement a virtualized list component for {use_case} with dynamic row heights and smooth scrolling.",
+      "params": {
+        "use_case": ["large datasets", "log viewer", "chat messages"]
+      },
+      "constraints": [
+        "Only render visible items",
+        "Handle dynamic heights",
+        "Smooth scroll with overscan",
+        "TypeScript generics for item types"
+      ],
+      "expected_keywords": ["useRef", "useState", "scroll", "virtual", "render", "height", "overscan"],
+      "difficulty": "hard"
+    }
+  ]
+}

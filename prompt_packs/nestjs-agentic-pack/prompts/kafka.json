@@ -1,0 +1,50 @@
+{
+  "id": "nestjs_kafka",
+  "prompts": [
+    {
+      "id": "nestjs_agentic_kafka_001",
+      "task": "Implement Kafka event emitter with retry + DLQ",
+      "difficulty": "hard",
+      "template": "Build a NestJS Kafka client module that:\n- Emits events to topics with schema validation\n- Retries failed publishes with exponential backoff\n- Routes failures to a Dead Letter Queue (DLQ) topic\n- Handles Kafka connection errors gracefully\n\nAvailable skills: {skills}",
+      "params": {
+        "skills": [["read_file", "write_file", "diff"]]
+      },
+      "constraints": [
+        "Use @nestjs/microservices Kafka client",
+        "Validate event payloads against JSON schema before emit",
+        "Exponential backoff: 1s, 2s, 4s, 8s, then DLQ",
+        "Log all events (emitted, retried, DLQ'd) to audit"
+      ],
+      "expected_keywords": ["ClientKafka", "emit", "retry", "DLQ", "backoff"],
+      "expected_actions": [
+        {"skill": "read_file", "input": {"path": "src/kafka/kafka.service.ts"}},
+        {"skill": "read_file", "input": {"path": "src/kafka/kafka.module.ts"}},
+        {"skill": "write_file", "input": {"path": "src/kafka/kafka.service.ts"}},
+        {"skill": "diff", "input": {"a": "...", "b": "..."}}
+      ]
+    },
+    {
+      "id": "nestjs_agentic_kafka_002",
+      "task": "Build event-driven saga pattern with Kafka",
+      "difficulty": "hard",
+      "template": "Implement a saga orchestrator using Kafka for order processing:\n- OrderCreated → PaymentService charges → emits PaymentProcessed\n- PaymentProcessed → InventoryService reserves → emits InventoryReserved\n- InventoryReserved → ShippingService schedules → emits OrderShipped\n- On failure at any step: emit compensating events (refund, release inventory)\n\nAvailable skills: {skills}",
+      "params": {
+        "skills": [["read_file", "write_file", "diff"]]
+      },
+      "constraints": [
+        "Each service is a separate Kafka consumer",
+        "Use correlationId to track saga instances",
+        "Compensating transactions on failure",
+        "Timeout after 30s → trigger compensation",
+        "Idempotent consumers (deduplicate by eventId)"
+      ],
+      "expected_keywords": ["saga", "correlationId", "compensating", "consumer", "idempotent"],
+      "expected_actions": [
+        {"skill": "read_file", "input": {"path": "src/saga/saga.orchestrator.ts"}},
+        {"skill": "write_file", "input": {"path": "src/saga/saga.orchestrator.ts"}},
+        {"skill": "write_file", "input": {"path": "src/saga/payment.consumer.ts"}},
+        {"skill": "diff", "input": {"a": "...", "b": "..."}}
+      ]
+    }
+  ]
+}

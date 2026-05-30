@@ -120,7 +120,7 @@ def create_benchmark_suite(client, config: dict) -> BenchmarkSuite:
 @click.option('--samples', type=int, help='Number of samples per benchmark')
 @click.option('--quick', is_flag=True, help='Quick mode with fewer samples')
 @click.option('--output-dir', default='results', help='Output directory for results')
-@click.option('--framework', type=click.Choice(['custom', 'lm-eval', 'openbench', 'compare']), default='custom', help='Evaluation framework to use')
+@click.option('--framework', type=click.Choice(['custom', 'lm-eval', 'openbench', 'compare', 'agentic']), default='custom', help='Evaluation framework to use')
 @click.option('--install-openbench', is_flag=True, help='Install OpenBench if not present')
 def main(api_base, api_key, model_name, config, benchmarks, samples, quick, output_dir, framework, install_openbench):
     """Run LM Studio benchmark suite."""
@@ -164,6 +164,8 @@ def main(api_base, api_key, model_name, config, benchmarks, samples, quick, outp
         run_openbench_framework(console, base_url, model_name_val, benchmarks, sample_count, output_dir, install_openbench)
     elif framework == "compare":
         run_comparison_mode(console, base_url, api_key_val, model_name_val, cfg, benchmarks, sample_count, output_dir, install_openbench)
+    elif framework == "agentic":
+        run_agentic_framework(console, model_name_val, sample_count, output_dir)
 
 
 def run_custom_framework(console, base_url, api_key, model_name, cfg, benchmarks, sample_count, output_dir):
@@ -497,6 +499,86 @@ def run_comparison_mode(console, base_url, api_key, model_name, cfg, benchmarks,
     console.print(f"\n[green]✓ Comparison results saved to: {output_file}[/green]")
     console.print(f"[green]✓ Comparison report saved to: {comparison_report}[/green]")
     console.print(f"\n[bold green]✓ Comparison complete![/bold green]\n")
+
+
+def run_agentic_framework(console, model_name, sample_count, output_dir):
+    """Run agentic/tool-use benchmark framework."""
+    console.print("\n[bold blue]🧠 Agentic Skills Benchmark Mode[/bold blue]\n")
+    console.print("[dim]Evaluating tool selection, planning, and constraint adherence...[/dim]\n")
+
+    try:
+        from skills.agentic_benchmark import run_agentic_benchmark_sync
+
+        console.print(f"[bold]Model:[/bold] {model_name}")
+        console.print(f"[bold]Prompts:[/bold] {sample_count or 5}")
+        console.print(f"[bold]Runs per prompt:[/bold] 3\n")
+
+        summary = run_agentic_benchmark_sync(
+            model_name=model_name,
+            num_prompts=sample_count or 5,
+            runs_per_prompt=3,
+            verbose=True,
+        )
+
+        console.print("\n[bold blue]📊 Agentic Benchmark Results[/bold blue]\n")
+
+        table = Table(title=f"Agentic Score: {model_name}")
+        table.add_column("Metric", style="cyan")
+        table.add_column("Score", style="green")
+        table.add_column("Details", style="dim")
+
+        table.add_row(
+            "Overall Agentic Score",
+            f"{summary.overall_agentic_score:.1%}",
+            f"{summary.total_prompts} prompts × {summary.total_runs // max(summary.total_prompts, 1)} runs",
+        )
+        table.add_row("Validity", f"{summary.mean_validity:.1%}", "JSON + schema + skill existence")
+        table.add_row("Planning", f"{summary.mean_planning:.1%}", "Correct sequence, minimal steps")
+        table.add_row("Skill Correctness", f"{summary.mean_skill_correctness:.1%}", "Correct tool + correct params")
+        table.add_row("Constraint Adherence", f"{summary.mean_constraint_adherence:.1%}", "No hallucinations")
+        table.add_row("Hallucination Rate", f"{summary.hallucination_rate:.1%}", "Invalid tool usage")
+
+        console.print(table)
+
+        if summary.lockfile_errors:
+            console.print("\n[yellow]⚠️  Lockfile errors detected:[/yellow]")
+            for err in summary.lockfile_errors:
+                console.print(f"  [dim]{err}[/dim]")
+
+        # Save results
+        from results_schema import ResultsCollector, MetricScores, PerformanceMetrics, RunStats, AgenticScoreData
+        collector = ResultsCollector(output_dir)
+
+        agentic_data = AgenticScoreData(
+            overall_agentic_score=summary.overall_agentic_score,
+            validity_score=summary.mean_validity,
+            planning_score=summary.mean_planning,
+            skill_correctness_score=summary.mean_skill_correctness,
+            constraint_adherence_score=summary.mean_constraint_adherence,
+            hallucination_rate=summary.hallucination_rate,
+        )
+
+        result = collector.create_result(
+            model=model_name,
+            metrics=MetricScores(overall_score=summary.overall_agentic_score),
+            performance=PerformanceMetrics(),
+            stats=RunStats(mean=summary.overall_agentic_score, runs=summary.total_runs),
+            prompt_version="agentic-v1",
+        )
+        result.agentic_score = agentic_data
+        result.agentic_mode = True
+
+        collector.add_result(result)
+        paths = collector.save_all()
+
+        console.print(f"\n[green]✓ Agentic benchmark results saved to: {paths.get('aggregated', output_dir)}[/green]")
+        console.print(f"\n[bold green]✓ Agentic benchmark complete![/bold green]\n")
+
+    except ImportError as e:
+        console.print(f"[red]Error: Agentic skills system not available: {e}[/red]")
+        console.print("[yellow]Make sure skills/ package is properly installed.[/yellow]")
+    except Exception as e:
+        console.print(f"[red]Error running agentic benchmark: {e}[/red]")
 
 
 if __name__ == "__main__":

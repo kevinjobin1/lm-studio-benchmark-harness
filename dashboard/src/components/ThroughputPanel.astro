@@ -1,0 +1,31 @@
+---
+import SpeedChart from './SpeedChart';
+import type { ModelSummary } from '../lib/loadResults';
+
+interface Props {
+  models: ModelSummary[];
+}
+
+const { models } = Astro.props;
+---
+
+<div class="card chart-card chart-card-throughput">
+  <div class="chart-header">
+    <div>
+      <h3>Throughput Over Time</h3>
+      <p>Tokens per second (tok/s) across context window expansion</p>
+    </div>
+    <div class="ctx-badge">
+      <span class="ctx-label">32k ctx</span>
+      <div class="ctx-bar">
+        <div class="ctx-fill"></div>
+      </div>
+    </div>
+  </div>
+  <div class="chart-body">
+    <SpeedChart client:load models={models} />
+  </div>
+  <div class="ctx-ticks">
+    <span>1K</span><span>4K</span><span>8K</span><span>16K</span><span>32K</span><span>64K</span><span>128K</span>
+  </div>
+</div>

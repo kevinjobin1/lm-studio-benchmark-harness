@@ -1,0 +1,47 @@
+{
+  "id": "nestjs_cache",
+  "prompts": [
+    {
+      "id": "nestjs_agentic_cache_001",
+      "task": "Implement cache interceptor with TTL by route",
+      "difficulty": "medium",
+      "template": "Implement a custom cache interceptor for NestJS that:\n- Caches GET responses with configurable TTL per route\n- Uses @CacheTTL(seconds) decorator for per-route TTL\n- Invalidates cache on POST/PUT/DELETE to same route\n- Uses Redis or in-memory store\n\nAvailable skills: {skills}",
+      "params": {
+        "skills": [["read_file", "write_file", "diff"]]
+      },
+      "constraints": [
+        "Must implement NestInterceptor",
+        "Cache key = method + URL + user ID (if authenticated)",
+        "Skip cache when ?nocache=1 query param present",
+        "Log cache hits/misses"
+      ],
+      "expected_keywords": ["NestInterceptor", "CacheTTL", "intercept", "cache-key", "TTL"],
+      "expected_actions": [
+        {"skill": "read_file", "input": {"path": "src/common/cache.interceptor.ts"}},
+        {"skill": "write_file", "input": {"path": "src/common/cache.interceptor.ts"}},
+        {"skill": "diff", "input": {"a": "...", "b": "..."}}
+      ]
+    },
+    {
+      "id": "nestjs_agentic_cache_002",
+      "task": "Fix cache stampede with request deduplication",
+      "difficulty": "hard",
+      "template": "This cache has a stampede problem. Fix it by deduplicating concurrent requests:\n\n```typescript\n@Injectable()\nexport class CacheService {\n  async get(key: string, fetcher: () => Promise<any>): Promise<any> {\n    const cached = await this.store.get(key);\n    if (cached) return cached;\n    const value = await fetcher();\n    await this.store.set(key, value);\n    return value;\n  }\n}\n```\n\nAvailable skills: {skills}",
+      "params": {
+        "skills": [["read_file", "write_file", "diff"]]
+      },
+      "constraints": [
+        "Use Promise deduplication (pending promises map)",
+        "Multiple concurrent requests for same key = 1 fetch",
+        "Clean up pending promises on completion/error",
+        "Thread-safe (no race conditions)"
+      ],
+      "expected_keywords": ["Promise", "pending", "deduplication", "Map", "concurrent"],
+      "expected_actions": [
+        {"skill": "read_file", "input": {"path": "src/common/cache.service.ts"}},
+        {"skill": "write_file", "input": {"path": "src/common/cache.service.ts"}},
+        {"skill": "diff", "input": {"a": "...", "b": "..."}}
+      ]
+    }
+  ]
+}

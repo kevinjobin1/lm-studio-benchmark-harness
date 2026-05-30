@@ -1,0 +1,69 @@
+name: Run Benchmarks
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 8 * * 1'  # Every Monday at 8 AM UTC
+  push:
+    paths:
+      - 'benchmark/**'
+      - 'benchmarks/**'
+      - 'scoring.py'
+      - 'evaluators.py'
+      - 'prompt_generator.py'
+      - 'bench_apple_silicon_v2.py'
+      - 'benchmark.py'
+      - 'config.json'
+      - 'config.yaml'
+      - 'requirements.txt'
+
+jobs:
+  benchmark:
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Cache pip packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install scipy
+
+      - name: Run DevBench v2 (Apple Silicon)
+        run: |
+          python bench_apple_silicon_v2.py \
+            --api-base http://localhost:1234/v1 \
+            --num-runs 5 \
+            --num-prompts 20 \
+            --output-dir results/ci-run
+
+      - name: Generate X thread
+        run: python x_thread_generator.py
+
+      - name: Upload benchmark artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results
+          path: |
+            results/
+            devbench_results/
+
+      - name: Save git SHA
+        run: |
+          echo "GIT_SHA=$(git rev-parse HEAD)" >> $GITHUB_ENV
+          echo "GIT_BRANCH=$(git rev-parse --abbrev-ref HEAD)" >> $GITHUB_ENV

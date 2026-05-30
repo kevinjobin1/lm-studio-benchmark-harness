@@ -1,0 +1,47 @@
+{
+  "id": "nestjs_pipes",
+  "prompts": [
+    {
+      "id": "nestjs_agentic_pipes_001",
+      "task": "Build Zod validation pipe for NestJS",
+      "difficulty": "medium",
+      "template": "Implement a ZodValidationPipe for NestJS that:\n- Validates request bodies against Zod schemas\n- Transforms validated data (e.g., string to number)\n- Returns structured 400 errors with field-level messages\n- Works with class-validator DTOs as fallback\n\nAvailable skills: {skills}",
+      "params": {
+        "skills": [["read_file", "write_file", "diff"]]
+      },
+      "constraints": [
+        "Must implement PipeTransform",
+        "Extract field-level Zod errors into { field: message } format",
+        "Handle Zod transforms (coerce, default, etc.)",
+        "Fallback to class-validator if no Zod schema provided"
+      ],
+      "expected_keywords": ["PipeTransform", "ZodSchema", "safeParse", "BadRequestException", "transform"],
+      "expected_actions": [
+        {"skill": "read_file", "input": {"path": "src/common/zod-validation.pipe.ts"}},
+        {"skill": "write_file", "input": {"path": "src/common/zod-validation.pipe.ts"}},
+        {"skill": "diff", "input": {"a": "...", "b": "..."}}
+      ]
+    },
+    {
+      "id": "nestjs_agentic_pipes_002",
+      "task": "Create a sanitization pipe for XSS prevention",
+      "difficulty": "easy",
+      "template": "Build a SanitizePipe that:\n- Strips HTML tags from string inputs\n- Trims whitespace\n- Escapes special characters\n- Can be applied at param/body/query level\n\nAvailable skills: {skills}",
+      "params": {
+        "skills": [["read_file", "write_file", "diff"]]
+      },
+      "constraints": [
+        "Use DOMPurify or similar for HTML stripping",
+        "Handle nested objects recursively",
+        "Skip sanitization for non-string fields",
+        "Log sanitization events for audit"
+      ],
+      "expected_keywords": ["PipeTransform", "sanitize", "strip", "recursive", "value"],
+      "expected_actions": [
+        {"skill": "read_file", "input": {"path": "src/common/sanitize.pipe.ts"}},
+        {"skill": "write_file", "input": {"path": "src/common/sanitize.pipe.ts"}},
+        {"skill": "diff", "input": {"a": "...", "b": "..."}}
+      ]
+    }
+  ]
+}

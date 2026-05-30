@@ -1,115 +1,211 @@
-# LM Studio Benchmark Harness
+# 🧪 LM Studio Benchmark Harness
 
-A single-command comprehensive benchmark suite for evaluating LM Studio's OpenAI-compatible API across dimensions that matter on X/Twitter.
+> A local-first benchmark framework for evaluating LLMs running in LM Studio on Apple Silicon.
 
-## Features
+Measure what actually matters:
+- coding ability (TypeScript / NestJS / React)
+- reasoning under constraints
+- instruction following
+- latency + tokens/sec on real hardware
 
-- **Multiple Frameworks**: Custom benchmarks, LM Eval (EleutherAI), OpenBench (Groq)
-- **Comparison Mode**: Side-by-side comparison of all frameworks
-- **General Reasoning**: MMLU-Pro subset
-- **Math**: GSM8K + AIME subset
-- **Coding**: HumanEval
-- **Coding Agent**: SWE-bench Lite subset
-- **Instruction Following**: IFEval
-- **Long Context**: Needle-in-Haystack
-- **Tool Use**: BFCL subset
-- **Speed**: Tokens/sec
-- **Latency**: TTFT (Time to First Token)
-- **Memory**: RAM/VRAM usage
-- **Creativity**: Arena-style subjective prompts
+---
 
-## Installation
+## ⚡ Why this exists
+
+Most LLM benchmarks:
+- don't reflect real developer workflows
+- ignore latency and UX
+- are not reproducible locally
+- are not optimized for Apple Silicon
+
+This project fixes that.
+
+It benchmarks models the way developers actually use them:
+> building APIs, fixing bugs, and writing production TypeScript.
+
+---
+
+## 🧠 Supported Models
+
+Works with any LM Studio OpenAI-compatible model:
+- Qwen / Qwopus coder variants
+- Gemma 4 series
+- BitCPM / MiniCPM
+- LFM MoE models
+- Any GGUF / MLX-compatible model exposed via LM Studio
+
+---
+
+## 📊 What gets measured
+
+Each model is evaluated on:
+
+### 🧑‍💻 Coding ability
+- NestJS backend tasks
+- React / Next.js behavior fixes
+- TypeScript correctness
+- debugging real-world bugs
+
+### 🧠 Reasoning
+- system design tradeoffs
+- API architecture decisions
+- concurrency reasoning
+
+### 📐 Instruction following
+- JSON-only outputs
+- strict formatting constraints
+- schema compliance
+
+### ⚡ Performance (Apple Silicon optimized)
+- tokens/sec
+- TTFT (time-to-first-token)
+- latency distribution
+- run variance
+
+---
+
+## 🚀 Quick Start
+
+### 1. Start LM Studio server
+Enable OpenAI-compatible API at `http://localhost:1234/v1`
+
+### 2. Install dependencies
 
 ```bash
-# Install dependencies
 pip install -r requirements.txt
-
-# Optional: Install OpenBench (for OpenBench framework)
-curl -LsSf https://astral.sh/uv/install.sh | sh
-uv venv
-source .venv/bin/activate
-uv pip install openbench
 ```
 
-## Usage
+### 3. Run benchmark
 
-### Custom Framework (Default)
 ```bash
-# Run all benchmarks
+# General benchmark suite (all 11 benchmarks)
 python benchmark.py --api-base http://localhost:1234/v1 --model-name your-model
 
-# Run specific benchmarks
-python benchmark.py --api-base http://localhost:1234/v1 --model-name your-model --benchmarks mmlu-pro humaneval
+# Apple Silicon DevBench (TypeScript/NestJS/React focused)
+python bench_apple_silicon_v2.py
 
-# Quick mode (fewer samples)
+# Quick mode (fewer samples, faster results)
 python benchmark.py --api-base http://localhost:1234/v1 --model-name your-model --quick
-
-# Custom sample count
-python benchmark.py --api-base http://localhost:1234/v1 --model-name your-model --samples 50
 ```
 
-### LM Eval Framework
-```bash
-# Run industry-standard LM Eval benchmarks
-python benchmark.py --framework lm-eval --api-base http://localhost:1234/v1 --model-name your-model
+---
 
-# Run specific LM Eval tasks
-python benchmark.py --framework lm-eval --api-base http://localhost:1234/v1 --model-name your-model --benchmarks mmlu-pro gsm8k
+## ⚙️ Configuration
+
+```json
+{
+  "models": ["qwen3.5-9b-coder", "gemma-4-e4b", "lfm2.5-8b-a1b"],
+  "temperature": 0.2,
+  "runs_per_prompt": 5,
+  "prompt_sets": ["coding", "reasoning", "instructions"]
+}
 ```
 
-### OpenBench Framework
-```bash
-# Run OpenBench benchmarks (requires OpenBench installation)
-python benchmark.py --framework openbench --api-base http://localhost:1234/v1 --model-name your-model
-
-# Auto-install OpenBench if missing
-python benchmark.py --framework openbench --api-base http://localhost:1234/v1 --model-name your-model --install-openbench
-```
-
-### Comparison Mode
-```bash
-# Run all three frameworks and compare side-by-side
-python benchmark.py --framework compare --api-base http://localhost:1234/v1 --model-name your-model
-
-# Compare specific benchmarks
-python benchmark.py --framework compare --api-base http://localhost:1234/v1 --model-name your-model --benchmarks mmlu-pro humaneval
-```
-
-## Configuration
-
-Edit `config.yaml` to customize:
+Edit `config.json` (DevBench) or `config.yaml` (general suite) to customize:
 - API endpoint
 - Model parameters
-- Benchmark settings
+- Benchmark categories
 - Output formats
 
-## Output
+---
 
-Results are saved to `results/timestamp/`:
-- `summary.json` - Structured results (custom framework)
-- `report.html` - Visual report (custom framework)
-- `metrics.csv` - Raw metrics (custom framework)
-- `lm_eval_results.json` - LM Eval results
-- `openbench_results.json` - OpenBench results
-- `comparison_results.json` - Comparison mode results
-- `comparison_report.html` - Side-by-side comparison report
+## 📈 Output
 
-## Framework Comparison
+### CLI summary
 
-| Feature | Custom | LM Eval | OpenBench |
-|---------|--------|---------|-----------|
-| Standardized datasets | ❌ Sample data | ✅ Full datasets | ✅ Full datasets |
-| Industry recognition | ❌ Custom | ✅ HF Leaderboard | ✅ Growing adoption |
-| Benchmark count | 11 custom | 50+ standard | 95+ standard |
-| Performance metrics | ✅ TTFT, tokens/sec | ❌ | ❌ |
-| Memory monitoring | ✅ RAM/VRAM | ❌ | ❌ |
-| Creativity eval | ✅ Arena-style | ❌ | ❌ |
-| API support | LM Studio | Multiple providers | 30+ providers |
-| Comparison mode | ✅ | ✅ | ✅ |
+```
+Model           Score   Speed      Stability
+--------------------------------------------
+Qwen3.5         0.84    72 tok/s   0.91
+Gemma 4         0.81    65 tok/s   0.94
+LFM2.5 MoE      0.83    58 tok/s   0.97
+```
 
-## Recommendations
+### Generated artifacts
+- `results.json` — machine-readable results
+- `run_manifest.json` — reproducibility manifest
+- `report.md` — markdown report
+- `charts/` — radar charts, comparison visualizations
 
-- **Use LM Eval** for standardized, comparable results against the HF Open LLM Leaderboard
-- **Use OpenBench** for maximum benchmark coverage and provider flexibility
-- **Use Custom** for performance metrics (speed, latency, memory) and creativity evaluation
-- **Use Comparison Mode** to validate results across frameworks
+---
+
+## 🔬 Example benchmark tasks
+
+### NestJS backend
+> Implement JWT auth guard with refresh token rotation.
+
+### React
+> Fix stale closure bug in useEffect.
+
+### Debugging
+> Identify race condition in async cache layer.
+
+---
+
+## 🧪 Evaluation method
+
+We use a hybrid scoring system:
+- **deterministic validation** (JSON, schema, tests)
+- **code correctness checks** (ts-node execution, tsc type checking)
+- **multi-run statistical averaging** (mean ± std, 95% confidence intervals)
+- **failure taxonomy** (hallucinated APIs, async errors, type errors, stale closures)
+
+---
+
+## 🧠 Philosophy
+
+This benchmark is designed around one principle:
+
+> "How useful is this model to a real developer on a MacBook?"
+
+Not:
+- academic benchmarks
+- synthetic reasoning puzzles
+- memorization-based tests
+
+---
+
+## 🎨 Design System
+
+All dashboard UI follows the **Kinetic Logic** design system — a precision developer-grade visual language optimized for high-density data, tonal layering, and monospace data cells. See **[docs/DESIGN.md](docs/DESIGN.md)** for the complete specification (color palette, typography, spacing, elevation, component patterns).
+
+---
+
+## 🧩 Roadmap
+
+- [ ] Prompt pack system (community-extensible benchmarks)
+- [ ] MLX backend support
+- [ ] Ollama integration
+- [ ] Web dashboard (model comparison, radar charts, failure heatmaps)
+- [ ] Community leaderboard
+- [ ] CI regression tracking (GitHub Actions)
+
+---
+
+## 🤝 Contributing
+
+We welcome:
+- new prompt packs (React, backend, DevOps)
+- evaluation improvements
+- model adapters (Ollama / MLX / vLLM)
+
+---
+
+## ⭐ Why it matters
+
+If you're running local LLMs on Apple Silicon, this gives you:
+- real performance comparisons
+- real coding ability ranking
+- real UX latency data
+
+Not abstract benchmark scores.
+
+---
+
+## 📜 License
+
+MIT
+
+---
+
+**Built for developers who care about practical model performance, not just academic scores.**

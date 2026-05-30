@@ -1,0 +1,70 @@
+{
+  "name": "nestjs-agentic-pack",
+  "version": "1.0.0",
+  "description": "Agentic tool-use benchmark for NestJS backend development: Prisma, JWT guards, cache interceptors, pipes, Kafka",
+  "tags": ["backend", "nestjs", "agentic", "tool-use", "typescript"],
+  "generator": "v1",
+  "author": "lmbench",
+  "license": "MIT",
+  "categories": [
+    {
+      "id": "nestjs_prisma",
+      "label": "Prisma ORM Tool Use",
+      "difficulty": ["medium", "hard"],
+      "count": 3
+    },
+    {
+      "id": "nestjs_auth",
+      "label": "JWT Guard & Auth",
+      "difficulty": ["medium", "hard"],
+      "count": 3
+    },
+    {
+      "id": "nestjs_cache",
+      "label": "Cache Interceptor Strategy",
+      "difficulty": ["medium"],
+      "count": 2
+    },
+    {
+      "id": "nestjs_pipes",
+      "label": "Validation Pipes & Transformation",
+      "difficulty": ["easy", "medium"],
+      "count": 2
+    },
+    {
+      "id": "nestjs_kafka",
+      "label": "Kafka Client & Event Patterns",
+      "difficulty": ["hard"],
+      "count": 2
+    }
+  ],
+  "skills": [
+    {
+      "name": "nestjs_prisma_service",
+      "version": "1.0.0",
+      "description": "Prisma ORM database operations: findUnique, create, update, delete, transactions"
+    },
+    {
+      "name": "nestjs_jwt_guard",
+      "version": "1.0.0",
+      "description": "JWT authentication guard: validate tokens, extract user, role-based access"
+    },
+    {
+      "name": "nestjs_cache_interceptor",
+      "version": "1.0.0",
+      "description": "Cache interceptor: set cache TTL, invalidate cache, cache-key strategies"
+    },
+    {
+      "name": "nestjs_validation_pipe",
+      "version": "1.0.0",
+      "description": "Validation pipe: validate DTOs, transform types, sanitize input"
+    },
+    {
+      "name": "nestjs_kafka_client",
+      "version": "1.0.0",
+      "description": "Kafka client: emit events, subscribe to topics, handle offsets, dead-letter queues"
+    }
+  ],
+  "total_prompts": 12,
+  "min_benchmark_version": "2.0.0"
+}

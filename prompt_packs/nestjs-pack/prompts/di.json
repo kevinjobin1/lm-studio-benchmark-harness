@@ -1,0 +1,36 @@
+{
+  "id": "nestjs_di",
+  "prompts": [
+    {
+      "id": "nestjs_di_001",
+      "task": "Resolve circular dependency between services",
+      "template": "Implement two NestJS services that depend on each other ({scenario}). Show how to resolve the circular dependency using forwardRef().",
+      "params": {
+        "scenario": ["UserService ↔ PostService", "OrderService ↔ PaymentService", "AuthService ↔ ProfileService"]
+      },
+      "constraints": [
+        "Use forwardRef()",
+        "Demonstrate circular dependency resolution",
+        "Include proper module configuration"
+      ],
+      "expected_keywords": ["forwardRef", "@Inject", "circular", "dependency", "module", "@Injectable"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "nestjs_di_002",
+      "task": "Implement dynamic module registration",
+      "template": "Create a NestJS dynamic module for {use_case} with forRoot() and forRootAsync() patterns.",
+      "params": {
+        "use_case": ["Redis client", "database connection", "external API client"]
+      },
+      "constraints": [
+        "forRoot() for sync config",
+        "forRootAsync() for async config",
+        "Use useFactory, useClass, useExisting patterns",
+        "Export the dynamic module"
+      ],
+      "expected_keywords": ["DynamicModule", "forRoot", "forRootAsync", "useFactory", "module", "export"],
+      "difficulty": "hard"
+    }
+  ]
+}

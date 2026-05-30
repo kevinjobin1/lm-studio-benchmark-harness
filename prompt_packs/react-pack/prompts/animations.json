@@ -1,0 +1,38 @@
+{
+  "id": "react_animations",
+  "prompts": [
+    {
+      "id": "react_animations_001",
+      "task": "Build scroll-triggered animations",
+      "template": "Build a React component with {animation_type} using {library} for a landing page hero section.",
+      "params": {
+        "animation_type": ["scroll-triggered animations", "parallax scrolling", "staggered reveal"],
+        "library": ["Framer Motion", "React Spring", "GSAP"]
+      },
+      "constraints": [
+        "Use scroll position for animation progress",
+        "Smooth easing curves",
+        "Respect reduced-motion preferences",
+        "Performance-aware (will-change, transform3d)"
+      ],
+      "expected_keywords": ["useScroll", "useTransform", "motion", "animate", "scroll", "parallax"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "react_animations_002",
+      "task": "Build page transition animations",
+      "template": "Implement {animation_type} for React Router / Next.js page transitions with exit animations.",
+      "params": {
+        "animation_type": ["page transitions", "route animations", "layout animations"]
+      },
+      "constraints": [
+        "AnimatePresence for exit animations",
+        "Shared layout animations",
+        "Smooth enter/exit transitions",
+        "TypeScript prop types"
+      ],
+      "expected_keywords": ["AnimatePresence", "motion", "exit", "layout", "transition", "animate"],
+      "difficulty": "medium"
+    }
+  ]
+}

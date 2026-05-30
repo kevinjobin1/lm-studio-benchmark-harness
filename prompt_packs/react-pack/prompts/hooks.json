@@ -1,0 +1,54 @@
+{
+  "id": "react_hooks",
+  "prompts": [
+    {
+      "id": "react_hooks_001",
+      "task": "Create a data fetching hook with caching",
+      "template": "Create a React hook for {purpose} with {state_management}, caching, retry logic, and proper TypeScript types.",
+      "params": {
+        "purpose": ["data fetching", "API polling", "infinite scroll"],
+        "state_management": ["useState + useCallback", "useReducer", "custom state machine"]
+      },
+      "constraints": [
+        "Include loading/error/success states",
+        "Implement retry with exponential backoff",
+        "Cache response data with TTL",
+        "Cancel stale requests"
+      ],
+      "expected_keywords": ["useState", "useEffect", "useCallback", "loading", "error", "cache", "retry"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "react_hooks_002",
+      "task": "Create a debounced input hook",
+      "template": "Implement a React hook for {purpose} with debouncing, validation, and TypeScript generics.",
+      "params": {
+        "purpose": ["form input", "search bar", "auto-save"]
+      },
+      "constraints": [
+        "Custom debounce logic (no library)",
+        "Cancel previous debounce on new input",
+        "Return typed value",
+        "Handle component unmount"
+      ],
+      "expected_keywords": ["useState", "useEffect", "useRef", "debounce", "timeout", "cleanup"],
+      "difficulty": "easy"
+    },
+    {
+      "id": "react_hooks_003",
+      "task": "Create a browser API hook",
+      "template": "Implement a React hook that wraps the {browser_api} API with TypeScript, cleanup, and SSR safety.",
+      "params": {
+        "browser_api": ["IntersectionObserver", "ResizeObserver", "localStorage", "Geolocation"]
+      },
+      "constraints": [
+        "SSR-safe (check for window)",
+        "Cleanup on unmount",
+        "TypeScript generics for observed data",
+        "Error handling for browser support"
+      ],
+      "expected_keywords": ["useRef", "useEffect", "useCallback", "cleanup", "observer", "window"],
+      "difficulty": "medium"
+    }
+  ]
+}

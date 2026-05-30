@@ -1,0 +1,38 @@
+{
+  "id": "nestjs_gateway",
+  "prompts": [
+    {
+      "id": "nestjs_gateway_001",
+      "task": "Build a real-time notification gateway",
+      "template": "Build a NestJS WebSocket gateway for {use_case} with {auth_method} and room-based broadcasting.",
+      "params": {
+        "use_case": ["real-time notifications", "live chat", "collaborative editing", "data streaming"],
+        "auth_method": ["JWT authentication", "session-based", "connection token"]
+      },
+      "constraints": [
+        "Use @nestjs/websockets",
+        "Room-based message routing",
+        "Connection lifecycle hooks",
+        "Reconnection handling"
+      ],
+      "expected_keywords": ["@WebSocketGateway", "Socket", "namespace", "room", "emit", "broadcast"],
+      "difficulty": "hard"
+    },
+    {
+      "id": "nestjs_gateway_002",
+      "task": "Build a real-time dashboard with server-sent events",
+      "template": "Implement a NestJS SSE (Server-Sent Events) endpoint that streams {data_type} updates in real-time.",
+      "params": {
+        "data_type": ["system metrics", "order status", "log stream"]
+      },
+      "constraints": [
+        "Use @Sse() decorator",
+        "Observable-based streaming",
+        "Heartbeat mechanism",
+        "Client disconnect handling"
+      ],
+      "expected_keywords": ["@Sse", "Observable", "stream", "interval", "heartbeat", "disconnect"],
+      "difficulty": "medium"
+    }
+  ]
+}
