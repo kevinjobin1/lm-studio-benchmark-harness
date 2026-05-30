@@ -244,55 +244,106 @@ Provide a complete, working solution.
 
 
 class CodePromptGenerator:
-    """Generate TypeScript/NestJS coding prompts."""
+    """Generate TypeScript/NestJS coding prompts with parameterization."""
     
     NESTJS_PATTERNS = [
-        "AuthGuard with JWT validation",
-        "Custom decorator with metadata reflection",
-        "Interceptor for logging and timing",
-        "Pipe for validation with class-validator",
-        "Guard with role-based access control",
-        "Exception filter with custom error responses",
-        "Module with dynamic configuration",
-        "Service with caching layer",
-        "Controller with pagination",
-        "WebSocket gateway with authentication"
+        {
+            "name": "auth_guard",
+            "template": "Implement a NestJS {feature} with JWT validation and {access_level} access control",
+            "params": ["feature", "access_level"],
+            "feature_options": ["AuthGuard", "custom decorator", "interceptor", "pipe"],
+            "access_level_options": ["role-based", "permission-based", "attribute-based"]
+        },
+        {
+            "name": "service_layer",
+            "template": "Create a NestJS service for {domain} with {caching_strategy}",
+            "params": ["domain", "caching_strategy"],
+            "domain_options": ["user management", "data processing", "API integration", "file storage"],
+            "caching_strategy": ["Redis cache", "memory cache", "no caching", "multi-level cache"]
+        },
+        {
+            "name": "websocket_gateway",
+            "template": "Build a NestJS WebSocket gateway for {use_case} with {auth_method}",
+            "params": ["use_case", "auth_method"],
+            "use_case_options": ["real-time notifications", "live chat", "collaborative editing", "data streaming"],
+            "auth_method_options": ["JWT authentication", "session-based", "no authentication", "custom auth"]
+        }
     ]
     
     REACT_PATTERNS = [
-        "Custom hook for data fetching with caching",
-        "Higher-order component for authentication",
-        "Context provider with TypeScript",
-        "Render prop pattern with generics",
-        "Compound component pattern",
-        "Controlled component with complex state",
-        "Form validation with React Hook Form",
-        "Suspense boundary with error handling",
-        "Virtual scroll with React Window",
-        "Animation with Framer Motion"
+        {
+            "name": "custom_hook",
+            "template": "Create a React hook for {purpose} with {state_management}",
+            "params": ["purpose", "state_management"],
+            "purpose_options": ["data fetching", "form handling", "local storage", "debounced input"],
+            "state_management_options": ["useState", "useReducer", "custom state machine", "external library"]
+        },
+        {
+            "name": "component_pattern",
+            "template": "Implement a React {pattern} with {feature}",
+            "params": ["pattern", "feature"],
+            "pattern_options": ["compound component", "render prop", "higher-order component", "container/presentational"],
+            "feature_options": ["TypeScript generics", "error boundaries", "lazy loading", "memoization"]
+        },
+        {
+            "name": "animation",
+            "template": "Build a React component with {animation_type} using {library}",
+            "params": ["animation_type", "library"],
+            "animation_type_options": ["scroll-triggered animations", "hover effects", "page transitions", "micro-interactions"],
+            "library_options": ["Framer Motion", "React Spring", "GSAP", "CSS transitions"]
+        }
     ]
     
     TYPESCRIPT_PATTERNS = [
-        "Generic utility type",
-        "Conditional type with inference",
-        "Mapped type with readonly",
-        "Template literal type",
-        "Recursive type definition",
-        "Brand type for nominal typing",
-        "Type guard with predicate",
-        "Discriminated union",
-        "Intersection type",
-        "Utility type combination"
+        {
+            "name": "utility_type",
+            "template": "Implement a TypeScript utility type for {purpose} using {technique}",
+            "params": ["purpose", "technique"],
+            "purpose_options": ["deep partial", "readonly recursive", "pick by type", "omit by value"],
+            "technique_options": ["conditional types", "mapped types", "template literals", "recursive types"]
+        },
+        {
+            "name": "type_guard",
+            "template": "Create a TypeScript type guard for {scenario} with {validation_method}",
+            "params": ["scenario", "validation_method"],
+            "scenario_options": ["API response shapes", "union discrimination", "runtime type checking", "null safety"],
+            "validation_method": ["predicate functions", "brand types", "custom validators", "schema-based"]
+        },
+        {
+            "name": "generic_pattern",
+            "template": "Implement a TypeScript {pattern} with {constraint}",
+            "params": ["pattern", "constraint"],
+            "pattern_options": ["generic class", "generic function", "generic interface", "higher-order type"],
+            "constraint_options": ["extends constraint", "conditional constraint", "default type parameter", "multiple constraints"]
+        }
     ]
     
-    def generate_code_prompt(self) -> GeneratedPrompt:
-        """Generate a TypeScript/NestJS/React coding prompt."""
+    def generate_code_prompt(self, 
+                          domain: Optional[str] = None,
+                          difficulty: str = "medium",
+                          language: str = "typescript") -> GeneratedPrompt:
+        """Generate a parameterized TypeScript/NestJS/React coding prompt."""
         pattern_type = random.choice(["nestjs", "react", "typescript"])
         
         if pattern_type == "nestjs":
             pattern = random.choice(self.NESTJS_PATTERNS)
-            prompt = f"""
-Implement a NestJS {pattern}.
+            params = {}
+            for param in pattern["params"]:
+                if param == "feature":
+                    params[param] = domain if domain else random.choice(pattern["feature_options"])
+                elif param == "access_level":
+                    params[param] = random.choice(pattern["access_level_options"])
+                elif param == "domain":
+                    params[param] = domain if domain else random.choice(pattern["domain_options"])
+                elif param == "caching_strategy":
+                    params[param] = random.choice(pattern["caching_strategy"])
+                elif param == "use_case":
+                    params[param] = random.choice(pattern["use_case_options"])
+                elif param == "auth_method":
+                    params[param] = random.choice(pattern["auth_method_options"])
+            
+            prompt = pattern["template"].format(**params)
+            prompt += f"""
 
 Requirements:
 - Use proper TypeScript types
@@ -307,8 +358,23 @@ Provide complete, working code with imports.
         
         elif pattern_type == "react":
             pattern = random.choice(self.REACT_PATTERNS)
-            prompt = f"""
-Create a React {pattern}.
+            params = {}
+            for param in pattern["params"]:
+                if param == "purpose":
+                    params[param] = domain if domain else random.choice(pattern["purpose_options"])
+                elif param == "state_management":
+                    params[param] = random.choice(pattern["state_management_options"])
+                elif param == "pattern":
+                    params[param] = random.choice(pattern["pattern_options"])
+                elif param == "feature":
+                    params[param] = random.choice(pattern["feature_options"])
+                elif param == "animation_type":
+                    params[param] = random.choice(pattern["animation_type_options"])
+                elif param == "library":
+                    params[param] = random.choice(pattern["library_options"])
+            
+            prompt = pattern["template"].format(**params)
+            prompt += f"""
 
 Requirements:
 - Use TypeScript with proper types
@@ -323,8 +389,23 @@ Provide complete, working code with imports.
         
         else:  # typescript
             pattern = random.choice(self.TYPESCRIPT_PATTERNS)
-            prompt = f"""
-Implement a TypeScript {pattern}.
+            params = {}
+            for param in pattern["params"]:
+                if param == "purpose":
+                    params[param] = domain if domain else random.choice(pattern["purpose_options"])
+                elif param == "technique":
+                    params[param] = random.choice(pattern["technique_options"])
+                elif param == "scenario":
+                    params[param] = random.choice(pattern["scenario_options"])
+                elif param == "validation_method":
+                    params[param] = random.choice(pattern["validation_method"])
+                elif param == "pattern":
+                    params[param] = random.choice(pattern["pattern_options"])
+                elif param == "constraint":
+                    params[param] = random.choice(pattern["constraint_options"])
+            
+            prompt = pattern["template"].format(**params)
+            prompt += f"""
 
 Requirements:
 - Use advanced TypeScript features
@@ -341,7 +422,7 @@ Provide complete, working code with examples.
             category=PromptCategory.CODE,
             prompt=prompt,
             expected_keywords=keywords,
-            difficulty=random.choice(["easy", "medium", "hard"])
+            difficulty=difficulty
         )
 
 
@@ -535,21 +616,27 @@ class InstructionPromptGenerator:
 
 
 class PromptGenerator:
-    """Main prompt generator with category-based generation."""
+    """Main prompt generator with category-based generation and parameterization."""
     
-    def __init__(self):
+    def __init__(self, seed: Optional[int] = None):
+        if seed is not None:
+            random.seed(seed)
         self.debugging_gen = DebuggingScenarioGenerator()
         self.code_gen = CodePromptGenerator()
         self.frontend_gen = FrontendPromptGenerator()
         self.reasoning_gen = ReasoningPromptGenerator()
         self.math_gen = MathPromptGenerator()
         self.instruction_gen = InstructionPromptGenerator()
+        self.seed = seed
     
-    def generate_prompt(self, category: PromptCategory) -> GeneratedPrompt:
-        """Generate a prompt for the specified category."""
+    def generate_prompt(self, 
+                       category: PromptCategory,
+                       domain: Optional[str] = None,
+                       difficulty: str = "medium") -> GeneratedPrompt:
+        """Generate a parameterized prompt for the specified category."""
         generators = {
             PromptCategory.DEBUGGING: self.debugging_gen.generate_debugging_prompt,
-            PromptCategory.CODE: self.code_gen.generate_code_prompt,
+            PromptCategory.CODE: lambda: self.code_gen.generate_code_prompt(domain, difficulty),
             PromptCategory.FRONTEND: self.frontend_gen.generate_frontend_prompt,
             PromptCategory.REASONING: self.reasoning_gen.generate_reasoning_prompt,
             PromptCategory.MATH: self.math_gen.generate_math_prompt,
@@ -563,20 +650,25 @@ class PromptGenerator:
             raise ValueError(f"Unknown category: {category}")
     
     def generate_batch(self, 
-                      counts: Dict[PromptCategory, int]) -> List[GeneratedPrompt]:
-        """Generate a batch of prompts with specified counts per category."""
+                      counts: Dict[PromptCategory, int],
+                      domain: Optional[str] = None,
+                      difficulty: str = "medium") -> List[GeneratedPrompt]:
+        """Generate a batch of parameterized prompts with specified counts per category."""
         prompts = []
         
         for category, count in counts.items():
             for _ in range(count):
-                prompts.append(self.generate_prompt(category))
+                prompts.append(self.generate_prompt(category, domain, difficulty))
         
         # Shuffle for variety
         random.shuffle(prompts)
         return prompts
     
-    def generate_default_batch(self, total_prompts: int = 20) -> List[GeneratedPrompt]:
-        """Generate a default batch with category weights."""
+    def generate_default_batch(self, 
+                             total_prompts: int = 20,
+                             domain: Optional[str] = None,
+                             difficulty_distribution: Optional[Dict[str, float]] = None) -> List[GeneratedPrompt]:
+        """Generate a default batch with category weights and difficulty distribution."""
         # Weights: Code 40%, Frontend 20%, Reasoning 15%, Math 15%, Instruction 5%, Debugging 5%
         weights = {
             PromptCategory.CODE: 0.40,
@@ -591,7 +683,26 @@ class PromptGenerator:
         for category, weight in weights.items():
             counts[category] = max(1, int(total_prompts * weight))
         
-        return self.generate_batch(counts)
+        # Apply difficulty distribution if provided
+        if difficulty_distribution:
+            prompts = []
+            for category, count in counts.items():
+                # Split count by difficulty
+                easy_count = int(count * difficulty_distribution.get("easy", 0.3))
+                medium_count = int(count * difficulty_distribution.get("medium", 0.5))
+                hard_count = count - easy_count - medium_count
+                
+                for _ in range(easy_count):
+                    prompts.append(self.generate_prompt(category, domain, "easy"))
+                for _ in range(medium_count):
+                    prompts.append(self.generate_prompt(category, domain, "medium"))
+                for _ in range(hard_count):
+                    prompts.append(self.generate_prompt(category, domain, "hard"))
+            
+            random.shuffle(prompts)
+            return prompts
+        
+        return self.generate_batch(counts, domain)
 
 
 # Convenience function

@@ -16,6 +16,12 @@ from enum import Enum
 import statistics
 import numpy as np
 
+try:
+    import scipy.stats as stats
+    SCIPY_AVAILABLE = True
+except ImportError:
+    SCIPY_AVAILABLE = False
+
 
 class FailureType(Enum):
     """Taxonomy of failure types for detailed analysis."""
@@ -72,8 +78,13 @@ class StatisticalScore:
     max: float
     median: float
     samples: int
+    confidence_interval: Optional[Tuple[float, float]] = None
+    confidence_level: float = 0.95
     
     def __str__(self) -> str:
+        if self.confidence_interval:
+            ci_lower, ci_upper = self.confidence_interval
+            return f"{self.mean:.3f} ± {self.std:.3f} (95% CI: [{ci_lower:.3f}, {ci_upper:.3f}], n={self.samples})"
         return f"{self.mean:.3f} ± {self.std:.3f} (n={self.samples})"
 
 
@@ -376,13 +387,19 @@ class MathScorer:
 class VarianceScorer:
     """Handle multiple-run variance for statistical rigor."""
     
-    def __init__(self, num_runs: int = 5):
+    def __init__(self, num_runs: int = 5, confidence_level: float = 0.95):
         self.num_runs = num_runs
+        self.confidence_level = confidence_level
     
     def compute_statistical_score(self, scores: List[float]) -> StatisticalScore:
         """Compute statistical metrics from multiple runs."""
         if not scores:
             return StatisticalScore(0.0, 0.0, 0.0, 0.0, 0.0, 0)
+        
+        # Calculate confidence interval
+        confidence_interval = None
+        if len(scores) > 1:
+            confidence_interval = self._compute_confidence_interval(scores, self.confidence_level)
         
         return StatisticalScore(
             mean=statistics.mean(scores),
@@ -390,8 +407,40 @@ class VarianceScorer:
             min=min(scores),
             max=max(scores),
             median=statistics.median(scores),
-            samples=len(scores)
+            samples=len(scores),
+            confidence_interval=confidence_interval,
+            confidence_level=self.confidence_level
         )
+    
+    def _compute_confidence_interval(self, scores: List[float], confidence_level: float) -> Tuple[float, float]:
+        """Compute confidence interval using t-distribution."""
+        if not SCIPY_AVAILABLE:
+            # Fallback to normal approximation if scipy not available
+            from math import sqrt
+            n = len(scores)
+            mean = statistics.mean(scores)
+            std = statistics.stdev(scores) if n > 1 else 0.0
+            
+            # Normal approximation
+            z_critical = 1.96  # 95% confidence
+            margin_of_error = z_critical * (std / sqrt(n))
+            
+            ci_lower = mean - margin_of_error
+            ci_upper = mean + margin_of_error
+            return (ci_lower, ci_upper)
+        
+        n = len(scores)
+        mean = statistics.mean(scores)
+        std = statistics.stdev(scores) if n > 1 else 0.0
+        
+        # Use t-distribution for small samples
+        t_critical = stats.t.ppf((1 + confidence_level) / 2, n - 1)
+        margin_of_error = t_critical * (std / (n ** 0.5))
+        
+        ci_lower = mean - margin_of_error
+        ci_upper = mean + margin_of_error
+        
+        return (ci_lower, ci_upper)
     
     def is_reliable(self, stat_score: StatisticalScore, threshold: float = 0.1) -> bool:
         """Check if score is reliable (low variance)."""
@@ -400,6 +449,51 @@ class VarianceScorer:
         # Coefficient of variation
         cv = stat_score.std / stat_score.mean if stat_score.mean > 0 else float('inf')
         return cv < threshold
+    
+    def detect_outliers(self, scores: List[float], method: str = "iqr") -> List[int]:
+        """Detect outlier indices using specified method."""
+        if len(scores) < 4:
+            return []
+        
+        if method == "iqr":
+            return self._detect_outliers_iqr(scores)
+        elif method == "zscore":
+            return self._detect_outliers_zscore(scores)
+        else:
+            return []
+    
+    def _detect_outliers_iqr(self, scores: List[float]) -> List[int]:
+        """Detect outliers using IQR method."""
+        sorted_scores = sorted(scores)
+        n = len(sorted_scores)
+        
+        q1 = sorted_scores[n // 4]
+        q3 = sorted_scores[3 * n // 4]
+        iqr = q3 - q1
+        
+        lower_bound = q1 - 1.5 * iqr
+        upper_bound = q3 + 1.5 * iqr
+        
+        outliers = []
+        for i, score in enumerate(scores):
+            if score < lower_bound or score > upper_bound:
+                outliers.append(i)
+        
+        return outliers
+    
+    def _detect_outliers_zscore(self, scores: List[float], threshold: float = 2.0) -> List[int]:
+        """Detect outliers using z-score method."""
+        mean = statistics.mean(scores)
+        std = statistics.stdev(scores) if len(scores) > 1 else 1.0
+        
+        outliers = []
+        for i, score in enumerate(scores):
+            if std > 0:
+                z_score = abs((score - mean) / std)
+                if z_score > threshold:
+                    outliers.append(i)
+        
+        return outliers
 
 
 class TokenizationAwareMetrics:
