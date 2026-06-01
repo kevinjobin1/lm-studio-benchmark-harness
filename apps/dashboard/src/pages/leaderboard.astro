@@ -1,0 +1,91 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import LeaderboardTable from "../components/LeaderboardTable";
+import { loadResults, buildLeaderboard } from "../lib/loadResults";
+import type { BenchmarkResult } from "../lib/loadResults";
+
+const results: BenchmarkResult[] = await loadResults();
+const { leaderboard } = buildLeaderboard(results);
+---
+
+<BaseLayout
+    title="Leaderboard"
+    description="Global Model Leaderboard — ranked local LLM performance with scores, tiers, and speed metrics."
+    activeNav="leaderboard"
+>
+    <!-- ═══ Dashboard Header ═══════════════════════════════════════ -->
+    <div class="dashboard-header animate-entrance">
+        <div>
+            <h2 class="dashboard-title">Global Model Leaderboard</h2>
+            <p class="dashboard-subtitle">
+                Ranked by overall agentic score across {results.length} benchmark
+                runs on Apple M3 Max.
+            </p>
+        </div>
+        <div class="dashboard-actions">
+            <button class="btn-outline">
+                <span class="material-symbols-outlined" style="font-size:18px"
+                    >filter_list</span
+                >
+                <span>Filter</span>
+            </button>
+            <button class="btn-outline">
+                <span class="material-symbols-outlined" style="font-size:18px"
+                    >file_download</span
+                >
+                <span>Export CSV</span>
+            </button>
+        </div>
+    </div>
+
+    {
+        leaderboard.length === 0 ? (
+            <div class="empty-state">
+                <p>
+                    No benchmark results yet. Run the suite to populate the
+                    leaderboard.
+                </p>
+            </div>
+        ) : (
+            <section class="dashboard-table">
+                <div class="card table-card">
+                    <LeaderboardTable client:load models={leaderboard} />
+                </div>
+            </section>
+        )
+    }
+
+    <!-- ═══ Methodology ════════════════════════════════════════════ -->
+    <section class="methodology-section" style="margin-top:2rem">
+        <div class="section-header">
+            <h2>Methodology</h2>
+            <p>How we score and rank benchmark results</p>
+        </div>
+        <div class="methodology-grid">
+            <div class="card methodology-card">
+                <h4>Weighted Composite</h4>
+                <p>
+                    Overall score = Coding (40%) + Reasoning (30%) +
+                    Instructions (20%) + Frontend (10%). Agentic tool-use
+                    scenarios weighted higher.
+                </p>
+            </div>
+            <div class="card methodology-card">
+                <h4>Speed Normalization</h4>
+                <p>
+                    Tokens per second (t/s) recorded on a cold KV cache. All
+                    benchmarks use identical prompt templates and hardware
+                    configuration.
+                </p>
+            </div>
+            <div class="card methodology-card">
+                <h4>Tier System</h4>
+                <p>
+                    S-TIER (&ge;90%), A-TIER (&ge;80%), B-TIER (&ge;65%), C-TIER
+                    (&ge;50%), F-TIER (&lt;50%). Scores are averaged over 5
+                    runs.
+                </p>
+            </div>
+        </div>
+    </section>
+</BaseLayout>

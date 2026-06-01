@@ -1,0 +1,19 @@
+---
+import ModelTable from "./ModelTable";
+import type { ModelSummary } from "../lib/loadResults";
+
+interface Props {
+    models: ModelSummary[];
+}
+
+const { models } = Astro.props;
+---
+
+<section class="dashboard-table">
+    <div class="card table-card">
+        <div class="table-header">
+            <h3>Benchmark Matrix</h3>
+        </div>
+        <ModelTable client:load models={models} />
+    </div>
+</section>

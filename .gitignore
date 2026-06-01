@@ -70,23 +70,23 @@ plots/
 # Prompt pack build artifacts
 ############################################
 
-prompt-packs/**/dist/
-prompt-packs/**/build/
-prompt-packs/**/.cache/
+packages/prompt-packs/**/dist/
+packages/prompt-packs/**/build/
+packages/prompt-packs/**/.cache/
 
 ############################################
-# Dashboard (Astro / Next / Static exports)
+# Dashboard (Astro / Static exports)
 ############################################
 
-dashboard/dist/
-dashboard/build/
-dashboard/.astro/
+apps/dashboard/dist/
+apps/dashboard/build/
+apps/dashboard/.astro/
 .next/
 .vercel/
 out/
 
 ############################################
-# Python (if used for eval / scoring)
+# Python
 ############################################
 
 __pycache__/
@@ -102,7 +102,7 @@ pip-delete-this-directory.txt
 .pytest_cache/
 
 ############################################
-# Jupyter (sometimes used in benchmarking)
+# Jupyter
 ############################################
 
 .ipynb_checkpoints/
@@ -111,12 +111,10 @@ pip-delete-this-directory.txt
 # LM Studio / local LLM artifacts
 ############################################
 
-# model caches / local inference artifacts
 .lmstudio/
 lmstudio/
 .cache/lm-studio/
 
-# llama.cpp / GGUF runtime artifacts (if ever used)
 *.ggml
 *.gguf.tmp
 

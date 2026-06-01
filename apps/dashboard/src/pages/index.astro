@@ -1,0 +1,108 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import DashboardShell from "../components/DashboardShell.astro";
+import { loadResults, buildLeaderboard } from "../lib/loadResults";
+import type { BenchmarkResult } from "../lib/loadResults";
+
+const results: BenchmarkResult[] = await loadResults();
+const { leaderboard } = buildLeaderboard(results);
+
+const uniqueModels = [...new Set(results.map((r) => r.model))];
+
+const avgLatencyMs =
+    results.length > 0
+        ? (
+              results.reduce((s, r) => s + r.performance.total_latency_ms, 0) /
+              results.length
+          ).toFixed(0)
+        : "—";
+
+// Detect most common hardware config across all results (handles multi-machine)
+function dominantHardware(results: BenchmarkResult[]) {
+    const tally = new Map<
+        string,
+        { count: number; hw: BenchmarkResult["hardware"] }
+    >();
+    for (const r of results) {
+        const key = `${r.hardware.processor}|${r.hardware.memory_gb}GB`;
+        const entry = tally.get(key);
+        if (entry) {
+            entry.count++;
+        } else {
+            tally.set(key, { count: 1, hw: r.hardware });
+        }
+    }
+    let best = { count: 0, hw: results[0]?.hardware };
+    for (const [, v] of tally) {
+        if (v.count > best.count) best = v;
+    }
+    return best.hw ?? results[0]?.hardware;
+}
+const hw = dominantHardware(results);
+const totalMemoryGB = hw ? hw.memory_gb.toFixed(0) : "—";
+const avgMemoryGB =
+    results.length > 0
+        ? (
+              results.reduce(
+                  (s, r) => s + r.performance.memory_pressure_mb,
+                  0,
+              ) /
+              results.length /
+              1024
+          ).toFixed(1)
+        : "—";
+
+// P95 latency: 95th percentile of total_latency_ms across all runs
+const latencyVals = results
+    .map((r) => r.performance.total_latency_ms)
+    .sort((a, b) => a - b);
+const p95LatencyMs =
+    latencyVals.length > 0
+        ? latencyVals[Math.floor(latencyVals.length * 0.95)].toFixed(0)
+        : "—";
+
+const memoryUtilPct =
+    avgMemoryGB !== "—" && totalMemoryGB !== "—"
+        ? Math.min(
+              100,
+              Math.round(
+                  (parseFloat(avgMemoryGB) / parseFloat(totalMemoryGB)) * 100,
+              ),
+          )
+        : 0;
+
+const topModels = leaderboard.slice(0, 3);
+---
+
+<BaseLayout
+    title="Dashboard"
+    description="LM Studio Benchmark Dashboard — compare local LLM performance on Apple Silicon with coding, reasoning, and latency metrics."
+>
+    {
+        results.length === 0 ? (
+            <div class="empty-state">
+                <p>
+                    No benchmark results found. Run the benchmark suite to
+                    populate data.
+                </p>
+                <p style="margin-top: 8px; font-size: 0.85rem;">
+                    <code style="background: var(--bg-low); padding: 4px 10px; border-radius: var(--radius-sm); font-family: var(--font-mono);">
+                        python3 cli.py run --models qwen3.5-9b-coder
+                    </code>
+                </p>
+            </div>
+        ) : (
+            <DashboardShell
+                models={leaderboard}
+                results={results}
+                uniqueModels={uniqueModels}
+                avgLatencyMs={avgLatencyMs}
+                avgMemoryGB={avgMemoryGB}
+                totalMemoryGB={totalMemoryGB}
+                p95LatencyMs={p95LatencyMs}
+                memoryUtilPct={memoryUtilPct}
+                topModels={topModels}
+            />
+        )
+    }
+</BaseLayout>

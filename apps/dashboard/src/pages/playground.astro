@@ -1,0 +1,26 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import PlaygroundApp from "../components/PlaygroundApp.tsx";
+---
+
+<BaseLayout
+    title="MCP Playground"
+    description="Interactively test agentic skills against live LM Studio models"
+    activeNav="models"
+>
+    <!-- Page Header -->
+    <div class="dashboard-header animate-entrance">
+        <div>
+            <h2 class="dashboard-title">MCP Skill Playground</h2>
+            <p class="dashboard-subtitle">
+                Interactively test agentic skills against live LM Studio models.
+                Choose which skills to make available &mdash; the model must use
+                ONLY these skills.
+            </p>
+        </div>
+    </div>
+
+    <div class="card" style="padding: 2rem; margin-bottom: 2rem;">
+        <PlaygroundApp client:load />
+    </div>
+</BaseLayout>

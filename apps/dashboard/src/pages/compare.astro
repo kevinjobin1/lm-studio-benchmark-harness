@@ -1,0 +1,254 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { loadResults, buildLeaderboard } from '../lib/loadResults';
+import type { BenchmarkResult, MetricScores } from '../lib/loadResults';
+
+const results: BenchmarkResult[] = await loadResults();
+const { leaderboard } = buildLeaderboard(results);
+
+const comparisonModels = leaderboard.slice(0, 4);
+
+// Pre-compute winners
+const fastestModel = leaderboard.length > 0
+  ? leaderboard.reduce((a, b) => a.performance.tokens_per_sec > b.performance.tokens_per_sec ? a : b)
+  : null;
+const topModel = leaderboard[0] ?? null;
+
+// Build comparison rows in frontmatter to avoid complex template expressions
+interface CompareRow {
+  label: string;
+  key: string;
+  values: { model: string; display: string; isBest: boolean; badge?: string }[];
+}
+
+const compareRows: CompareRow[] = [];
+
+const metricKeys = [
+  { label: 'Coding', key: 'coding_score' },
+  { label: 'Reasoning', key: 'reasoning_score' },
+  { label: 'Instructions', key: 'instruction_score' },
+  { label: 'Frontend', key: 'frontend_score' },
+  { label: 'Math', key: 'math_score' },
+  { label: 'Debugging', key: 'debugging_score' },
+  { label: 'Overall', key: 'overall_score' },
+];
+
+for (const { label, key } of metricKeys) {
+  const row: CompareRow = { label, key, values: [] };
+  for (const m of comparisonModels) {
+    const val = (m.metrics as MetricScores)[key] ?? 0;
+    const isBest = comparisonModels.every(other => ((other.metrics as MetricScores)[key] ?? 0) <= val);
+    row.values.push({
+      model: m.model,
+      display: (val * 100).toFixed(1) + '%',
+      isBest,
+      badge: isBest ? 'best' : undefined,
+    });
+  }
+  compareRows.push(row);
+}
+
+// Speed row
+const speedRow: CompareRow = {
+  label: 'Speed', key: 'speed', values: [],
+};
+for (const m of comparisonModels) {
+  const val = m.performance.tokens_per_sec;
+  const isBest = comparisonModels.every(other => other.performance.tokens_per_sec <= val);
+  speedRow.values.push({ model: m.model, display: val.toFixed(0) + ' tok/s', isBest, badge: isBest ? 'fastest' : undefined });
+}
+compareRows.push(speedRow);
+
+// TTFT row
+const ttftRow: CompareRow = { label: 'TTFT', key: 'ttft', values: [] };
+for (const m of comparisonModels) {
+  const val = m.performance.ttft_ms;
+  const isBest = comparisonModels.every(other => other.performance.ttft_ms >= val);
+  ttftRow.values.push({ model: m.model, display: val.toFixed(0) + 'ms', isBest, badge: isBest ? 'fastest' : undefined });
+}
+compareRows.push(ttftRow);
+
+// Stability row
+const stabilityRow: CompareRow = { label: 'Stability (σ)', key: 'stability', values: [] };
+for (const m of comparisonModels) {
+  const val = m.stats.std;
+  const isBest = comparisonModels.every(other => other.stats.std >= val);
+  stabilityRow.values.push({ model: m.model, display: '±' + val.toFixed(3), isBest, badge: isBest ? 'stable' : undefined });
+}
+compareRows.push(stabilityRow);
+
+// Issues row
+const issuesRow: CompareRow = { label: 'Issues', key: 'issues', values: [] };
+for (const m of comparisonModels) {
+  const val = m.total_failures;
+  const isBest = comparisonModels.every(other => other.total_failures >= val);
+  issuesRow.values.push({ model: m.model, display: String(val), isBest, badge: isBest ? 'cleanest' : undefined });
+}
+compareRows.push(issuesRow);
+---
+
+<BaseLayout
+  title="Model Comparison"
+  description="Head-to-head comparison of LLM performance on LM Studio — coding, reasoning, speed, and stability."
+>
+  <!-- ═══ Dashboard Header ═══════════════════════════════════════ -->
+  <div class="dashboard-header animate-entrance">
+    <div>
+      <h2 class="dashboard-title">Model Performance Leaderboard</h2>
+      <p class="dashboard-subtitle">Aggregated results across {results.length} standardized test traces.</p>
+    </div>
+    <div class="dashboard-actions">
+      <button class="btn-outline">
+        <span class="material-symbols-outlined" style="font-size:18px">filter_list</span>
+        <span>Filter</span>
+      </button>
+      <button class="btn-outline">
+        <span class="material-symbols-outlined" style="font-size:18px">file_download</span>
+        <span>Export CSV</span>
+      </button>
+    </div>
+  </div>
+
+  {
+    leaderboard.length < 2
+    ? <div class="empty-state"><p>Need at least 2 benchmarked models to show comparisons.</p></div>
+    : <>
+        <!-- ═══ Winner Summary ══════════════════════════════════ -->
+        <section class="winner-summary">
+          <div class="card winner-card">
+            <h3 class="winner-label">Best Overall</h3>
+            <div class="winner-row">
+              <span class="winner-model">{topModel?.model ?? 'N/A'}</span>
+              {topModel && <span class="chip chip-primary" style="font-size:13px;font-weight:600;">{(topModel.metrics.overall_score * 100).toFixed(1)}%</span>}
+            </div>
+          </div>
+          <div class="card winner-card">
+            <h3 class="winner-label">Fastest Throughput</h3>
+            {fastestModel
+              ? <div class="winner-row">
+                  <span class="winner-model">{fastestModel.model}</span>
+                  <span class="chip chip-success" style="font-size:13px;font-weight:600;">{fastestModel.performance.tokens_per_sec.toFixed(0)} tok/s</span>
+                </div>
+              : <span style="color:var(--text-tertiary);">N/A</span>
+            }
+          </div>
+        </section>
+
+        <!-- ═══ Side-by-Side Score Table ═══════════════════════ -->
+        <section class="dashboard-table">
+          <div class="section-header">
+            <h2>Side-by-Side Score Table</h2>
+            <p>Direct comparison of all metrics — best values highlighted</p>
+          </div>
+          <div class="card table-card">
+            <div class="model-table-wrapper">
+            <table class="compare-table">
+              <thead>
+                <tr>
+                  <th>Metric</th>
+                  {comparisonModels.map(function(m) { return <th><a href={'/model/' + encodeURIComponent(m.model)} class="model-link">{m.model}</a></th>; })}
+                </tr>
+              </thead>
+              <tbody>
+                {compareRows.map(function(row) { return (
+                  <tr class={row.key === 'speed' ? 'row-separator' : ''}>
+                    <td style="font-weight:600;color:var(--text-secondary);">{row.label}</td>
+                    {row.values.map(function(v) { return (
+                      <td class={v.isBest ? 'cell-best' : ''}>
+                        {v.display}
+                        {v.badge && <span class="best-badge">{v.badge}</span>}
+                      </td>
+                    ); })}
+                  </tr>
+                ); })}
+              </tbody>
+            </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- ═══ Methodology Cards ═══════════════════════════════ -->
+        <section class="methodology-section">
+          <div class="section-header">
+            <h2>Methodology</h2>
+            <p>How we evaluate and score benchmark results</p>
+          </div>
+          <div class="methodology-grid">
+            <div class="card methodology-card">
+              <h4>Agentic Scrutiny</h4>
+              <p>Our agentic score measures the model's ability to maintain state across multi-step tool calls. High scores indicate &lt;5% hallucination rate on function parameters.</p>
+            </div>
+            <div class="card methodology-card">
+              <h4>Speed Normalization</h4>
+              <p>Tokens per second (t/s) are recorded on a cold KV cache. Local runs are benchmarked on the specified hardware listed in the table.</p>
+            </div>
+            <div class="card methodology-card">
+              <h4>Hardware Variance</h4>
+              <p>Benchmarks are repeated 5 times. The reported values are the arithmetic mean of all valid runs within a 2-sigma variance threshold.</p>
+            </div>
+          </div>
+        </section>
+      </>
+  }
+</BaseLayout>
+
+<style>
+  /* Winner summary */
+  .winner-summary {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 2rem;
+  }
+  .winner-card {
+    padding: 1.25rem;
+  }
+  .winner-label {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.75rem;
+  }
+  .winner-row {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+  }
+  .winner-model {
+    font-family: var(--font-mono);
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+
+  /* ── Methodology ─────────────────────────────────────────── */
+  .methodology-section {
+    margin-top: 2rem;
+  }
+  .methodology-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+  }
+  .methodology-card {
+    padding: 1.25rem;
+  }
+  .methodology-card h4 {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-primary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.5rem;
+  }
+  .methodology-card p {
+    font-family: var(--font-ui);
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+  }
+</style>

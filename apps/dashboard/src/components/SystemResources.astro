@@ -1,0 +1,61 @@
+---
+interface Props {
+    avgMemoryGB: string;
+    totalMemoryGB: string;
+    avgLatencyMs: string;
+    p95LatencyMs: string;
+    memoryUtilPct: number;
+    resultsCount: number;
+}
+
+const {
+    avgMemoryGB,
+    totalMemoryGB,
+    avgLatencyMs,
+    p95LatencyMs,
+    memoryUtilPct,
+    resultsCount,
+} = Astro.props;
+---
+
+<section class="dashboard-resources">
+    <!-- GPU Memory Utilization -->
+    <div class="resource-card">
+        <div class="resource-icon resource-icon-green">
+            <span class="material-symbols-outlined">memory</span>
+        </div>
+        <div style="flex:1;min-width:0;">
+            <div class="resource-label">GPU Memory Utilization</div>
+            <div class="resource-value">
+                {avgMemoryGB} GB / {totalMemoryGB} GB
+            </div>
+            <div class="resource-bar-track">
+                <div class="resource-bar-fill" style="width:{memoryUtilPct}%">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Average Run Latency -->
+    <div class="resource-card">
+        <div class="resource-icon resource-icon-blue">
+            <span class="material-symbols-outlined">speed</span>
+        </div>
+        <div>
+            <div class="resource-label">Average Run Latency</div>
+            <div class="resource-value">{avgLatencyMs} ms</div>
+            <div class="resource-subtitle">P95: {p95LatencyMs} ms</div>
+        </div>
+    </div>
+
+    <!-- Benchmark Database -->
+    <div class="resource-card">
+        <div class="resource-icon resource-icon-rose">
+            <span class="material-symbols-outlined">database</span>
+        </div>
+        <div>
+            <div class="resource-label">Benchmark Database</div>
+            <div class="resource-value">{resultsCount} Samples</div>
+        </div>
+    </div>
+</section>

@@ -3,58 +3,63 @@
 This file gives Codebuff context about your project: goals, commands, conventions, and gotchas.
 
 ## Overview
-LM Studio Benchmark Harness — a Python benchmark suite for evaluating local AI models via LM Studio's OpenAI-compatible API on Apple Silicon. Two major entry points:
-- **`benchmark.py`** — General-purpose harness (MMLU-Pro, GSM8K, HumanEval, SWE-bench, IFEval, Needle-in-Haystack, BFCL, speed/latency, memory, creativity). Supports custom, LM Eval, and OpenBench frameworks. Uses `config.yaml`.
-- **`bench_apple_silicon_v2.py`** — DevBench v2: TypeScript/NestJS/React-focused benchmark with statistical rigor (5 runs/prompt), execution-grounded scoring (ts-node, tsc, eslint), developer realism metrics. Uses `config.json`.
+ModelLens — an open-source observability and evaluation platform for local AI models. Supports LM Studio and Ollama providers. Monorepo with `apps/` (CLI + dashboard) and `packages/` (core, benchmarks, providers, skills, prompt_packs).
+
+Primary entry point: **`apps/cli/modellens.py`** — unified Click CLI with `run`, `info`, `leaderboard` commands.
 
 ## Quickstart
 - **Setup:** `pip install -r requirements.txt`
-- **Dev (general):** `python benchmark.py --api-base http://localhost:1234/v1 --model-name your-model`
-- **Dev (Apple Silicon):** `python bench_apple_silicon_v2.py` (auto-detects LM Studio models)
-- **Dev (Apple Silicon v1):** `python bench_apple_silicon.py`
-- **Generate X thread:** `python x_thread_generator.py`
+- **Run:** `python apps/cli/modellens.py run --quick`
+- **Ollama:** `python apps/cli/modellens.py run --provider ollama --models llama3.2`
+- **Dashboard:** `cd apps/dashboard && npm install && npm run dev`
 - **Test:** No formal test suite exists. Benchmarks are self-validating.
 
 ## Architecture
 ```
-benchmark.py              # General harness (click CLI, uses config.yaml)
-bench_apple_silicon_v2.py # DevBench v2 (argparse CLI, uses config.json)
-bench_apple_silicon.py    # DevBench v1 (simpler, no variance)
-scoring.py                # Comprehensive evaluation: variance stats, execution-grounded scoring, failure taxonomy, tokenization-aware metrics
-evaluators.py             # Pluggable evaluators: JSON schema, regex constraints, keyword match, numerical answer, code execution, composite
-prompt_generator.py       # Parameterized prompt generation for DevBench (code/frontend/reasoning/math/instruction/debugging)
-config_manager.py         # Config loading/validation
-config.yaml               # General benchmark config
-config.json               # DevBench v2 canonical config
-config_schema.json        # JSON schema for config validation
-run_manifest.py           # Reproducibility manifests (git SHA, checksums)
-reporting.py              # Report generation (HTML/JSON/CSV)
-apple_silicon_monitor.py  # Hardware monitoring (RAM, thermal, swap)
-x_thread_generator.py     # Auto-generate X/Twitter threads from results
-leaderboard.html          # Static leaderboard page
-
-benchmark/
-  core.py                 # BenchmarkSuite, LMStudioClient base classes
+apps/
+  cli/                     ← Unified modellens CLI (Click)
+    modellens.py           ←   Entry point: run, info, leaderboard
+    benchmark.py           ←   General harness (delegated from modellens)
+    bench_apple_silicon_v2.py ← DevBench v2 (delegated from modellens)
+    scoring.py             ←   Comprehensive evaluation
+    evaluators.py          ←   Pluggable evaluators
+    prompt_generator.py    ←   Parameterized prompt generation
+    config_manager.py      ←   Config loading/validation
+    config.yaml / config.json ← Benchmark configs
+    run_manifest.py        ←   Reproducibility manifests
+    reporting.py           ←   Report generation
+    apple_silicon_monitor.py ← Hardware monitoring
+  dashboard/               ← Astro + React dashboard (see DESIGN.md)
+    src/
+      components/          ←   React components
+      layouts/             ←   Astro layouts
+      pages/               ←   Route pages + API routes
+      lib/                 ←   Shared utilities
+packages/
   __init__.py
-benchmarks/
-  __init__.py
-  mmlu_pro.py, gsm8k.py, aime.py, humaneval.py, swe_bench.py,
-  if_eval.py, needle_haystack.py, bfcl.py, speed_latency.py,
-  memory.py, creativity.py, math_benchmarks.py, coding.py
-integrations/
-  __init__.py
-  lm_eval_integration.py  # LM Eval framework integration
-  openbench_integration.py# OpenBench integration
+  core/                    ← Benchmark framework
+    __init__.py            ←   Exports: BenchmarkSuite, LMStudioClient, etc.
+    benchmark.py           ←   Core classes
+    evaluators/            ←   Agentic evaluators
+  benchmarks/              ← 11 benchmark implementations
+  providers/               ← Provider adapters + framework integrations
+    base.py                ←   ProviderAdapter ABC + shared dataclasses
+    ollama.py              ←   OllamaClient
+    lm_eval_integration.py ←   LM Eval bridge
+    openbench_integration.py ← OpenBench bridge
+    mcp/                   ←   MCP bridge (future)
+  skills/                  ← Extensible skill system
+  prompt_packs/            ← Versioned benchmark prompt collections
 ```
 
 ## Conventions
-- **Design system:** Dashboard UI follows the Kinetic Logic design system — see `docs/DESIGN.md` for colors, typography, spacing, elevation, and component patterns.
+- **Design system:** Dashboard UI follows the Kinetic Logic design system — see `DESIGN.md` for colors, typography, spacing, elevation, and component patterns.
 - **Formatting:** No linter/formatter configured. Python uses standard 4-space indentation.
-- **CLI:** General harness uses `click`; DevBench v2 uses `argparse`.
-- **Config:** General harness reads `config.yaml`; DevBench v2 reads `config.json`.
-- **API:** All code talks to LM Studio's OpenAI-compatible endpoint (`http://localhost:1234/v1`, default key: `lm-studio`).
-- **Output:** General harness → `results/timestamp/`; DevBench v2 → `devbench_results/`.
-- **Imports:** Uses `from benchmark.core import ...` and `from benchmarks import ...` pattern.
+- **CLI:** Unified `modellens` CLI uses Click. Delegates to `benchmark.py` (general) or `bench_apple_silicon_v2.py` (devbench).
+- **Config:** `apps/cli/config.yaml` (general) and `apps/cli/config.json` (devbench).
+- **API:** All code talks to providers via OpenAI-compatible `/v1` endpoints. LM Studio: `localhost:1234`, Ollama: `localhost:11434`.
+- **Output:** `results/` directory.
+- **Imports:** Uses `from core import ...` and `from benchmarks import ...` pattern (with `packages/` on sys.path).
 - **Type hints:** Used consistently with `dataclasses` for result objects.
 
 ## Gotchas

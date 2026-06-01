@@ -1,0 +1,37 @@
+---
+import RadarChart from "./RadarChart";
+import type { ModelSummary } from "../lib/loadResults";
+
+interface Props {
+    models: ModelSummary[];
+    topModels: ModelSummary[];
+}
+
+const { models, topModels } = Astro.props;
+---
+
+<div class="card chart-card chart-card-radar">
+    <div class="chart-header">
+        <div>
+            <h3>Model Capabilities</h3>
+            <p>Top-{Math.min(3, topModels.length)} Model Distribution</p>
+        </div>
+        <div class="chart-legend">
+            {
+                topModels.slice(0, 2).map(function (m, i) {
+                    return (
+                        <div class="legend-item">
+                            <span
+                                class={`legend-dot legend-dot-${i === 0 ? "primary" : "secondary"}`}
+                            />
+                            <span class="legend-label">{m.model}</span>
+                        </div>
+                    );
+                })
+            }
+        </div>
+    </div>
+    <div class="chart-body">
+        <RadarChart client:load models={models} />
+    </div>
+</div>

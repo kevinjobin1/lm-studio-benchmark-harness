@@ -1,0 +1,47 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import TraceTimeline from "../components/TraceTimeline";
+import { loadResults } from "../lib/loadResults";
+import type { BenchmarkResult } from "../lib/loadResults";
+
+const results: BenchmarkResult[] = await loadResults();
+---
+
+<BaseLayout
+    title="Agentic Traces"
+    description="Replay and inspect execution traces — step-by-step tool calls, reasoning chains, and response generation."
+    activeNav="agentic"
+>
+    <!-- ═══ Dashboard Header ═══════════════════════════════════════ -->
+    <div class="dashboard-header animate-entrance">
+        <div>
+            <h2 class="dashboard-title">Agentic Traces Explorer</h2>
+            <p class="dashboard-subtitle">
+                {
+                    results.length > 0
+                        ? `Step-by-step execution playback across ${results.length} benchmark runs — tool calls, reasoning chains, and response generation.`
+                        : "No benchmark results yet. Run the suite to populate traces."
+                }
+            </p>
+        </div>
+        <div class="dashboard-actions">
+            <button class="btn-outline">
+                <span class="material-symbols-outlined" style="font-size:18px"
+                    >filter_list</span
+                >
+                <span>Filter</span>
+            </button>
+            <button class="btn-outline">
+                <span class="material-symbols-outlined" style="font-size:18px"
+                    >refresh</span
+                >
+                <span>Refresh</span>
+            </button>
+        </div>
+    </div>
+
+    <TraceTimeline
+        client:load
+        results={results.length > 0 ? results : undefined}
+    />
+</BaseLayout>

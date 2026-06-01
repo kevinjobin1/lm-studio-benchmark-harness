@@ -1,0 +1,202 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { loadResults } from "../lib/loadResults";
+import type { BenchmarkResult } from "../lib/loadResults";
+
+const results: BenchmarkResult[] = await loadResults();
+
+// Sort by timestamp descending
+const sortedRuns = [...results].sort(
+    (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
+);
+---
+
+<BaseLayout
+    title="Runs History"
+    description="Benchmark run history — review past executions, scores, and timestamps."
+    activeNav="history"
+>
+    <!-- ═══ Page Header ═══════════════════════════════════════════ -->
+    <div class="dashboard-header animate-entrance">
+        <div>
+            <h2 class="dashboard-title">Runs History</h2>
+            <p class="dashboard-subtitle">
+                {
+                    results.length > 0
+                        ? `All ${results.length} benchmark runs across ${new Set(results.map((r) => r.model)).size} models.`
+                        : "No benchmark runs recorded yet."
+                }
+            </p>
+        </div>
+        <div class="dashboard-actions">
+            <button class="btn-outline">
+                <span class="material-symbols-outlined" style="font-size:18px"
+                    >refresh</span
+                >
+                <span>Refresh</span>
+            </button>
+            <button class="btn-outline">
+                <span class="material-symbols-outlined" style="font-size:18px"
+                    >file_download</span
+                >
+                <span>Export CSV</span>
+            </button>
+        </div>
+    </div>
+
+    {
+        results.length === 0 ? (
+            <div class="empty-state">
+                <p>No benchmark runs yet. Run the suite to populate history.</p>
+            </div>
+        ) : (
+            <section class="dashboard-table">
+                <div class="card table-card">
+                    <div class="table-header">
+                        <h3>Run History</h3>
+                    </div>
+                    <div class="model-table-wrapper">
+                        <table class="model-table">
+                            <thead>
+                                <tr>
+                                    <th class="th-model">Run</th>
+                                    <th class="th-model">Model</th>
+                                    <th class="th-score">Overall</th>
+                                    <th class="th-score">Coding</th>
+                                    <th class="th-score">Tok/s</th>
+                                    <th class="th-score">Latency</th>
+                                    <th class="th-score">Date</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {sortedRuns.map((r) => {
+                                    const pct = (
+                                        r.metrics.overall_score * 100
+                                    ).toFixed(1);
+                                    const tierCls =
+                                        parseFloat(pct) >= 90
+                                            ? "tier-s"
+                                            : parseFloat(pct) >= 80
+                                              ? "tier-a"
+                                              : parseFloat(pct) >= 65
+                                                ? "tier-b"
+                                                : parseFloat(pct) >= 50
+                                                  ? "tier-c"
+                                                  : "tier-f";
+                                    return (
+                                        <tr>
+                                            <td class="td-model">
+                                                <div class="model-cell">
+                                                    <code
+                                                        class="mono-data"
+                                                        style="font-size:11px; color: var(--text-tertiary);"
+                                                    >
+                                                        {r.run_id}
+                                                    </code>
+                                                </div>
+                                            </td>
+                                            <td class="td-model">
+                                                <div class="model-cell">
+                                                    <a
+                                                        href={`/model/${encodeURIComponent(r.model)}`}
+                                                        class="model-link"
+                                                    >
+                                                        {r.model}
+                                                    </a>
+                                                    <span class="model-sub">
+                                                        {r.model_metadata
+                                                            .size || "—"}
+                                                        {r.model_metadata
+                                                            .quantization
+                                                            ? ` · ${r.model_metadata.quantization}`
+                                                            : ""}
+                                                    </span>
+                                                </div>
+                                            </td>
+                                            <td class="td-score">
+                                                <div class="overall-cell">
+                                                    <span class="overall-value">
+                                                        {pct}%
+                                                    </span>
+                                                    <span
+                                                        class={`tier-badge ${tierCls}`}
+                                                        style="margin-top:2px;"
+                                                    >
+                                                        {parseFloat(pct) >= 90
+                                                            ? "S"
+                                                            : parseFloat(pct) >=
+                                                                80
+                                                              ? "A"
+                                                              : parseFloat(
+                                                                      pct,
+                                                                  ) >= 65
+                                                                ? "B"
+                                                                : parseFloat(
+                                                                        pct,
+                                                                    ) >= 50
+                                                                  ? "C"
+                                                                  : "F"}
+                                                    </span>
+                                                </div>
+                                            </td>
+                                            <td class="td-score">
+                                                <span class="score-chip score-chip-secondary">
+                                                    {(
+                                                        (r.metrics
+                                                            .coding_score ||
+                                                            0) * 100
+                                                    ).toFixed(1)}
+                                                </span>
+                                            </td>
+                                            <td class="td-score mono-data">
+                                                {r.performance.tokens_per_sec.toFixed(
+                                                    0,
+                                                )}{" "}
+                                                t/s
+                                            </td>
+                                            <td class="td-score mono-data">
+                                                {r.performance.total_latency_ms}
+                                                ms
+                                            </td>
+                                            <td
+                                                class="td-score mono-data"
+                                                style="font-size:11px; color: var(--text-tertiary);"
+                                            >
+                                                {new Date(
+                                                    r.timestamp,
+                                                ).toLocaleDateString("en-US", {
+                                                    month: "short",
+                                                    day: "numeric",
+                                                    year: "numeric",
+                                                })}
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="lb-footnote">
+                        <span class="material-symbols-outlined lb-footnote-icon">
+                            history
+                        </span>
+                        <span class="lb-footnote-text">
+                            {sortedRuns.length} runs ·{" "}
+                            {new Set(results.map((r) => r.hardware.processor))
+                                .size > 0
+                                ? [
+                                      ...new Set(
+                                          results.map(
+                                              (r) => r.hardware.processor,
+                                          ),
+                                      ),
+                                  ].join(", ")
+                                : "—"}
+                        </span>
+                    </div>
+                </div>
+            </section>
+        )
+    }
+</BaseLayout>
