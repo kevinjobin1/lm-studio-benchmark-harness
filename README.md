@@ -81,6 +81,7 @@ The dashboard runs in server mode (`output: "server"`) with live API endpoints f
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
+| `/api/health` | GET | Health check — uptime, started_at, version |
 | `/api/status` | GET | LM Studio connection status, loaded models, hardware info |
 | `/api/run-benchmark` | POST | Start a benchmark process (`{ quick: boolean }`) |
 | `/api/run-benchmark/active` | GET | Currently running benchmark processes |

@@ -23,6 +23,8 @@
 - `.env.example` documenting dashboard environment variables
 - Dashboard README — API docs, Run Benchmark workflow, build/deploy guide
 - Dashboard section in main README with API endpoints table
+- `GET /api/health` endpoint — server monitoring with uptime, start time, version (`apps/dashboard/src/pages/api/health.ts`)
+- `/api/health` documented in both dashboard and main READMEs
 - Regression test suite for `_detect_failures` (`tests/test_scoring.py`, 46 tests)
 - Substring-protection tests for prompt generator (`tests/test_prompt_generator.py`, +20 tests)
 - `_whole_word_pattern()` helper in `prompt_generator.py` — consolidates `\b` / `(?<!\w)(?!\w)` boundary logic

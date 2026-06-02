@@ -35,6 +35,7 @@ The dashboard includes server-side API endpoints that power the live UI componen
 
 | Endpoint | Method | Description | Used By |
 |----------|--------|-------------|---------|
+| `/api/health` | GET | Health check for monitoring. Returns `{ status, uptime, uptime_seconds, started_at, timestamp, version }` | Monitoring / orchestration |
 | `/api/status` | GET | Checks LM Studio connection. Returns `{ connected, models[], provider, hardware }` | `ConnectionStatusBadge`, `RunBenchmarkButton` |
 | `/api/run-benchmark` | POST | Starts a benchmark process. Body: `{ quick: boolean }`. Returns `{ success, pid, message }` | `RunBenchmarkButton` |
 | `/api/run-benchmark/active` | GET | Lists currently running benchmark processes. Returns `{ active, processes[] }` | `BenchmarkStatusBadge` |
