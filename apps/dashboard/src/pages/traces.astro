@@ -1,10 +1,53 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
 import TraceTimeline from "../components/TraceTimeline";
+import type { TraceRun } from "../lib/traceTypes";
 import { loadResults } from "../lib/loadResults";
+import { loadTraceManifest, loadTrace, mapTraceToRun } from "../lib/loadTraces";
+import { loadSnapshotManifest } from "../lib/loadSnapshots";
 import type { BenchmarkResult } from "../lib/loadResults";
 
+// Read ?trace_id= from URL to pre-select a specific trace
+const url = new URL(Astro.request.url);
+const preSelectTraceId = url.searchParams.get("trace_id") || undefined;
+
+// Load benchmark results (fallback for synthesized traces)
 const results: BenchmarkResult[] = await loadResults();
+
+// Load real captured traces (V2)
+let realTraces: TraceRun[] = [];
+try {
+  const manifest = await loadTraceManifest();
+  if (manifest.traces.length > 0) {
+    // Load the 20 most recent traces — use allSettled so one corrupt
+    // file doesn't kill the entire batch.
+    const recentTraceIds = manifest.traces.slice(0, 20).map(t => t.trace_id);
+    const settled = await Promise.allSettled(
+      recentTraceIds.map(id => loadTrace(id)),
+    );
+    realTraces = settled
+      .filter(r => r.status === "fulfilled" && r.value !== null)
+      .map(r => mapTraceToRun(r.value!));
+  }
+} catch (e) {
+  // Traces not available — fall back to synthesized/demo
+}
+
+const totalTraceCount = realTraces.length > 0 ? realTraces.length : results.length;
+
+// ── Load saved snapshots (V2) ────────────────────────────────────
+let savedSnapshots: Array<{ snapshot_id: string; model: string; prompt: string; totalTimeMs: number }> = [];
+try {
+  const snapManifest = await loadSnapshotManifest();
+  savedSnapshots = snapManifest.snapshots.slice(0, 10).map(e => ({
+    snapshot_id: e.snapshot_id,
+    model: e.model,
+    prompt: e.prompt,
+    totalTimeMs: e.totalTimeMs,
+  }));
+} catch {
+  // Snapshots not available
+}
 ---
 
 <BaseLayout
@@ -18,9 +61,9 @@ const results: BenchmarkResult[] = await loadResults();
             <h2 class="dashboard-title">Agentic Traces Explorer</h2>
             <p class="dashboard-subtitle">
                 {
-                    results.length > 0
-                        ? `Step-by-step execution playback across ${results.length} benchmark runs — tool calls, reasoning chains, and response generation.`
-                        : "No benchmark results yet. Run the suite to populate traces."
+                    totalTraceCount > 0
+                        ? `Step-by-step execution playback across ${totalTraceCount} trace runs — tool calls, reasoning chains, and response generation.`
+                        : "No traces captured yet. Run the benchmark suite to populate execution traces."
                 }
             </p>
         </div>
@@ -42,6 +85,143 @@ const results: BenchmarkResult[] = await loadResults();
 
     <TraceTimeline
         client:load
+        traces={realTraces.length > 0 ? realTraces : undefined}
         results={results.length > 0 ? results : undefined}
+        initialTraceId={preSelectTraceId}
     />
+
+    <!-- ═══ Saved Snapshots ════════════════════════════════════════ -->
+    {
+      savedSnapshots.length > 0 && (
+        <section class="snapshots-section animate-entrance" style="animation-delay:0.3s">
+          <div class="section-header">
+            <h2>Saved Snapshots</h2>
+            <p>{savedSnapshots.length} snapshot{savedSnapshots.length !== 1 ? "s" : ""} available — shareable, immutable execution state captures.</p>
+          </div>
+          <div class="snapshots-grid">
+            {savedSnapshots.map((s) => (
+              <a
+                href={`/runs/${encodeURIComponent(s.snapshot_id)}`}
+                class="card snapshot-card"
+                key={s.snapshot_id}
+              >
+                <div class="snapshot-card-header">
+                  <span class="material-symbols-outlined snapshot-card-icon">camera</span>
+                  <code class="snapshot-card-id">{s.snapshot_id}</code>
+                </div>
+                <div class="snapshot-card-model mono-data">{s.model}</div>
+                <p class="snapshot-card-prompt">
+                  {s.prompt.length > 80 ? s.prompt.slice(0, 80) + "…" : s.prompt}
+                </p>
+                <div class="snapshot-card-footer">
+                  <span class="snapshot-card-meta">
+                    <span class="material-symbols-outlined">schedule</span>
+                    {s.totalTimeMs}ms
+                  </span>
+                  <span class="snapshot-card-link">
+                    Open snapshot
+                    <span class="material-symbols-outlined">arrow_forward</span>
+                  </span>
+                </div>
+              </a>
+            ))}
+          </div>
+        </section>
+      )
+    }
 </BaseLayout>
+
+<style is:global>
+  /* ── Snapshot Cards (Traces page) ────────────────────────────── */
+  .snapshots-section {
+    margin-top: 2rem;
+    margin-bottom: 3rem;
+  }
+
+  .snapshots-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 0.875rem;
+  }
+
+  .snapshot-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 1rem 1.125rem;
+    text-decoration: none;
+    color: inherit;
+    transition: border-color 150ms ease, box-shadow 150ms ease;
+  }
+  .snapshot-card:hover {
+    border-color: var(--brand-primary);
+    box-shadow: 0 2px 12px rgba(59, 130, 246, 0.08);
+  }
+
+  .snapshot-card-header {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+  }
+  .snapshot-card-icon {
+    font-size: 14px;
+    color: var(--brand-primary);
+  }
+  .snapshot-card-id {
+    font-size: 10px;
+    color: var(--text-tertiary);
+  }
+
+  .snapshot-card-model {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  .snapshot-card-prompt {
+    font-size: 11px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    margin: 0;
+  }
+
+  .snapshot-card-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: auto;
+  }
+
+  .snapshot-card-meta {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-tertiary);
+  }
+  .snapshot-card-meta .material-symbols-outlined {
+    font-size: 12px;
+  }
+
+  .snapshot-card-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--brand-primary);
+    transition: gap 150ms ease;
+  }
+  .snapshot-card:hover .snapshot-card-link {
+    gap: 0.5rem;
+  }
+  .snapshot-card-link .material-symbols-outlined {
+    font-size: 12px;
+  }
+</style>

@@ -6,6 +6,7 @@ import BenchmarkMatrix from "./BenchmarkMatrix.astro";
 import FailureHeatmapPanel from "./FailureHeatmapPanel.astro";
 import SystemResources from "./SystemResources.astro";
 import type { ModelSummary, BenchmarkResult } from "../lib/loadResults";
+import type { TraceStats } from "../lib/loadTraces";
 
 interface Props {
     models: ModelSummary[];
@@ -17,6 +18,7 @@ interface Props {
     p95LatencyMs: string;
     memoryUtilPct: number;
     topModels: ModelSummary[];
+    traceStats?: TraceStats;
 }
 
 const {
@@ -29,6 +31,7 @@ const {
     p95LatencyMs,
     memoryUtilPct,
     topModels,
+    traceStats,
 } = Astro.props;
 ---
 
@@ -58,3 +61,58 @@ const {
     memoryUtilPct={memoryUtilPct}
     resultsCount={results.length}
 />
+
+<!-- ═══ Trace Overview (V2) ══════════════════════════════ -->
+{
+  traceStats && traceStats.total > 0 && (
+    <section class="dashboard-table" style="margin-top: 2rem;">
+      <div class="section-header">
+        <h2>Execution Traces</h2>
+        <p>
+          Step-by-step execution replay across {traceStats.total} captured trace
+          {traceStats.total !== 1 ? "s" : ""}
+        </p>
+      </div>
+      <div class="card">
+        <div class="trace-stats-grid">
+          <div class="trace-stat-item">
+            <span class="material-symbols-outlined trace-stat-icon" style="color: var(--brand-primary);">
+              replay
+            </span>
+            <span class="trace-stat-value">{traceStats.total}</span>
+            <span class="trace-stat-label">Total Traces</span>
+          </div>
+          <div class="trace-stat-item">
+            <span class="material-symbols-outlined trace-stat-icon" style="color: var(--success);">
+              check_circle
+            </span>
+            <span class="trace-stat-value">{traceStats.completed}</span>
+            <span class="trace-stat-label">Completed</span>
+          </div>
+          <div class="trace-stat-item">
+            <span class="material-symbols-outlined trace-stat-icon" style="color: var(--error);">
+              cancel
+            </span>
+            <span class="trace-stat-value">{traceStats.failed}</span>
+            <span class="trace-stat-label">Failed</span>
+          </div>
+          <div class="trace-stat-item">
+            <span class="material-symbols-outlined trace-stat-icon" style="color: var(--warning);">
+              dns
+            </span>
+            <span class="trace-stat-value">{traceStats.modelsWithTraces}</span>
+            <span class="trace-stat-label">Models Tracked</span>
+          </div>
+        </div>
+        <div class="trace-stats-cta">
+          <a href="/traces" class="btn-outline">
+            <span class="material-symbols-outlined" style="font-size: 18px;">
+              replay
+            </span>
+            <span>Explore execution traces</span>
+          </a>
+        </div>
+      </div>
+    </section>
+  )
+}

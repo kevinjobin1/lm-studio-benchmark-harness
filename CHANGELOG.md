@@ -63,7 +63,7 @@
 
 ## 0.1.0
 
-Initial release — LM Studio benchmark harness with:
+Initial release — Model Lens benchmark harness with:
 - 11 general benchmarks (MMLU-Pro, GSM8K, HumanEval, etc.)
 - DevBench v2 (TypeScript/NestJS/React with statistical rigor)
 - Astro + React dashboard

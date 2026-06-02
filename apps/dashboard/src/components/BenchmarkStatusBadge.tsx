@@ -2,7 +2,12 @@ import { useState, useEffect, useRef } from "react";
 
 interface ActiveResponse {
   active: boolean;
-  processes: { pid: number; model: string; quick: boolean; startTime: string }[];
+  processes: {
+    pid: number;
+    model: string;
+    quick: boolean;
+    startTime: string;
+  }[];
 }
 
 export default function BenchmarkStatusBadge() {
@@ -38,11 +43,17 @@ export default function BenchmarkStatusBadge() {
         prevActive.current = data.active;
 
         setActive(data.active);
-        const shortModel = data.processes.length > 0 ? data.processes[0].model.split("/").pop() || data.processes[0].model : null;
+        const shortModel =
+          data.processes.length > 0
+            ? data.processes[0].model.split("/").pop() ||
+              data.processes[0].model
+            : null;
         setModel(shortModel);
         modelRef.current = shortModel;
         setPids(data.processes.map((p) => p.pid));
-        setStartTime(data.processes.length > 0 ? data.processes[0].startTime : null);
+        setStartTime(
+          data.processes.length > 0 ? data.processes[0].startTime : null,
+        );
       } catch {
         // server unreachable — fall back to idle
         if (mounted) {
@@ -88,7 +99,9 @@ export default function BenchmarkStatusBadge() {
     // Fire all kills in parallel — idempotent endpoint handles already-exited PIDs gracefully
     await Promise.allSettled(
       pids.map((pid) =>
-        fetch(`/api/run-benchmark/kill?pid=${pid}`, { method: "POST" }).catch(() => {}),
+        fetch(`/api/run-benchmark/kill?pid=${pid}`, { method: "POST" }).catch(
+          () => {},
+        ),
       ),
     );
     // Next poll cycle (≤ 3s) will pick up the killed state and reset the UI
@@ -126,9 +139,14 @@ export default function BenchmarkStatusBadge() {
   return (
     <div
       ref={badgeRef}
-      className={`node-status ${active ? "node-status-active" : ""} ${showDone ? "node-status-done" : ""} ${expanded ? "node-status-expanded" : ""}`}>
-      <div className={`status-dot ${active ? "status-dot-active" : ""} ${showDone ? "status-dot-done" : ""}`} />
-      <span className={`status-text ${active ? "status-text-active" : ""} ${showDone ? "status-text-done" : ""}`}>
+      className={`node-status ${active ? "node-status-active" : ""} ${showDone ? "node-status-done" : ""} ${expanded ? "node-status-expanded" : ""}`}
+    >
+      <div
+        className={`status-dot ${active ? "status-dot-active" : ""} ${showDone ? "status-dot-done" : ""}`}
+      />
+      <span
+        className={`status-text ${active ? "status-text-active" : ""} ${showDone ? "status-text-done" : ""}`}
+      >
         {statusLabel}
       </span>
       {active && (
@@ -142,7 +160,9 @@ export default function BenchmarkStatusBadge() {
           {killing ? (
             <span className="status-kill-spinner" />
           ) : (
-            <span className="material-symbols-outlined status-kill-icon">stop</span>
+            <span className="material-symbols-outlined status-kill-icon">
+              stop
+            </span>
           )}
         </button>
       )}
@@ -152,7 +172,7 @@ export default function BenchmarkStatusBadge() {
         onClick={hasDetail ? () => setExpanded(!expanded) : undefined}
         title={hasDetail ? "Click for details" : undefined}
       >
-        APPLE M3 MAX
+        APPLE M3 PRO
       </span>
       {active && (
         <div className="status-progress-track">
@@ -181,7 +201,9 @@ export default function BenchmarkStatusBadge() {
           )}
           <div className="status-flyout-row">
             <span className="status-flyout-label">Status</span>
-            <span className={`status-flyout-value ${active ? "status-flyout-value-running" : ""}`}>
+            <span
+              className={`status-flyout-value ${active ? "status-flyout-value-running" : ""}`}
+            >
               {active ? "Running" : "Completed"}
             </span>
           </div>

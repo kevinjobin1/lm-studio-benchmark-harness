@@ -1,6 +1,6 @@
 ---
 name: Bug report
-about: Report a bug in ModelLens
+about: Report a bug in Model Lens
 title: "fix: "
 labels: bug
 assignees: ""
@@ -28,9 +28,9 @@ assignees: ""
 ## Environment
 
 - OS: <!-- e.g., macOS 15, Ubuntu 24.04 -->
-- Hardware: <!-- e.g., Apple M3, 18GB -->
+- Hardware: <!-- e.g., Apple M3 Pro, 18GB -->
 - Provider: <!-- LM Studio / Ollama -->
-- ModelLens version: <!-- git SHA or version -->
+- Model Lens version: <!-- git SHA or version -->
 - Model: <!-- e.g., qwen3.5-9b-coder, llama3.2:latest -->
 
 ## Additional context

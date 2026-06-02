@@ -1,0 +1,689 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import { loadWorkloadResults, groupByModel, groupByProject } from "../../lib/loadWorkloadResults";
+
+const index = await loadWorkloadResults();
+const modelSummaries = groupByModel(index);
+const projectSummaries = groupByProject(index);
+---
+
+<BaseLayout
+  title="Workload Results"
+  description="Stored workload evaluation results — per-model and per-project scores."
+  activeNav="workload"
+>
+  <!-- ═══ Page Header ═══════════════════════════════════════════ -->
+  <div class="dashboard-header animate-entrance">
+    <div>
+      <h2 class="dashboard-title">Workload Results</h2>
+      <p class="dashboard-subtitle">
+        Evaluation results from <code>modellens workload run</code> —
+        scored on correctness, completeness, code quality, style match, and efficiency.
+      </p>
+    </div>
+    <div class="dashboard-actions">
+      <a href="/workload" class="btn-outline">
+        <span class="material-symbols-outlined">info</span>
+        <span>About Workload Eval</span>
+      </a>
+    </div>
+  </div>
+
+  <!-- ═══ Empty State ═══════════════════════════════════════════ -->
+  {
+    index.total_entries === 0 ? (
+      <div class="card empty-state animate-entrance" style="animation-delay:0.1s">
+        <div class="wl-empty-icon">
+          <span class="material-symbols-outlined">science</span>
+        </div>
+        <h3>No Results Yet</h3>
+        <p>
+          Run a workload evaluation from the CLI to see results here:
+        </p>
+        <div class="wl-code-block" style="margin-top: 1rem; display: inline-flex;">
+          <code>modellens workload run --model qwen3.5-9b --project nestjs-api</code>
+          <button class="wl-copy-btn" onclick="navigator.clipboard.writeText('modellens workload run --model qwen3.5-9b --project nestjs-api')">
+            <span class="material-symbols-outlined">content_copy</span>
+          </button>
+        </div>
+      </div>
+    ) : (
+      <div>
+        <!-- ═══ Summary Cards ══════════════════════════════════ -->
+        <div class="wl-summary-grid animate-entrance" style="animation-delay:0.1s">
+          <div class="card wl-stat-card">
+            <span class="material-symbols-outlined wl-stat-icon">model_training</span>
+            <div>
+              <div class="wl-stat-value">{index.total_models}</div>
+              <div class="wl-stat-label">Models Evaluated</div>
+            </div>
+          </div>
+          <div class="card wl-stat-card">
+            <span class="material-symbols-outlined wl-stat-icon">folder_code</span>
+            <div>
+              <div class="wl-stat-value">{index.total_projects}</div>
+              <div class="wl-stat-label">Projects</div>
+            </div>
+          </div>
+          <div class="card wl-stat-card">
+            <span class="material-symbols-outlined wl-stat-icon">task_alt</span>
+            <div>
+              <div class="wl-stat-value">{index.total_tasks}</div>
+              <div class="wl-stat-label">Tasks Completed</div>
+            </div>
+          </div>
+          <div class="card wl-stat-card">
+            <span class="material-symbols-outlined wl-stat-icon">grade</span>
+            <div>
+              <div class="wl-stat-value">{(index.mean_overall_score * 100).toFixed(1)}%</div>
+              <div class="wl-stat-label">Mean Overall Score</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ═══ Per-Model Results ═════════════════════════════ -->
+        <section class="animate-entrance" style="animation-delay:0.2s; margin-bottom: 2rem;">
+          <div class="section-header">
+            <h2>Results by Model</h2>
+            <p>{modelSummaries.length} model{modelSummaries.length !== 1 ? 's' : ''} evaluated across {index.total_projects} project{index.total_projects !== 1 ? 's' : ''}.</p>
+          </div>
+
+          <div class="wl-models-list">
+            {
+              modelSummaries.map((ms, i) => (
+                <div class="card wl-model-card">
+                  <div class="wl-model-header">
+                    <div class="wl-model-info">
+                      <div class="wl-model-rank">#{i + 1}</div>
+                      <div>
+                        <div class="wl-model-name">{ms.model}</div>
+                        <div class="wl-model-provider">{ms.provider}</div>
+                      </div>
+                    </div>
+                    <div class="wl-model-scores">
+                      <div class="wl-score-badge" title="Average score across all tasks">
+                        <span class="wl-score-value">{(ms.avg_score * 100).toFixed(1)}%</span>
+                        <span class="wl-score-label">Avg</span>
+                      </div>
+                      <div class="wl-score-badge wl-score-best" title="Best single-run score">
+                        <span class="wl-score-value">{(ms.best_score * 100).toFixed(1)}%</span>
+                        <span class="wl-score-label">Best</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="wl-model-meta">
+                    <span class="chip chip-primary">{ms.languages.join(', ')}</span>
+                    {ms.frameworks.map(fw => <span class="chip chip-success">{fw}</span>)}
+                    <span class="wl-model-tasks">{ms.total_tasks} tasks</span>
+                  </div>
+
+                  <!-- Per-project breakdown -->
+                  <div class="wl-project-breakdown">
+                    {
+                      ms.results.map(r => (
+                        <div class="wl-project-row">
+                          <div class="wl-project-row-left">
+                            <span class="wl-project-name-chip">{r.project}</span>
+                            <span class="wl-project-score">{r.overall_score.toFixed(3)}</span>
+                            <span class="wl-project-tasks">{r.total_tasks} tasks</span>
+                          </div>
+                          <div class="wl-project-row-right">
+                            <div class="wl-score-bar-track">
+                              <div
+                                class="wl-score-bar-fill"
+                                style={`width:${r.overall_score * 100}%`}
+                              ></div>
+                            </div>
+                            <span class="wl-project-time">{(r.total_time_ms / 1000).toFixed(1)}s</span>
+                          </div>
+                        </div>
+                      ))
+                    }
+                  </div>
+
+                  <!-- Task type distribution -->
+                  <div class="wl-model-details">
+                    <details>
+                      <summary class="wl-details-summary">
+                        <span class="material-symbols-outlined">bubble_chart</span>
+                        Task type distribution &amp; failure analysis
+                      </summary>
+                      <div class="wl-details-body">
+                        <!-- Task type chips -->
+                        <div class="wl-details-section">
+                          <div class="wl-details-label">Task types</div>
+                          <div class="wl-task-chips">
+                            {
+                              Object.entries(ms.results.reduce<Record<string, number>>((acc, r) => {
+                                for (const [tt, count] of Object.entries(r.task_types)) {
+                                  acc[tt] = (acc[tt] || 0) + count;
+                                }
+                                return acc;
+                              }, {})).map(([tt, count]) => (
+                                <span class="chip chip-primary">
+                                  {tt.replace(/_/g, ' ')}: {count}
+                                </span>
+                              ))
+                            }
+                          </div>
+                        </div>
+
+                        <!-- Failures -->
+                        <div class="wl-details-section">
+                          <div class="wl-details-label">Common failures</div>
+                          {
+                            (() => {
+                              const allFailures: Record<string, number> = {};
+                              for (const r of ms.results) {
+                                for (const [f, c] of Object.entries(r.failures)) {
+                                  allFailures[f] = (allFailures[f] || 0) + c;
+                                }
+                              }
+                              const sorted = Object.entries(allFailures).sort((a, b) => b[1] - a[1]);
+                              return sorted.length > 0 ? (
+                                <div class="wl-failure-chips">
+                                  {sorted.map(([f, c]) => (
+                                    <span class="chip chip-error">{f.replace(/_/g, ' ')}: {c}</span>
+                                  ))}
+                                </div>
+                              ) : (
+                                <p class="wl-no-data">No failures recorded</p>
+                              );
+                            })()
+                          }
+                        </div>
+
+                        <!-- Strengths -->
+                        <div class="wl-details-section">
+                          <div class="wl-details-label">Notable strengths</div>
+                          {
+                            (() => {
+                              const allStrengths: Record<string, number> = {};
+                              for (const r of ms.results) {
+                                for (const [s, c] of Object.entries(r.strengths)) {
+                                  allStrengths[s] = (allStrengths[s] || 0) + c;
+                                }
+                              }
+                              const sorted = Object.entries(allStrengths).sort((a, b) => b[1] - a[1]);
+                              return sorted.length > 0 ? (
+                                <div class="wl-strength-chips">
+                                  {sorted.map(([s, c]) => (
+                                    <span class="chip chip-success">{s.replace(/_/g, ' ')}: {c}</span>
+                                  ))}
+                                </div>
+                              ) : (
+                                <p class="wl-no-data">No notable strengths detected</p>
+                              );
+                            })()
+                          }
+                        </div>
+                      </div>
+                    </details>
+                  </div>
+                </div>
+              ))
+            }
+          </div>
+        </section>
+
+        <!-- ═══ Per-Project Summary ════════════════════════════ -->
+        <section class="animate-entrance" style="animation-delay:0.3s; margin-bottom: 2rem;">
+          <div class="section-header">
+            <h2>Results by Project</h2>
+            <p>How models performed across different project types.</p>
+          </div>
+
+          <div class="wl-projects-summary">
+            {
+              projectSummaries.map(ps => (
+                <div class="card wl-project-summary-card">
+                  <div class="wl-ps-header">
+                    <span class="wl-ps-name">{ps.project}</span>
+                    <span class="wl-ps-score">{(ps.avg_score * 100).toFixed(1)}% avg</span>
+                  </div>
+                  <div class="wl-ps-meta">
+                    <span class="chip chip-primary">{ps.language}</span>
+                    <span class="chip chip-success">{ps.framework}</span>
+                    <span class="wl-ps-models">{ps.models.length} model{ps.models.length !== 1 ? 's' : ''}</span>
+                    <span class="wl-ps-tasks">{ps.total_tasks} tasks</span>
+                  </div>
+                  <div class="wl-ps-bar">
+                    <div class="wl-score-bar-track">
+                      <div class="wl-score-bar-fill" style={`width:${ps.avg_score * 100}%`}></div>
+                    </div>
+                  </div>
+                  <div class="wl-ps-models-list">
+                    {ps.models.map(m => <span class="wl-ps-model-chip">{m}</span>)}
+                  </div>
+                </div>
+              ))
+            }
+          </div>
+        </section>
+      </div>
+    )
+  }
+</BaseLayout>
+
+<style is:global>
+  /* ═══════════════════════════════════════════════════════════════
+     WORKLOAD RESULTS PAGE
+     ═══════════════════════════════════════════════════════════════ */
+
+  /* ── Summary Stats Grid ────────────────────────────────────── */
+  .wl-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.875rem;
+    margin-bottom: 2rem;
+  }
+  .wl-stat-card {
+    display: flex;
+    align-items: center;
+    gap: 0.875rem;
+    padding: 1rem 1.125rem;
+  }
+  .wl-stat-icon {
+    font-size: 28px !important;
+    color: var(--brand-primary);
+    flex-shrink: 0;
+  }
+  .wl-stat-value {
+    font-family: var(--font-mono);
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1;
+  }
+  .wl-stat-label {
+    font-family: var(--font-ui);
+    font-size: 11px;
+    color: var(--text-tertiary);
+    margin-top: 2px;
+  }
+
+  /* ── Empty state ───────────────────────────────────────────── */
+  .wl-empty-icon {
+    margin-bottom: 0.75rem;
+  }
+  .wl-empty-icon .material-symbols-outlined {
+    font-size: 48px !important;
+    color: var(--text-tertiary);
+    opacity: 0.4;
+  }
+  .empty-state h3 {
+    font-family: var(--font-ui);
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+  }
+  .empty-state p {
+    font-family: var(--font-ui);
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-bottom: 0.5rem;
+  }
+
+  /* ── Model Cards ───────────────────────────────────────────── */
+  .wl-models-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.875rem;
+  }
+  .wl-model-card {
+    padding: 1.125rem;
+    transition: border-color 150ms ease;
+  }
+  .wl-model-card:hover {
+    border-color: var(--border-prominent);
+  }
+
+  .wl-model-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+  }
+  .wl-model-info {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+  .wl-model-rank {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 700;
+    background: var(--bg-container-high);
+    border: 1px solid var(--border-default);
+    color: var(--text-tertiary);
+    flex-shrink: 0;
+  }
+  .wl-model-card:first-child .wl-model-rank {
+    color: #fbbf24;
+    border-color: rgba(251, 191, 36, 0.3);
+  }
+  .wl-model-name {
+    font-family: var(--font-ui);
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+  .wl-model-provider {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-tertiary);
+  }
+
+  .wl-model-scores {
+    display: flex;
+    gap: 0.5rem;
+  }
+  .wl-score-badge {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0.375rem 0.75rem;
+    background: var(--bg-low);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    min-width: 80px;
+  }
+  .wl-score-best {
+    background: rgba(78, 222, 163, 0.06);
+    border-color: rgba(78, 222, 163, 0.15);
+  }
+  .wl-score-value {
+    font-family: var(--font-mono);
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--brand-primary);
+    line-height: 1.2;
+  }
+  .wl-score-best .wl-score-value {
+    color: var(--success);
+  }
+  .wl-score-label {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  .wl-model-meta {
+    display: flex;
+    gap: 0.375rem;
+    align-items: center;
+    margin-bottom: 0.75rem;
+    flex-wrap: wrap;
+  }
+  .wl-model-tasks {
+    font-family: var(--font-ui);
+    font-size: 11px;
+    color: var(--text-tertiary);
+    margin-left: auto;
+  }
+
+  /* ── Per-project breakdown ────────────────────────────────── */
+  .wl-project-breakdown {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+    margin-bottom: 0.75rem;
+  }
+  .wl-project-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.375rem 0.5rem;
+    background: var(--bg-low);
+    border-radius: var(--radius-sm);
+    gap: 1rem;
+  }
+  .wl-project-row-left {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-shrink: 0;
+  }
+  .wl-project-name-chip {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--brand-primary);
+    padding: 1px 6px;
+    background: rgba(173, 198, 255, 0.08);
+    border-radius: var(--radius-sm);
+    min-width: 80px;
+  }
+  .wl-project-score {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+    min-width: 50px;
+  }
+  .wl-project-tasks {
+    font-family: var(--font-ui);
+    font-size: 10px;
+    color: var(--text-tertiary);
+  }
+  .wl-project-row-right {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex: 1;
+  }
+  .wl-score-bar-track {
+    flex: 1;
+    height: 6px;
+    background: var(--bg-container-highest);
+    border-radius: 3px;
+    overflow: hidden;
+    min-width: 80px;
+  }
+  .wl-score-bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    background: var(--brand-primary);
+    transition: width 0.6s ease;
+    min-width: 2px;
+  }
+  .wl-project-time {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-tertiary);
+    flex-shrink: 0;
+    min-width: 40px;
+    text-align: right;
+  }
+
+  /* ── Expanded Details ─────────────────────────────────────── */
+  .wl-model-details {
+    margin-top: 0.25rem;
+  }
+  .wl-details-summary {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    font-family: var(--font-ui);
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 0.375rem 0.5rem;
+    border-radius: var(--radius-sm);
+    transition: background 0.12s, color 0.12s;
+    user-select: none;
+  }
+  .wl-details-summary:hover {
+    background: var(--bg-container-high);
+    color: var(--text-primary);
+  }
+  .wl-details-summary .material-symbols-outlined {
+    font-size: 16px !important;
+  }
+  .wl-details-body {
+    padding: 0.75rem 0.5rem 0.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  .wl-details-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+  }
+  .wl-details-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .wl-task-chips,
+  .wl-failure-chips,
+  .wl-strength-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .wl-no-data {
+    font-family: var(--font-ui);
+    font-size: 12px;
+    color: var(--text-tertiary);
+    font-style: italic;
+  }
+
+  /* ── Project Summary Cards ────────────────────────────────── */
+  .wl-projects-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 0.875rem;
+  }
+  .wl-project-summary-card {
+    padding: 1.125rem;
+    transition: border-color 150ms ease;
+  }
+  .wl-project-summary-card:hover {
+    border-color: var(--border-prominent);
+  }
+  .wl-ps-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.375rem;
+  }
+  .wl-ps-name {
+    font-family: var(--font-mono);
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+  .wl-ps-score {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--brand-primary);
+  }
+  .wl-ps-meta {
+    display: flex;
+    gap: 0.375rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.5rem;
+  }
+  .wl-ps-models,
+  .wl-ps-tasks {
+    font-family: var(--font-ui);
+    font-size: 11px;
+    color: var(--text-tertiary);
+  }
+  .wl-ps-bar {
+    margin-bottom: 0.625rem;
+  }
+  .wl-ps-models-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .wl-ps-model-chip {
+    padding: 2px 8px;
+    background: var(--bg-low);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-secondary);
+  }
+
+  /* ── Code Block (for empty state) ─────────────────────────── */
+  .wl-code-block {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: var(--bg-lowest);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    padding: 0.5rem 0.75rem;
+  }
+  .wl-code-block code {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--brand-primary);
+    word-break: break-all;
+  }
+  .wl-copy-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    background: none;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    color: var(--text-tertiary);
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: all 0.12s;
+  }
+  .wl-copy-btn:hover {
+    background: var(--bg-container);
+    color: var(--brand-primary);
+    border-color: var(--brand-primary);
+  }
+  .wl-copy-btn .material-symbols-outlined {
+    font-size: 14px !important;
+  }
+
+  /* ── Responsive ───────────────────────────────────────────── */
+  @media (max-width: 768px) {
+    .wl-summary-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+    .wl-projects-summary {
+      grid-template-columns: 1fr;
+    }
+    .wl-model-header {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.5rem;
+    }
+    .wl-project-row {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.25rem;
+    }
+    .wl-project-row-right {
+      width: 100%;
+    }
+  }
+</style>

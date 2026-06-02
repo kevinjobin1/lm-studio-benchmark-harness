@@ -1,4 +1,4 @@
-# ModelLens Architecture
+# Model Lens Architecture
 
 ## Monorepo structure
 
@@ -115,7 +115,7 @@ Shared types (packages/providers/base.py):
 ## App navigation
 
 ```
-ModelLens
+Model Lens
 ├── Overview         ← System status, active benchmarks, recent runs
 ├── Models           ← Per-model detail pages with metrics and traces
 ├── Compare          ← Side-by-side model comparison

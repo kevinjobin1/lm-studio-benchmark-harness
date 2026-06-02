@@ -165,7 +165,7 @@ def main(
 ):
     """Run LM Studio benchmark suite."""
 
-    console.print("\n[bold blue]🚀 LM Studio Benchmark Harness[/bold blue]\n")
+    console.print("\n[bold blue]🔬 Model Lens[/bold blue]\n")
 
     # Load configuration
     cfg = load_config(config)

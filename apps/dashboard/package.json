@@ -1,7 +1,7 @@
 {
-  "name": "lmbench-dashboard",
+  "name": "modellens-dashboard",
   "version": "1.0.0",
-  "description": "Dashboard for LM Studio Benchmark results - model comparison, radar charts, failure heatmaps",
+  "description": "Dashboard for Model Lens benchmark results - model comparison, radar charts, failure heatmaps",
   "type": "module",
   "scripts": {
     "dev": "astro dev",
@@ -10,11 +10,15 @@
     "preview": "astro preview",
     "generate-results": "python3 scripts/generate_results_json.py",
     "generate-demo": "python3 scripts/generate_results_json.py --demo",
-    "generate-real": "python3 scripts/generate_real_results.py",
-    "prebuild": "npm run generate-real",
+    "generate-trace-index": "python3 scripts/generate_traces_index.py --traces-dir public/traces --output public/traces/index.json --cwd .",
+    "generate-snapshot-index": "python3 scripts/generate_snapshots_index.py --snapshots-dir results/snapshots --output public/snapshots/index.json --cwd .",
+    "generate-workload-index": "python3 scripts/generate_workload_index.py --results-dir results/workload --output public/workload-results.json --cwd .",
+    "generate-sample-traces": "python3 scripts/generate_sample_traces.py",
+    "prebuild": "npm run generate-real && npm run generate-trace-index && npm run generate-snapshot-index && npm run generate-workload-index",
     "typecheck": "tsc --noEmit",
     "deploy": "npm run build && node dist/server/entry.mjs",
-    "cf-build": "astro build"
+    "cf-build": "astro build",
+    "test": "vitest run"
   },
   "dependencies": {
     "@astrojs/node": "^10.1.2",
@@ -28,6 +32,7 @@
   "devDependencies": {
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
     "@types/node": "^25.9.1",
     "@types/react": "^18.3.5",
     "@types/react-dom": "^18.3.0",

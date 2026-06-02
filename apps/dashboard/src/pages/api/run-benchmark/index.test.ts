@@ -24,10 +24,10 @@ const mockAppendStderr = vi.fn();
 const mockMarkExited = vi.fn();
 
 vi.mock("../../../lib/processRegistry", () => ({
-  register: (...args: any[]) => mockRegister(...args),
-  appendStdout: (...args: any[]) => mockAppendStdout(...args),
-  appendStderr: (...args: any[]) => mockAppendStderr(...args),
-  markExited: (...args: any[]) => mockMarkExited(...args),
+  register: mockRegister,
+  appendStdout: mockAppendStdout,
+  appendStderr: mockAppendStderr,
+  markExited: mockMarkExited,
 }));
 
 const { POST } = await import("./index");
@@ -97,7 +97,7 @@ describe("POST /api/run-benchmark", () => {
       request: {
         json: () => Promise.reject(new Error("No body")),
       },
-    };
+    } as any;
 
     const { spawn } = await import("node:child_process");
     await POST(ctx);

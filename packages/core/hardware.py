@@ -15,12 +15,12 @@ Usage:
     print(hw.to_dict())
 """
 
-import platform
 import os
+import platform
 import subprocess
 from dataclasses import dataclass, field
-from typing import Dict, Optional
 from datetime import datetime
+from typing import Dict, Optional
 
 
 @dataclass
@@ -92,7 +92,7 @@ class HardwareInfo:
         }
 
     def summary(self) -> str:
-        """Human-readable one-line summary (e.g., 'Apple M3 Max 18GB, macOS 15.5')."""
+        """Human-readable one-line summary (e.g., 'Apple M3 Pro 18GB, macOS 15.6.1 ')."""
         parts = []
         if self.cpu_model:
             parts.append(self.cpu_model)
@@ -107,12 +107,15 @@ class HardwareInfo:
 
 # ── Detection functions ──────────────────────────────────────────────
 
+
 def _macos_cpu_model() -> str:
     """Get CPU brand string on macOS via sysctl."""
     try:
         result = subprocess.run(
             ["sysctl", "-n", "machdep.cpu.brand_string"],
-            capture_output=True, text=True, timeout=5,
+            capture_output=True,
+            text=True,
+            timeout=5,
         )
         return result.stdout.strip()
     except Exception:
@@ -124,7 +127,9 @@ def _macos_cpu_freq() -> float:
     try:
         result = subprocess.run(
             ["sysctl", "-n", "hw.cpufrequency"],
-            capture_output=True, text=True, timeout=5,
+            capture_output=True,
+            text=True,
+            timeout=5,
         )
         hz = int(result.stdout.strip())
         return round(hz / 1_000_000, 1)
@@ -137,7 +142,9 @@ def _macos_gpu_model() -> str:
     try:
         result = subprocess.run(
             ["system_profiler", "SPDisplaysDataType"],
-            capture_output=True, text=True, timeout=10,
+            capture_output=True,
+            text=True,
+            timeout=10,
         )
         for line in result.stdout.split("\n"):
             stripped = line.strip()
@@ -153,13 +160,16 @@ def _macos_gpu_vram() -> float:
     try:
         result = subprocess.run(
             ["system_profiler", "SPDisplaysDataType"],
-            capture_output=True, text=True, timeout=10,
+            capture_output=True,
+            text=True,
+            timeout=10,
         )
         for line in result.stdout.split("\n"):
             stripped = line.strip()
             if "VRAM" in stripped:
                 # Parse "VRAM (Total): 4096 MB" or similar
                 import re
+
                 match = re.search(r"(\d+)\s*MB", stripped)
                 if match:
                     return float(match.group(1))
@@ -184,7 +194,10 @@ def _linux_gpu_model() -> str:
     """Get GPU model on Linux via lspci."""
     try:
         result = subprocess.run(
-            ["lspci"], capture_output=True, text=True, timeout=5,
+            ["lspci"],
+            capture_output=True,
+            text=True,
+            timeout=5,
         )
         for line in result.stdout.split("\n"):
             if "VGA" in line or "3D" in line or "Display" in line:
@@ -200,8 +213,10 @@ def detect_hardware() -> HardwareInfo:
     hw = HardwareInfo()
 
     # ── Platform ──────────────────────────────────────────────────
-    hw.os_name = platform.system()       # Darwin, Linux, Windows
-    hw.os_version = platform.mac_ver()[0] if hw.os_name == "Darwin" else platform.version()
+    hw.os_name = platform.system()  # Darwin, Linux, Windows
+    hw.os_version = (
+        platform.mac_ver()[0] if hw.os_name == "Darwin" else platform.version()
+    )
     hw.kernel = platform.release()
     hw.architecture = platform.machine()
     hw.hostname = platform.node()
@@ -214,6 +229,7 @@ def detect_hardware() -> HardwareInfo:
     # ── CPU & Memory (consolidated psutil) ───────────────────────
     try:
         import psutil
+
         hw.cpu_cores_physical = psutil.cpu_count(logical=False)
         hw.cpu_cores_logical = psutil.cpu_count(logical=True)
         mem = psutil.virtual_memory()

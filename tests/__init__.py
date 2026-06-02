@@ -1,1 +1,1 @@
-# ModelLens test suite
+# Model Lens test suite

@@ -1,0 +1,132 @@
+{
+  "trace_id": "trace_google_gemma-4-e4b_react-pack_01",
+  "run_id": "run_google_gemma-4-e4b_01",
+  "model": "google/gemma-4-e4b",
+  "provider": "lm-studio",
+  "prompt": "Create a controlled form component in React with TypeScript for user registration. Fields: email, password (with confirmation), display name. Include client-side validation, error messages, and a submit handler that calls an async API function. Use React hooks.",
+  "system_prompt": null,
+  "pack": "react-pack",
+  "timestamp": "2026-06-02T10:15:00Z",
+  "totalTimeMs": 790,
+  "status": "completed",
+  "steps": [
+    {
+      "id": "trace_google_gemma-4-e4b_react-pack_01-s0",
+      "type": "system",
+      "label": "System Instruction",
+      "timing_ms": 0,
+      "status": "success",
+      "detail": "You are an expert React developer. Write clean, typed, accessible components."
+    },
+    {
+      "id": "trace_google_gemma-4-e4b_react-pack_01-s1",
+      "type": "prompt",
+      "label": "Prompt Received",
+      "timing_ms": 5,
+      "status": "success",
+      "detail": "Create a controlled form component in React with TypeScript for user registration. Fields: email, password (with confirm"
+    },
+    {
+      "id": "trace_google_gemma-4-e4b_react-pack_01-s2",
+      "type": "token",
+      "label": "Token: 'Create'",
+      "timing_ms": 2,
+      "status": "success"
+    },
+    {
+      "id": "trace_google_gemma-4-e4b_react-pack_01-s3",
+      "type": "token",
+      "label": "Token: 'a'",
+      "timing_ms": 1,
+      "status": "success"
+    },
+    {
+      "id": "trace_google_gemma-4-e4b_react-pack_01-s4",
+      "type": "token",
+      "label": "Token: 'controlled'",
+      "timing_ms": 2,
+      "status": "success"
+    },
+    {
+      "id": "trace_google_gemma-4-e4b_react-pack_01-s5",
+      "type": "reasoning",
+      "label": "Planning component structure",
+      "timing_ms": 150,
+      "status": "success",
+      "detail": "Need: state for each field, validation logic, error display, async submit. Use useState + useCallback."
+    },
+    {
+      "id": "trace_google_gemma-4-e4b_react-pack_01-s6",
+      "type": "tool_call",
+      "label": "Calling: read_file src/components/",
+      "timing_ms": 60,
+      "status": "success",
+      "tool": "file_search",
+      "input": "src/components/",
+      "output": "Found: LoginForm.tsx, Dashboard.tsx. No registration form exists."
+    },
+    {
+      "id": "trace_google_gemma-4-e4b_react-pack_01-s7",
+      "type": "tool_call",
+      "label": "Calling: read_file src/api/auth.ts",
+      "timing_ms": 40,
+      "status": "success",
+      "tool": "file_read",
+      "input": "src/api/auth.ts",
+      "output": "export async function registerUser(data: RegisterPayload): Promise<User> \u2014 existing API helper."
+    },
+    {
+      "id": "trace_google_gemma-4-e4b_react-pack_01-s8",
+      "type": "reasoning",
+      "label": "Designing validation",
+      "timing_ms": 100,
+      "status": "success",
+      "detail": "Email: regex validation. Password: min 8 chars, must match confirmation. Display name: required, min 2 chars."
+    },
+    {
+      "id": "trace_google_gemma-4-e4b_react-pack_01-s9",
+      "type": "tool_call",
+      "label": "Calling: write_file RegisterForm.tsx",
+      "timing_ms": 250,
+      "status": "success",
+      "tool": "file_write",
+      "input": "src/components/RegisterForm.tsx",
+      "output": "Wrote 95 lines. Controlled form with useForm hook, validation errors, async submit."
+    },
+    {
+      "id": "trace_google_gemma-4-e4b_react-pack_01-s10",
+      "type": "response",
+      "label": "Generated Implementation",
+      "timing_ms": 180,
+      "status": "success",
+      "detail": "Created RegisterForm component with email, password, confirmation, display name fields + validation."
+    }
+  ],
+  "metrics": {
+    "ttft_ms": 180,
+    "tokens_per_second": 55,
+    "total_tokens": 122,
+    "prompt_tokens": 65,
+    "completion_tokens": 57,
+    "total_latency_ms": 790,
+    "memory_pressure_mb": 850,
+    "token_timings_ms": [
+      2,
+      1,
+      2
+    ]
+  },
+  "artifacts": {
+    "response": "import React, { useState, useCallback } from 'react';\n\ninterface RegisterFormData {\n  email: string;\n  password: string;\n  confirmPassword: string;\n  displayName: string;\n}\n// ... full component with validation and error display\n",
+    "logs": [
+      "[2026-06-02T10:15:00Z] Trace trace_google_gemma-4-e4b_react-pack_01 captured"
+    ],
+    "errors": []
+  },
+  "hardware": {
+    "platform": "macOS 15.6.1",
+    "processor": "Apple M3 Pro",
+    "memory_gb": 18,
+    "architecture": "arm64"
+  }
+}

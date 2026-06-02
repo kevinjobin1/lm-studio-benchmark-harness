@@ -1,0 +1,767 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { loadSnapshotManifest } from "../lib/loadSnapshots";
+
+// ── Load all saved snapshots ─────────────────────────────────────
+let snapshots: Array<{
+  snapshot_id: string;
+  model: string;
+  provider: string;
+  prompt: string;
+  pack: string;
+  timestamp: string;
+  totalTimeMs: number;
+  tokenCount: number;
+  stepCount: number;
+  note?: string;
+}> = [];
+
+let generatedAt = "";
+let totalSnapshots = 0;
+
+try {
+  const manifest = await loadSnapshotManifest();
+  snapshots = manifest.snapshots;
+  generatedAt = manifest.generated_at;
+  totalSnapshots = manifest.total_snapshots;
+} catch {
+  // No snapshots available
+}
+
+// ── Extract unique models, providers, packs for filter chips ───
+const uniqueModels = [...new Set(snapshots.map((s) => s.model))].sort();
+const uniqueProviders = [...new Set(snapshots.map((s) => s.provider))].sort();
+const uniquePacks = [...new Set(snapshots.map((s) => s.pack))].sort();
+
+// Format relative time helper
+function timeAgo(ts: string): string {
+  if (!ts) return "";
+  const diff = Date.now() - new Date(ts).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days}d ago`;
+  return new Date(ts).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+  });
+}
+---
+
+<BaseLayout
+  title="Snapshot Gallery"
+  description="Browse all saved execution trace snapshots — shareable, immutable run captures."
+  activeNav="snapshots"
+>
+  <!-- ═══ Page Header ═══════════════════════════════════════════ -->
+  <div class="dashboard-header animate-entrance">
+    <div>
+      <h2 class="dashboard-title">Snapshot Gallery</h2>
+      <p class="dashboard-subtitle">
+        {totalSnapshots > 0
+          ? `All ${totalSnapshots} saved snapshot${totalSnapshots !== 1 ? "s" : ""} across ${uniqueModels.length} model${uniqueModels.length !== 1 ? "s" : ""} — shareable, immutable execution captures.`
+          : "No snapshots saved yet. Open a trace run and use the Save Snapshot button."}
+      </p>
+    </div>
+    <div class="dashboard-actions">
+      <a href="/traces" class="btn-outline">
+        <span class="material-symbols-outlined" style="font-size:18px"
+          >account_tree</span
+        >
+        <span>View Traces</span>
+      </a>
+    </div>
+  </div>
+
+  {
+    snapshots.length === 0 ? (
+      <div class="empty-state animate-entrance" style="animation-delay:0.1s">
+        <span
+          class="material-symbols-outlined"
+          style="font-size:48px;color:var(--text-tertiary);margin-bottom:16px;"
+        >
+          camera
+        </span>
+        <p>No snapshots saved yet.</p>
+        <p style="font-size:12px;margin-top:4px;">
+          Open a trace run and click the Save Snapshot button to capture one.
+        </p>
+        <a
+          href="/traces"
+          class="btn-outline"
+          style="margin-top:1rem;display:inline-flex;"
+        >
+          <span class="material-symbols-outlined" style="font-size:16px"
+            >account_tree</span
+          >
+          <span>Browse Traces</span>
+        </a>
+      </div>
+    ) : (
+      <div class="sg-layout animate-entrance" style="animation-delay:0.1s">
+        <!-- ═══ Filter Sidebar ═══════════════════════════════════ -->
+        <aside class="sg-sidebar">
+          <div class="sg-filter-section">
+            <h4 class="sg-filter-title">Search</h4>
+            <div class="sg-search-wrapper">
+              <span class="material-symbols-outlined sg-search-icon"
+                >search</span
+              >
+              <input
+                type="text"
+                id="sg-search"
+                class="sg-search-input"
+                placeholder="Search by prompt or model..."
+                oninput="applyFilters()"
+              />
+              <button
+                id="sg-search-clear"
+                class="sg-search-clear"
+                onclick="clearSearch()"
+                style="display:none"
+              >
+                <span class="material-symbols-outlined">close</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="sg-filter-section">
+            <h4 class="sg-filter-title">Model</h4>
+            <div class="sg-filter-chips" id="sg-model-chips">
+              <button
+                class="sg-chip sg-chip-active"
+                data-model=""
+                onclick="setFilter('model', '')"
+              >
+                All
+              </button>
+              {uniqueModels.map((m) => (
+                <button
+                  class="sg-chip"
+                  data-model={m}
+                  onclick="setFilter('model', this.dataset.model)"
+                >
+                  {m}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div class="sg-filter-section">
+            <h4 class="sg-filter-title">Provider</h4>
+            <div class="sg-filter-chips" id="sg-provider-chips">
+              <button
+                class="sg-chip sg-chip-active"
+                data-provider=""
+                onclick="setFilter('provider', '')"
+              >
+                All
+              </button>
+              {uniqueProviders.map((p) => (
+                <button
+                  class="sg-chip"
+                  data-provider={p}
+                  onclick="setFilter('provider', this.dataset.provider)"
+                >
+                  {p}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div class="sg-filter-section">
+            <h4 class="sg-filter-title">Pack</h4>
+            <div class="sg-filter-chips" id="sg-pack-chips">
+              <button
+                class="sg-chip sg-chip-active"
+                data-pack=""
+                onclick="setFilter('pack', '')"
+              >
+                All
+              </button>
+              {uniquePacks.map((p) => (
+                <button
+                  class="sg-chip"
+                  data-pack={p}
+                  onclick="setFilter('pack', this.dataset.pack)"
+                >
+                  {p}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div class="sg-filter-section">
+            <h4 class="sg-filter-title">Time & Stats</h4>
+            <div class="sg-sidebar-stats">
+              <div class="sg-stat-row">
+                <span class="sg-stat-label">Snapshots</span>
+                <span class="sg-stat-value" id="sg-count-display"
+                  >{totalSnapshots}</span
+                >
+              </div>
+              <div class="sg-stat-row">
+                <span class="sg-stat-label">Models</span>
+                <span class="sg-stat-value">{uniqueModels.length}</span>
+              </div>
+              <div class="sg-stat-row">
+                <span class="sg-stat-label">Generated</span>
+                <span class="sg-stat-value" style="font-size:10px;"
+                  >{generatedAt
+                    ? new Date(generatedAt).toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        hour: "numeric",
+                        minute: "2-digit",
+                      })
+                    : "—"}</span>
+              </div>
+            </div>
+          </div>
+
+          <button
+            class="sg-clear-all"
+            onclick="clearAllFilters()"
+            id="sg-clear-all"
+            style="display:none"
+          >
+            <span class="material-symbols-outlined" style="font-size:14px"
+              >clear_all</span
+            >
+            <span>Clear all filters</span>
+          </button>
+        </aside>
+
+        <!-- ═══ Snapshot Grid ═══════════════════════════════════ -->
+        <div class="sg-content">
+          <div class="sg-grid" id="sg-grid">
+            {snapshots.map((s) => (
+              <a
+                href={`/runs/${encodeURIComponent(s.snapshot_id)}`}
+                class="card snapshot-card sg-card"
+                data-model={s.model}
+                data-provider={s.provider}
+                data-pack={s.pack}
+                data-prompt={s.prompt.toLowerCase()}
+                data-timestamp={s.timestamp}
+                key={s.snapshot_id}
+              >
+                <div class="sg-card-header">
+                  <span class="material-symbols-outlined sg-card-icon"
+                    >camera</span
+                  >
+                  <code class="sg-card-id mono-data">{s.snapshot_id}</code>
+                  {s.stepCount > 0 && (
+                    <span class="sg-card-steps-badge"
+                      >{s.stepCount} steps</span
+                    >
+                  )}
+                </div>
+                <div class="sg-card-model mono-data">{s.model}</div>
+                <p class="sg-card-prompt">
+                  {s.prompt.length > 100
+                    ? s.prompt.slice(0, 100) + "…"
+                    : s.prompt}
+                </p>
+                <div class="sg-card-meta-row">
+                  <span class="sg-card-meta-item">
+                    <span class="material-symbols-outlined">schedule</span>
+                    {s.totalTimeMs}ms
+                  </span>
+                  <span class="sg-card-meta-item">
+                    <span class="material-symbols-outlined">token</span>
+                    {s.tokenCount} tokens
+                  </span>
+                  {s.pack && (
+                    <span class="sg-card-meta-item">
+                      <span class="material-symbols-outlined">package_2</span>
+                      {s.pack}
+                    </span>
+                  )}
+                </div>
+                <div class="sg-card-footer">
+                  <span class="sg-card-provider chip chip-primary mono-label">
+                    {s.provider}
+                  </span>
+                  <span class="sg-card-time">
+                    {timeAgo(s.timestamp)}
+                  </span>
+                </div>
+                {s.note && (
+                  <div class="sg-card-note">
+                    <span class="material-symbols-outlined sg-note-icon"
+                      >sticky_note_2</span
+                    >
+                    <span>{s.note.length > 60 ? s.note.slice(0, 60) + "…" : s.note}</span>
+                  </div>
+                )}
+                <div class="sg-card-open">
+                  <span>Open snapshot</span>
+                  <span class="material-symbols-outlined">arrow_forward</span>
+                </div>
+              </a>
+            ))}
+          </div>
+
+          <div class="sg-empty" id="sg-empty" style="display:none">
+            <span
+              class="material-symbols-outlined"
+              style="font-size:36px;color:var(--text-tertiary);margin-bottom:8px;"
+            >
+              filter_list_off
+            </span>
+            <p>No snapshots match the current filters.</p>
+            <button class="btn-outline" onclick="clearAllFilters()">
+              <span class="material-symbols-outlined" style="font-size:14px"
+                >clear_all</span
+              >
+              <span>Clear filters</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+</BaseLayout>
+
+<script is:inline>
+  // ── Filter state ──────────────────────────────────────────────
+  const state = { model: "", provider: "", pack: "", search: "" };
+
+  function getChips(group) {
+    return document.querySelectorAll(`#sg-${group}-chips .sg-chip`);
+  }
+
+  function setFilter(key, value) {
+    state[key] = value;
+    // Update chip active state
+    const chips = getChips(
+      key === "model"
+        ? "model"
+        : key === "provider"
+          ? "provider"
+          : "pack",
+    );
+    chips.forEach((c) => {
+      c.classList.toggle("sg-chip-active", c.dataset[key] === value);
+    });
+    applyFilters();
+  }
+
+  function clearSearch() {
+    const input = document.getElementById("sg-search");
+    input.value = "";
+    state.search = "";
+    document.getElementById("sg-search-clear").style.display = "none";
+    applyFilters();
+  }
+
+  function clearAllFilters() {
+    state.model = "";
+    state.provider = "";
+    state.pack = "";
+    state.search = "";
+    document.getElementById("sg-search").value = "";
+    document.getElementById("sg-search-clear").style.display = "none";
+    // Reset all chips
+    document.querySelectorAll(".sg-chip").forEach((c) => {
+      c.classList.toggle(
+        "sg-chip-active",
+        c.dataset.model === "" ||
+          c.dataset.provider === "" ||
+          c.dataset.pack === "",
+      );
+    });
+    applyFilters();
+  }
+
+  function applyFilters() {
+    const searchVal = document.getElementById("sg-search").value.toLowerCase();
+    state.search = searchVal;
+    document.getElementById("sg-search-clear").style.display = searchVal
+      ? "block"
+      : "none";
+
+    const cards = document.querySelectorAll(".sg-card");
+    let visibleCount = 0;
+
+    cards.forEach((card) => {
+      const matchesModel =
+        !state.model || card.dataset.model === state.model;
+      const matchesProvider =
+        !state.provider || card.dataset.provider === state.provider;
+      const matchesPack = !state.pack || card.dataset.pack === state.pack;
+      const matchesSearch =
+        !state.search ||
+        card.dataset.prompt.includes(state.search) ||
+        card.dataset.model.toLowerCase().includes(state.search);
+
+      const visible =
+        matchesModel && matchesProvider && matchesPack && matchesSearch;
+      card.style.display = visible ? "flex" : "none";
+      if (visible) visibleCount++;
+    });
+
+    // Toggle empty state
+    document.getElementById("sg-empty").style.display =
+      visibleCount === 0 ? "flex" : "none";
+
+    // Update count
+    document.getElementById("sg-count-display").textContent = visibleCount;
+
+    // Show/hide clear-all button
+    const hasFilters =
+      state.model || state.provider || state.pack || state.search;
+    document.getElementById("sg-clear-all").style.display = hasFilters
+      ? "inline-flex"
+      : "none";
+  }
+</script>
+
+<style is:global>
+  /* ═══════════════════════════════════════════════════════════════
+     SNAPSHOT GALLERY
+     ═══════════════════════════════════════════════════════════════ */
+
+  .sg-layout {
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    gap: 1.5rem;
+    align-items: start;
+  }
+
+  /* ── Filter Sidebar ───────────────────────────────────────────── */
+  .sg-sidebar {
+    background: var(--bg-container);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+    padding: 1.25rem;
+    position: sticky;
+    top: calc(var(--topbar-h) + 1.5rem);
+  }
+
+  .sg-filter-section {
+    margin-bottom: 1.25rem;
+  }
+  .sg-filter-section:last-of-type {
+    margin-bottom: 1rem;
+  }
+
+  .sg-filter-title {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 0.5rem;
+  }
+
+  /* Search */
+  .sg-search-wrapper {
+    position: relative;
+  }
+  .sg-search-icon {
+    position: absolute;
+    left: 0.5rem;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 14px !important;
+    color: var(--text-tertiary);
+    pointer-events: none;
+    z-index: 1;
+  }
+  .sg-search-input {
+    width: 100%;
+    background: var(--bg-lowest);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    padding: 0.375rem 1.5rem 0.375rem 1.75rem;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-primary);
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .sg-search-input:focus {
+    border-color: var(--brand-primary);
+  }
+  .sg-search-input::placeholder {
+    color: var(--text-tertiary);
+  }
+  .sg-search-clear {
+    position: absolute;
+    right: 0.375rem;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: var(--text-tertiary);
+    cursor: pointer;
+    padding: 0;
+    z-index: 1;
+  }
+  .sg-search-clear .material-symbols-outlined {
+    font-size: 14px !important;
+  }
+  .sg-search-clear:hover {
+    color: var(--text-primary);
+  }
+
+  /* Filter chips */
+  .sg-filter-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .sg-chip {
+    padding: 2px 8px;
+    font-family: var(--font-mono);
+    font-size: 9px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    background: transparent;
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all 0.12s;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .sg-chip:hover {
+    border-color: var(--text-tertiary);
+    color: var(--text-primary);
+  }
+  .sg-chip-active {
+    background: var(--brand-primary);
+    color: var(--brand-on-primary);
+    border-color: var(--brand-primary);
+    font-weight: 600;
+  }
+
+  /* Sidebar stats */
+  .sg-sidebar-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .sg-stat-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .sg-stat-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .sg-stat-value {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  /* Clear all */
+  .sg-clear-all {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    margin-top: 0.5rem;
+    background: var(--bg-container-high);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.12s;
+  }
+  .sg-clear-all:hover {
+    border-color: var(--text-tertiary);
+    color: var(--text-primary);
+  }
+
+  /* ── Snapshot Grid ─────────────────────────────────────────────── */
+  .sg-content {
+    min-height: 300px;
+  }
+
+  .sg-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 0.875rem;
+  }
+
+  .sg-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 1rem 1.125rem;
+    text-decoration: none;
+    color: inherit;
+    transition: border-color 150ms ease, box-shadow 150ms ease;
+    position: relative;
+    overflow: hidden;
+  }
+  .sg-card:hover {
+    border-color: var(--brand-primary);
+    box-shadow: 0 2px 12px rgba(59, 130, 246, 0.08);
+  }
+  .sg-card:hover .sg-card-open {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .sg-card-header {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+  }
+  .sg-card-icon {
+    font-size: 14px;
+    color: var(--brand-primary);
+  }
+  .sg-card-id {
+    font-size: 10px;
+    color: var(--text-tertiary);
+    flex: 1;
+  }
+  .sg-card-steps-badge {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    font-weight: 500;
+    color: var(--success);
+    background: rgba(78, 222, 163, 0.1);
+    border: 1px solid rgba(78, 222, 163, 0.2);
+    padding: 1px 6px;
+    border-radius: var(--radius-sm);
+    flex-shrink: 0;
+  }
+
+  .sg-card-model {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  .sg-card-prompt {
+    font-size: 11px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    margin: 0;
+  }
+
+  .sg-card-meta-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+  .sg-card-meta-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-tertiary);
+  }
+  .sg-card-meta-item .material-symbols-outlined {
+    font-size: 12px;
+  }
+
+  .sg-card-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: auto;
+  }
+  .sg-card-provider {
+    font-size: 9px !important;
+    padding: 1px 6px !important;
+  }
+  .sg-card-time {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-tertiary);
+  }
+
+  .sg-card-note {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.375rem;
+    padding: 0.5rem;
+    background: var(--bg-low);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    font-size: 11px;
+    color: var(--text-tertiary);
+    line-height: 1.4;
+    margin-top: 0.125rem;
+  }
+  .sg-note-icon {
+    font-size: 14px !important;
+    color: var(--warning);
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  .sg-card-open {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--brand-primary);
+    transition: opacity 150ms ease, transform 150ms ease;
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  .sg-card-open .material-symbols-outlined {
+    font-size: 12px;
+  }
+
+  /* ── Empty state (filtered) ──────────────────────────────────── */
+  .sg-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem 1.5rem;
+    text-align: center;
+  }
+  .sg-empty p {
+    font-family: var(--font-ui);
+    font-size: 13px;
+    color: var(--text-tertiary);
+    margin-bottom: 0.75rem;
+  }
+
+  /* ── Responsive ───────────────────────────────────────────────── */
+  @media (max-width: 768px) {
+    .sg-layout {
+      grid-template-columns: 1fr;
+    }
+    .sg-sidebar {
+      position: static;
+    }
+    .sg-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

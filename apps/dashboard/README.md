@@ -1,6 +1,6 @@
-# LM Bench Dashboard
+# Model Lens Dashboard
 
-Live dashboard for LM Studio Benchmark results — model comparison, radar charts, failure heatmaps, and an interactive benchmark runner.
+Live dashboard for Model Lens benchmark results — model comparison, radar charts, failure heatmaps, and an interactive benchmark runner.
 
 ## Quick Start
 
@@ -50,9 +50,9 @@ The dashboard includes server-side API endpoints that power the live UI componen
   "models": ["google/gemma-4-e4b"],
   "provider": "LM Studio",
   "hardware": {
-    "cpu": { "model": "Apple M3 Max" },
+    "cpu": { "model": "Apple M3 Pro" },
     "memory": { "ram_total_mb": 18432 },
-    "os": { "name": "Darwin", "version": "24.0.0" }
+    "os": { "name": "Darwin", "version": "15.6.1" }
   }
 }
 ```

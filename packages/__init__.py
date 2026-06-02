@@ -1,1 +1,1 @@
-# ModelLens packages namespace
+# Model Lens packages namespace

@@ -1,4 +1,4 @@
-"""Provider adapters and framework integrations for ModelLens."""
+"""Provider adapters and framework integrations for Model Lens."""
 
 from .base import ProviderAdapter, Model, RunRequest, RunResult, ProviderMetrics, APICallMetrics
 

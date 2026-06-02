@@ -10,6 +10,7 @@ from .bfcl import BFCLBenchmark
 from .speed_latency import SpeedLatencyBenchmark
 from .memory import MemoryBenchmark
 from .creativity import CreativityBenchmark
+from .workload_bench import WorkloadBenchmark, BUILTIN_PROJECTS
 
 __all__ = [
     "MMLUProBenchmark",
@@ -22,5 +23,7 @@ __all__ = [
     "BFCLBenchmark",
     "SpeedLatencyBenchmark",
     "MemoryBenchmark",
-    "CreativityBenchmark"
+    "CreativityBenchmark",
+    "WorkloadBenchmark",
+    "BUILTIN_PROJECTS",
 ]

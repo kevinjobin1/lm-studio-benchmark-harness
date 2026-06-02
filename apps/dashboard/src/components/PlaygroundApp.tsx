@@ -1,4 +1,6 @@
-import React, { useState, useCallback, useRef } from "react";
+import React, { useState, useCallback } from "react";
+import type { TraceRun, TraceStep } from "../lib/traceTypes";
+import { savePlaygroundTrace } from "../lib/playgroundTraces";
 
 // ── Available Skills ──────────────────────────────────────────────
 
@@ -118,6 +120,7 @@ export default function PlaygroundApp() {
   const [mode, setMode] = useState<"custom" | "template">("template");
   const [selectedTemplate, setSelectedTemplate] = useState(0);
   const [tab, setTab] = useState<"actions" | "scores" | "raw">("actions");
+  const [capturedTraceId, setCapturedTraceId] = useState<string | null>(null);
 
   const toggleSkill = useCallback((index: number) => {
     setSkills((prev) =>
@@ -202,6 +205,72 @@ export default function PlaygroundApp() {
 
     setResults(mockResult);
     setLoading(false);
+
+    // ── V2: Build and capture an execution trace ────────────────
+    const traceId = `pg-${Date.now()}`;
+    const now = new Date();
+    const traceSteps: TraceStep[] = [
+      {
+        id: `${traceId}-s0`,
+        type: "system",
+        label: "System Instruction",
+        detail: `Playground mode. Skills enabled: ${selectedSkills.join(", ") || "none"}.`,
+        timing_ms: 0,
+        status: "success",
+      },
+      {
+        id: `${traceId}-s1`,
+        type: "prompt",
+        label: "Prompt Received",
+        detail: prompt.slice(0, 200),
+        timing_ms: 5,
+        status: "success",
+      },
+      ...actions.map((action, i) => ({
+        id: `${traceId}-tool${i}`,
+        type: "tool_call" as const,
+        label: `Calling: ${action.skill}`,
+        tool: action.skill,
+        input: JSON.stringify(action.input),
+        timing_ms: 50 + i * 30,
+        status: "success" as const,
+      })),
+      {
+        id: `${traceId}-reasoning`,
+        type: "reasoning",
+        label: "Analyzing results",
+        detail: `Used ${actions.length} skill${actions.length !== 1 ? "s" : ""} out of ${selectedSkills.length} selected. Hallucinations: ${hallucinated}.`,
+        timing_ms: 100,
+        status: "success",
+      },
+      {
+        id: `${traceId}-response`,
+        type: "response",
+        label: "Evaluation Complete",
+        detail: `Overall score: ${(overall * 100).toFixed(0)}%. Actions: ${actions.length}. Errors: ${hallucinated > 0 ? 1 : 0}.`,
+        timing_ms: 150,
+        status: hallucinated > 0 ? "failure" : "success",
+      },
+    ];
+
+    const traceRun: TraceRun = {
+      id: traceId,
+      model: "Playground (simulated)",
+      pack: selectedSkills.join(", ").slice(0, 30) || "mcp-playground",
+      prompt: prompt.slice(0, 100),
+      timestamp: now.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+      }),
+      totalTimeMs: traceSteps.reduce((s, st) => s + st.timing_ms, 0),
+      status: hallucinated > 0 ? "failed" : "completed",
+      steps: traceSteps,
+    };
+
+    savePlaygroundTrace(traceRun);
+    setCapturedTraceId(traceId);
   }, [prompt, selectedSkills]);
 
   return (
@@ -288,7 +357,18 @@ export default function PlaygroundApp() {
       {/* Results */}
       {results && (
         <div className="results-section">
-          <h3>📊 Evaluation Results</h3>
+          <div className="pg-results-header">
+            <h3>📊 Evaluation Results</h3>
+            {capturedTraceId && (
+              <a
+                href={`/traces?trace_id=${encodeURIComponent(capturedTraceId)}`}
+                className="pg-view-trace-btn"
+              >
+                <span className="material-symbols-outlined">replay</span>
+                View Trace
+              </a>
+            )}
+          </div>
 
           <div className="results-tabs">
             <button

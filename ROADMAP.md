@@ -1,4 +1,4 @@
-# ModelLens Roadmap
+# Model Lens Roadmap
 
 ## Vision
 

@@ -1,4 +1,4 @@
-"""Evaluator modules for LM Studio Benchmark Harness."""
+"""Evaluator modules for Model Lens."""
 
 from .agentic import (
     AgenticEvaluator,

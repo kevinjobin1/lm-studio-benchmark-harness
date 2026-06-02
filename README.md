@@ -1,14 +1,14 @@
-# 🔬 ModelLens
+# 🔬 Model Lens
 
 > Observability for local AI models. Benchmark, compare, replay, and understand how models actually perform on your hardware.
 
-[![CI](https://github.com/kevinjobin1/lm-studio-benchmark-harness/actions/workflows/ci.yml/badge.svg)](https://github.com/kevinjobin1/lm-studio-benchmark-harness/actions/workflows/ci.yml)
+[![CI](https://github.com/kevinjobin1/model-lens/actions/workflows/ci.yml/badge.svg)](https://github.com/kevinjobin1/model-lens/actions/workflows/ci.yml)
 
 ---
 
-## Why ModelLens?
+## Why Model Lens?
 
-Most LLM benchmarks give you a single score. ModelLens gives you the full picture — execution traces, latency metrics, memory profiles, and side-by-side comparisons — so you can answer:
+Most LLM benchmarks give you a single score. Model Lens gives you the full picture — execution traces, latency metrics, memory profiles, and side-by-side comparisons — so you can answer:
 
 - Why did this model fail?
 - Why is this model slower on my hardware?

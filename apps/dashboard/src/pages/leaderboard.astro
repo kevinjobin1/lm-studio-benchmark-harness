@@ -3,7 +3,8 @@ import BaseLayout from "../layouts/BaseLayout.astro";
 import LeaderboardTable from "../components/LeaderboardTable";
 import { loadAllResults } from "../lib/loadResults";
 
-const { leaderboard, generated_at, localCount, communityCount } = await loadAllResults();
+const { leaderboard, generated_at, localCount, communityCount } =
+    await loadAllResults();
 ---
 
 <BaseLayout
@@ -16,11 +17,16 @@ const { leaderboard, generated_at, localCount, communityCount } = await loadAllR
         <div>
             <h2 class="dashboard-title">Global Model Leaderboard</h2>
             <p class="dashboard-subtitle">
-                Ranked by overall agentic score across {localCount ?? leaderboard.length} benchmark
-                runs on Apple M3 Max.
-                {communityCount && communityCount > 0 ? (
-                    <span class="community-badge">+{communityCount} community submissions</span>
-                ) : null}
+                Ranked by overall agentic score across {
+                    localCount ?? leaderboard.length
+                } benchmark runs on Apple M3 Pro.
+                {
+                    communityCount && communityCount > 0 ? (
+                        <span class="community-badge">
+                            +{communityCount} community submissions
+                        </span>
+                    ) : null
+                }
             </p>
         </div>
         <div class="dashboard-actions">

@@ -1,6 +1,8 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
 import { loadResults } from "../lib/loadResults";
+import { loadTraceManifest } from "../lib/loadTraces";
+import { loadSnapshotManifest } from "../lib/loadSnapshots";
 import type { BenchmarkResult } from "../lib/loadResults";
 
 const results: BenchmarkResult[] = await loadResults();
@@ -9,6 +11,34 @@ const results: BenchmarkResult[] = await loadResults();
 const sortedRuns = [...results].sort(
     (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
 );
+
+// ── Load trace manifest (V2) and build model→trace-count lookup ─
+let modelTraceCounts: Map<string, number> = new Map();
+let totalTracedRuns = 0;
+try {
+  const manifest = await loadTraceManifest();
+  for (const entry of manifest.traces) {
+    const count = modelTraceCounts.get(entry.model) || 0;
+    modelTraceCounts.set(entry.model, count + 1);
+    totalTracedRuns++;
+  }
+} catch {
+  // Traces not available
+}
+
+// ── Load snapshot manifest and build model→snapshot-count lookup ─
+let modelSnapshotCounts: Map<string, number> = new Map();
+let totalSnapshots = 0;
+try {
+  const snapManifest = await loadSnapshotManifest();
+  for (const entry of snapManifest.snapshots) {
+    const count = modelSnapshotCounts.get(entry.model) || 0;
+    modelSnapshotCounts.set(entry.model, count + 1);
+    totalSnapshots++;
+  }
+} catch {
+  // Snapshots not available
+}
 ---
 
 <BaseLayout
@@ -23,7 +53,7 @@ const sortedRuns = [...results].sort(
             <p class="dashboard-subtitle">
                 {
                     results.length > 0
-                        ? `All ${results.length} benchmark runs across ${new Set(results.map((r) => r.model)).size} models.`
+                        ? `All ${results.length} benchmark runs across ${new Set(results.map((r) => r.model)).size} models.${totalTracedRuns > 0 ? ` ${totalTracedRuns} execution traces captured.` : ""}`
                         : "No benchmark runs recorded yet."
                 }
             </p>
@@ -63,8 +93,10 @@ const sortedRuns = [...results].sort(
                                     <th class="th-model">Model</th>
                                     <th class="th-score">Overall</th>
                                     <th class="th-score">Coding</th>
-                                    <th class="th-score">Tok/s</th>
+                                    <th class="th-score">Tokens/s</th>
                                     <th class="th-score">Latency</th>
+                                    <th class="th-score">Traces</th>
+                                    <th class="th-score">Snapshots</th>
                                     <th class="th-score">Date</th>
                                 </tr>
                             </thead>
@@ -158,6 +190,48 @@ const sortedRuns = [...results].sort(
                                                 {r.performance.total_latency_ms}
                                                 ms
                                             </td>
+                                            <td class="td-score">
+                                                {modelTraceCounts.has(r.model) ? (
+                                                    <a
+                                                        href={`/traces?model=${encodeURIComponent(r.model)}`}
+                                                        class="hist-traces-link"
+                                                        title={`${modelTraceCounts.get(r.model)} trace${modelTraceCounts.get(r.model) !== 1 ? "s" : ""} captured`}
+                                                        aria-label={`View ${modelTraceCounts.get(r.model)} execution trace${modelTraceCounts.get(r.model) !== 1 ? "s" : ""} for ${r.model}`}
+                                                    >
+                                                        <span class="material-symbols-outlined hist-traces-icon">
+                                                            replay
+                                                        </span>
+                                                        <span class="hist-traces-count">
+                                                            {modelTraceCounts.get(r.model)}
+                                                        </span>
+                                                    </a>
+                                                ) : (
+                                                    <span class="hist-traces-none" aria-label="No traces captured">
+                                                        —
+                                                    </span>
+                                                )}
+                                            </td>
+                                            <td class="td-score">
+                                                {modelSnapshotCounts.has(r.model) ? (
+                                                    <a
+                                                        href={`/traces?model=${encodeURIComponent(r.model)}`}
+                                                        class="hist-traces-link"
+                                                        title={`${modelSnapshotCounts.get(r.model)} snapshot${modelSnapshotCounts.get(r.model) !== 1 ? "s" : ""} saved`}
+                                                        aria-label={`View ${modelSnapshotCounts.get(r.model)} snapshot${modelSnapshotCounts.get(r.model) !== 1 ? "s" : ""} for ${r.model}`}
+                                                    >
+                                                        <span class="material-symbols-outlined hist-traces-icon">
+                                                            camera
+                                                        </span>
+                                                        <span class="hist-traces-count">
+                                                            {modelSnapshotCounts.get(r.model)}
+                                                        </span>
+                                                    </a>
+                                                ) : (
+                                                    <span class="hist-traces-none" aria-label="No snapshots saved">
+                                                        —
+                                                    </span>
+                                                )}
+                                            </td>
                                             <td
                                                 class="td-score mono-data"
                                                 style="font-size:11px; color: var(--text-tertiary);"
@@ -193,6 +267,9 @@ const sortedRuns = [...results].sort(
                                       ),
                                   ].join(", ")
                                 : "—"}
+                            {totalTracedRuns > 0
+                                ? ` · ${modelTraceCounts.size} model${modelTraceCounts.size !== 1 ? "s" : ""} with traces`
+                                : ""}
                         </span>
                     </div>
                 </div>
@@ -200,3 +277,36 @@ const sortedRuns = [...results].sort(
         )
     }
 </BaseLayout>
+
+<style is:global>
+  /* ── Traces column (History page) ────────────────────────────── */
+  .hist-traces-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    text-decoration: none;
+    color: var(--text-secondary);
+    padding: 2px 8px;
+    border-radius: 4px;
+    transition: background 150ms ease, color 150ms ease;
+  }
+  .hist-traces-link:hover {
+    background: rgba(59, 130, 246, 0.08);
+    color: var(--brand-primary);
+  }
+
+  .hist-traces-icon {
+    font-size: 14px;
+  }
+
+  .hist-traces-count {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 500;
+  }
+
+  .hist-traces-none {
+    color: var(--text-tertiary);
+    font-size: 13px;
+  }
+</style>

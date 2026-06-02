@@ -1,10 +1,10 @@
-# ModelLens Vision
+# Model Lens Vision
 
 > Benchmarking is a feature. Observability is the product.
 
 ---
 
-## Why ModelLens exists
+## Why Model Lens exists
 
 Most LLM benchmarks give you a single score. They don't tell you:
 
@@ -14,7 +14,7 @@ Most LLM benchmarks give you a single score. They don't tell you:
 - What changed between model versions
 - What actually happened during execution
 
-ModelLens exists to answer these questions.
+Model Lens exists to answer these questions.
 
 ---
 
@@ -49,7 +49,7 @@ We are not building another leaderboard. We are building the equivalent of:
 
 ## Visual identity
 
-**Brand:** ModelLens
+**Brand:** Model Lens
 
 **Theme:** Precision optics — clinical, reliable, utilitarian.
 
@@ -68,7 +68,7 @@ We are not building another leaderboard. We are building the equivalent of:
 
 ---
 
-## What ModelLens will never be
+## What Model Lens will never be
 
 - A cloud-hosted SaaS platform
 - A general-purpose AI agent
@@ -83,7 +83,7 @@ A developer should be able to ask:
 
 > "Why is Qwen better than Gemma for my codebase?"
 
-And ModelLens should provide:
+And Model Lens should provide:
 
 - Benchmark evidence
 - Execution traces

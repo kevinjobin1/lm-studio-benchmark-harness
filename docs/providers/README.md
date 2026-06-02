@@ -1,6 +1,6 @@
 # Provider Setup Guides
 
-ModelLens supports multiple local LLM providers through a unified `ProviderAdapter` interface.
+Model Lens supports multiple local LLM providers through a unified `ProviderAdapter` interface.
 
 ---
 
@@ -24,7 +24,7 @@ ModelLens supports multiple local LLM providers through a unified `ProviderAdapt
 3. Go to **Developer** tab → enable **Local API Server**
 4. Start the server (default: `http://localhost:1234`)
 
-### Usage with ModelLens
+### Usage with Model Lens
 
 ```bash
 # Auto-detect LM Studio models and run
@@ -39,7 +39,7 @@ python apps/cli/modellens.py run --framework general --model-name qwen3.5-9b-cod
 
 ### Configuration
 
-LM Studio uses the OpenAI-compatible `/v1/chat/completions` endpoint. ModelLens communicates with it via the `openai` Python SDK:
+LM Studio uses the OpenAI-compatible `/v1/chat/completions` endpoint. Model Lens communicates with it via the `openai` Python SDK:
 
 ```python
 from core.benchmark import LMStudioClient
@@ -79,7 +79,7 @@ curl http://localhost:1234/v1/models
    ```
 3. Ollama serves automatically at `http://localhost:11434`
 
-### Usage with ModelLens
+### Usage with Model Lens
 
 ```bash
 # Auto-detect Ollama models and run
@@ -91,7 +91,7 @@ python apps/cli/modellens.py run --provider ollama --models llama3.2:latest
 
 ### OpenAI-compatible API
 
-Ollama >= 0.1.28 exposes an OpenAI-compatible API at `/v1`. ModelLens uses this:
+Ollama >= 0.1.28 exposes an OpenAI-compatible API at `/v1`. Model Lens uses this:
 
 ```python
 from providers.ollama import OllamaClient
@@ -122,7 +122,7 @@ print(f"TTFT: {result.ttft_ms:.0f}ms, Tokens/sec: {result.tokens_per_second:.1f}
 
 ### Model naming
 
-Ollama models include tags: `llama3.2:latest`, `qwen2.5-coder:7b`. ModelLens's `list_models()` parses these into:
+Ollama models include tags: `llama3.2:latest`, `qwen2.5-coder:7b`. Model Lens's `list_models()` parses these into:
 - `name`: base name (e.g., `llama3.2`)
 - `parameters`: tag (e.g., `latest`, `7b`)
 - `id`: full name (e.g., `llama3.2:latest`)

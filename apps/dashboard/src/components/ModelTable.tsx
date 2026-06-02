@@ -66,6 +66,21 @@ export default function ModelTable({ models }: ModelTableProps) {
                       {m.metadata.quantization
                         ? `· ${m.metadata.quantization}`
                         : ""}
+                      {m.trace_ids && m.trace_ids.length > 0 ? (
+                        <>
+                          {" · "}
+                          <a
+                            href={`/traces?trace_id=${encodeURIComponent(m.trace_ids[0])}`}
+                            className="model-trace-link"
+                            title="View execution traces"
+                          >
+                            <span className="material-symbols-outlined model-trace-icon">
+                              account_tree
+                            </span>
+                            traces
+                          </a>
+                        </>
+                      ) : null}
                     </span>
                   </div>
                 </td>

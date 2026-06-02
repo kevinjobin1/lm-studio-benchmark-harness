@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Unified Results Schema for LM Studio Benchmark Harness
+Unified Results Schema for Model Lens
 
 Provides a portable, comparable, and versioned output format for all benchmark runs.
 Compatible with the static dashboard and CI pipeline.
@@ -150,6 +150,10 @@ class BenchmarkResult:
     agentic_score: Optional[AgenticScoreData] = None
     agentic_mode: bool = False
 
+    # V2 Trace capture (optional)
+    trace_id: Optional[str] = None
+    trace_file: Optional[str] = None  # Path to trace JSON file
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         d = {
@@ -180,6 +184,8 @@ class BenchmarkResult:
             "seed": self.seed,
             "agentic_score": asdict(self.agentic_score) if self.agentic_score else None,
             "agentic_mode": self.agentic_mode,
+            "trace_id": self.trace_id,
+            "trace_file": self.trace_file,
         }
         return d
 
@@ -259,6 +265,10 @@ class BenchmarkResult:
             filtered = {k: v for k, v in agentic_data.items() if k in known_fields}
             result.agentic_score = AgenticScoreData(**filtered)
         result.agentic_mode = data.get("agentic_mode", False)
+
+        # V2 Trace data (optional)
+        result.trace_id = data.get("trace_id")
+        result.trace_file = data.get("trace_file")
 
         return result
 

@@ -1,0 +1,393 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+---
+
+<BaseLayout
+  title="Workload Evaluation"
+  description="Evaluate models on real-world project codebases — React, NestJS, Rust, Python."
+  activeNav="workload"
+>
+  <!-- ═══ Page Header ═══════════════════════════════════════════ -->
+  <div class="dashboard-header animate-entrance">
+    <div>
+      <h2 class="dashboard-title">Workload Evaluation</h2>
+      <p class="dashboard-subtitle">
+        Test models against real project codebases — coding tasks, bug fixes, refactoring, and more.
+        Results are generated with the <code>modellens workload run</code> CLI command.
+      </p>
+    </div>
+    <div class="dashboard-actions">
+      <a href="/workload/results" class="btn-outline">
+        <span class="material-symbols-outlined" style="font-size:18px">bar_chart</span>
+        <span>View Results</span>
+      </a>
+      <a href="/traces" class="btn-outline">
+        <span class="material-symbols-outlined" style="font-size:18px">account_tree</span>
+        <span>View Traces</span>
+      </a>
+    </div>
+  </div>
+
+  <!-- ═══ Info Cards ════════════════════════════════════════════ -->
+  <div class="wl-info-grid animate-entrance" style="animation-delay:0.1s">
+    <div class="card wl-info-card">
+      <span class="material-symbols-outlined wl-info-icon">code</span>
+      <div>
+        <div class="wl-info-value">React + NestJS</div>
+        <div class="wl-info-label">TypeScript frameworks</div>
+      </div>
+    </div>
+    <div class="card wl-info-card">
+      <span class="material-symbols-outlined wl-info-icon">terminal</span>
+      <div>
+        <div class="wl-info-value">Python + Rust</div>
+        <div class="wl-info-label">Additional languages</div>
+      </div>
+    </div>
+    <div class="card wl-info-card">
+      <span class="material-symbols-outlined wl-info-icon">task_alt</span>
+      <div>
+        <div class="wl-info-value">7 Task Types</div>
+        <div class="wl-info-label">Feature, bugfix, refactor, test, etc.</div>
+      </div>
+    </div>
+    <div class="card wl-info-card">
+      <span class="material-symbols-outlined wl-info-icon">grading</span>
+      <div>
+        <div class="wl-info-value">5 Score Axes</div>
+        <div class="wl-info-label">Correctness, completeness, quality, style, efficiency</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ How it Works ══════════════════════════════════════════ -->
+  <section class="animate-entrance" style="animation-delay:0.2s; margin-bottom: 2rem;">
+    <div class="section-header">
+      <h2>How it Works</h2>
+      <p>Workload evaluation tests models on code they haven't seen before.</p>
+    </div>
+    <div class="wl-steps">
+      <div class="wl-step">
+        <div class="wl-step-number">1</div>
+        <div class="wl-step-content">
+          <h3>Load a Project</h3>
+          <p>Load a built-in sample project or point to any local/git repository.
+          The system analyzes the codebase, detecting language, framework, and code structure.</p>
+        </div>
+      </div>
+      <div class="wl-step">
+        <div class="wl-step-number">2</div>
+        <div class="wl-step-content">
+          <h3>Generate Tasks</h3>
+          <p>Tasks are generated from the project's actual code — implement features,
+          fix bugs, refactor code, write tests, add validation, optimize, or add documentation.</p>
+        </div>
+      </div>
+      <div class="wl-step">
+        <div class="wl-step-number">3</div>
+        <div class="wl-step-content">
+          <h3>Evaluate</h3>
+          <p>The model responds to each task. Outputs are scored on correctness, completeness,
+          code quality, style match (following project conventions), and efficiency.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ Built-in Projects ═════════════════════════════════════ -->
+  <section class="animate-entrance" style="animation-delay:0.3s; margin-bottom: 2rem;">
+    <div class="section-header">
+      <h2>Built-in Projects</h2>
+      <p>Available projects for workload evaluation — ready to use without setup.</p>
+    </div>
+    <div class="wl-projects-grid">
+      <div class="card wl-project-card">
+        <div class="wl-project-header">
+          <span class="material-symbols-outlined wl-project-icon" style="color:var(--success)">api</span>
+          <code class="wl-project-name">nestjs-api</code>
+        </div>
+        <p class="wl-project-desc">NestJS REST API with Prisma, Auth, and Kafka</p>
+        <div class="wl-project-meta">
+          <span class="chip chip-primary">TypeScript</span>
+          <span class="chip chip-success">NestJS</span>
+        </div>
+        <pre class="wl-project-preview">src/
+  app.module.ts
+  users/
+    users.service.ts
+    users.controller.ts</pre>
+      </div>
+      <div class="card wl-project-card">
+        <div class="wl-project-header">
+          <span class="material-symbols-outlined wl-project-icon" style="color:var(--brand-primary)">widgets</span>
+          <code class="wl-project-name">react-app</code>
+        </div>
+        <p class="wl-project-desc">React dashboard with state management and components</p>
+        <div class="wl-project-meta">
+          <span class="chip chip-primary">TypeScript</span>
+          <span class="chip chip-success">React</span>
+        </div>
+        <pre class="wl-project-preview">src/
+  App.tsx
+  hooks/useModels.ts
+  components/ModelCard.tsx</pre>
+      </div>
+      <div class="card wl-project-card">
+        <div class="wl-project-header">
+          <span class="material-symbols-outlined wl-project-icon" style="color:var(--warning)">code</span>
+          <code class="wl-project-name">python-cli</code>
+        </div>
+        <p class="wl-project-desc">Python CLI tool with Click and async I/O</p>
+        <div class="wl-project-meta">
+          <span class="chip chip-primary">Python</span>
+          <span class="chip chip-success">Click</span>
+        </div>
+        <pre class="wl-project-preview">cli.py</pre>
+      </div>
+      <div class="card wl-project-card">
+        <div class="wl-project-header">
+          <span class="material-symbols-outlined wl-project-icon" style="color:var(--error)">deployed_code</span>
+          <code class="wl-project-name">rust-server</code>
+        </div>
+        <p class="wl-project-desc">Rust HTTP server with Actix-web</p>
+        <div class="wl-project-meta">
+          <span class="chip chip-primary">Rust</span>
+          <span class="chip chip-success">Actix</span>
+        </div>
+        <pre class="wl-project-preview">src/
+  main.rs</pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ Getting Started ═══════════════════════════════════════ -->
+  <section class="animate-entrance" style="animation-delay:0.4s; margin-bottom: 3rem;">
+    <div class="card wl-cta-card">
+      <div class="wl-cta-content">
+        <h3>Run Workload Evaluation</h3>
+        <p>Use the CLI to evaluate a model against any project:</p>
+        <div class="wl-code-block">
+          <code>modellens workload run --model qwen3.5-9b --project nestjs-api -v</code>
+          <button class="wl-copy-btn" onclick="navigator.clipboard.writeText('modellens workload run --model qwen3.5-9b --project nestjs-api -v')">
+            <span class="material-symbols-outlined">content_copy</span>
+          </button>
+        </div>
+        <div class="wl-code-block" style="margin-top:0.5rem;">
+          <code>modellens workload run --model llama3.2 --project-source /path/to/your/project</code>
+          <button class="wl-copy-btn" onclick="navigator.clipboard.writeText('modellens workload run --model llama3.2 --project-source /path/to/your/project')">
+            <span class="material-symbols-outlined">content_copy</span>
+          </button>
+        </div>
+        <div class="wl-code-block" style="margin-top:0.5rem;">
+          <code>modellens workload list-projects</code>
+          <button class="wl-copy-btn" onclick="navigator.clipboard.writeText('modellens workload list-projects')">
+            <span class="material-symbols-outlined">content_copy</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+</BaseLayout>
+
+<style is:global>
+  /* ═══════════════════════════════════════════════════════════════
+     WORKLOAD EVALUATION PAGE
+     ═══════════════════════════════════════════════════════════════ */
+
+  /* ── Info Cards ──────────────────────────────────────────────── */
+  .wl-info-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.875rem;
+    margin-bottom: 2rem;
+  }
+  .wl-info-card {
+    display: flex;
+    align-items: center;
+    gap: 0.875rem;
+    padding: 1rem 1.125rem;
+  }
+  .wl-info-icon {
+    font-size: 28px !important;
+    color: var(--brand-primary);
+    flex-shrink: 0;
+  }
+  .wl-info-value {
+    font-family: var(--font-mono);
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+  .wl-info-label {
+    font-family: var(--font-ui);
+    font-size: 11px;
+    color: var(--text-tertiary);
+    margin-top: 2px;
+  }
+
+  /* ── Steps ──────────────────────────────────────────────────── */
+  .wl-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  .wl-step {
+    display: flex;
+    gap: 1rem;
+    align-items: flex-start;
+    padding: 1rem 1.25rem;
+    background: var(--bg-container);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+    transition: border-color 0.15s;
+  }
+  .wl-step:hover {
+    border-color: var(--border-prominent);
+  }
+  .wl-step-number {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-mono);
+    font-size: 14px;
+    font-weight: 700;
+    background: var(--bg-container-high);
+    border: 1px solid var(--border-default);
+    color: var(--brand-primary);
+    flex-shrink: 0;
+  }
+  .wl-step-content h3 {
+    font-family: var(--font-ui);
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 0.25rem;
+  }
+  .wl-step-content p {
+    font-family: var(--font-ui);
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+  }
+
+  /* ── Project Cards ──────────────────────────────────────────── */
+  .wl-projects-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 0.875rem;
+  }
+  .wl-project-card {
+    padding: 1.125rem;
+    transition: border-color 150ms ease, box-shadow 150ms ease;
+  }
+  .wl-project-card:hover {
+    border-color: var(--brand-primary);
+    box-shadow: 0 2px 12px rgba(59, 130, 246, 0.08);
+  }
+  .wl-project-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+  }
+  .wl-project-icon {
+    font-size: 20px !important;
+  }
+  .wl-project-name {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+  .wl-project-desc {
+    font-family: var(--font-ui);
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-bottom: 0.625rem;
+    line-height: 1.5;
+  }
+  .wl-project-meta {
+    display: flex;
+    gap: 0.375rem;
+    margin-bottom: 0.75rem;
+  }
+  .wl-project-preview {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-tertiary);
+    background: var(--bg-low);
+    padding: 0.5rem 0.75rem;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-subtle);
+    line-height: 1.6;
+    margin: 0;
+  }
+
+  /* ── CTA Card ───────────────────────────────────────────────── */
+  .wl-cta-card {
+    padding: 1.5rem;
+  }
+  .wl-cta-content h3 {
+    font-family: var(--font-ui);
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 0.25rem;
+  }
+  .wl-cta-content p {
+    font-family: var(--font-ui);
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-bottom: 1rem;
+  }
+  .wl-code-block {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--bg-lowest);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    padding: 0.5rem 0.75rem;
+  }
+  .wl-code-block code {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--brand-primary);
+    word-break: break-all;
+  }
+  .wl-copy-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    background: none;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    color: var(--text-tertiary);
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: all 0.12s;
+  }
+  .wl-copy-btn:hover {
+    background: var(--bg-container);
+    color: var(--brand-primary);
+    border-color: var(--brand-primary);
+  }
+  .wl-copy-btn .material-symbols-outlined {
+    font-size: 14px !important;
+  }
+
+  /* ── Responsive ─────────────────────────────────────────────── */
+  @media (max-width: 768px) {
+    .wl-info-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+    .wl-projects-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

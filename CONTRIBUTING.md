@@ -1,4 +1,4 @@
-# Contributing to ModelLens
+# Contributing to Model Lens
 
 Thanks for your interest in contributing!
 
@@ -8,8 +8,8 @@ Thanks for your interest in contributing!
 
 ```bash
 # Clone and install
-git clone https://github.com/kevinjobin1/lm-studio-benchmark-harness.git
-cd lm-studio-benchmark-harness
+git clone https://github.com/kevinjobin1/model-lens.git
+cd model-lens
 pip install -r requirements.txt
 
 # Dashboard

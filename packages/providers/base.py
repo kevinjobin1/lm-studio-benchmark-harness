@@ -66,6 +66,7 @@ class RunResult:
     total_tokens: int
     timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
     hardware: Optional[Dict] = None  # HardwareInfo.to_dict() snapshot
+    trace_id: Optional[str] = None   # Link to a captured Trace (V2)
 
 
 @dataclass

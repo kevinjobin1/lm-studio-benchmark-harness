@@ -8,15 +8,15 @@ from datetime import datetime
 # These are the verified scores from our benchmark suite runs.
 
 gemma_scores = {
-    "mmlu_pro": 0.6667,        # 66.67% accuracy (3 samples)
-    "gsm8k": 0.3333,           # 33.33% accuracy (3 samples)
-    "aime": 0.0,                # 0.00% accuracy (1 sample)
-    "bfcl": 1.0,                # 100.00% tool_use_accuracy (3 samples)
-    "humaneval": 0.0,           # 0.00% pass@1 (2 samples)
-    "swe_bench_lite": 0.75,     # 75.00% task_quality (1 sample)
-    "if_eval": 0.3333,          # 33.33% instruction_following (3 samples)
+    "mmlu_pro": 0.6667,  # 66.67% accuracy (3 samples)
+    "gsm8k": 0.3333,  # 33.33% accuracy (3 samples)
+    "aime": 0.0,  # 0.00% accuracy (1 sample)
+    "bfcl": 1.0,  # 100.00% tool_use_accuracy (3 samples)
+    "humaneval": 0.0,  # 0.00% pass@1 (2 samples)
+    "swe_bench_lite": 0.75,  # 75.00% task_quality (1 sample)
+    "if_eval": 0.3333,  # 33.33% instruction_following (3 samples)
     "needle_in_haystack": 1.0,  # 100.00% retrieval_accuracy (3 samples)
-    "creativity": 0.7260,       # 72.60% creativity_score (1 sample)
+    "creativity": 0.7260,  # 72.60% creativity_score (1 sample)
 }
 
 gemma_perf = {
@@ -28,15 +28,15 @@ gemma_perf = {
 }
 
 lfm_scores = {
-    "mmlu_pro": 1.0,            # 100.00% accuracy (3 samples)
-    "gsm8k": 1.0,               # 100.00% accuracy (3 samples)
-    "aime": 1.0,                 # 100.00% accuracy (1 sample)
-    "bfcl": 0.6667,              # 66.67% tool_use_accuracy (3 samples)
-    "humaneval": 0.0,            # 0.00% pass@1 (2 samples)
-    "swe_bench_lite": 0.625,     # 62.50% task_quality (1 sample)
-    "if_eval": 0.6667,           # 66.67% instruction_following (3 samples)
+    "mmlu_pro": 1.0,  # 100.00% accuracy (3 samples)
+    "gsm8k": 1.0,  # 100.00% accuracy (3 samples)
+    "aime": 1.0,  # 100.00% accuracy (1 sample)
+    "bfcl": 0.6667,  # 66.67% tool_use_accuracy (3 samples)
+    "humaneval": 0.0,  # 0.00% pass@1 (2 samples)
+    "swe_bench_lite": 0.625,  # 62.50% task_quality (1 sample)
+    "if_eval": 0.6667,  # 66.67% instruction_following (3 samples)
     "needle_in_haystack": 0.25,  # 25.00% retrieval_accuracy (3 samples)
-    "creativity": 0.7172,        # 71.72% creativity_score (1 sample)
+    "creativity": 0.7172,  # 71.72% creativity_score (1 sample)
 }
 
 lfm_perf = {
@@ -104,9 +104,9 @@ def build_result(name: str, scores: dict, perf: dict, metadata: dict) -> dict:
         "model": name,
         "model_metadata": metadata,
         "hardware": {
-            "platform": "macOS 14.5",
-            "processor": "Apple M3 Max",
-            "memory_gb": 64,
+            "platform": "macOS 15.6.1",
+            "processor": "Apple M3 Pro",
+            "memory_gb": 18,
             "architecture": "arm64",
         },
         "timestamp": datetime.now().isoformat(),
@@ -144,6 +144,7 @@ def build_result(name: str, scores: dict, perf: dict, metadata: dict) -> dict:
         "prompt_version": "v1",
         "packs_used": ["nestjs-pack", "react-pack", "debugging-pack"],
         "seed": 42,
+        "trace_ids": [f"trace_{name.replace('/', '_')}_real_0"],
     }
 
 
@@ -174,6 +175,7 @@ def main():
     }
 
     import os
+
     os.makedirs("public", exist_ok=True)
 
     with open(output_path, "w") as f:
@@ -182,9 +184,11 @@ def main():
     print(f"✓ Wrote {len(runs)} runs ({data['total_models']} models) to {output_path}")
     for r in runs:
         m = r["metrics"]
-        print(f"  {r['model']}: overall={m['overall_score']:.1%} "
-              f"coding={m['coding_score']:.1%} reasoning={m['reasoning_score']:.1%} "
-              f"math={m['math_score']:.1%} speed={r['performance']['tokens_per_sec']:.0f} tok/s")
+        print(
+            f"  {r['model']}: overall={m['overall_score']:.1%} "
+            f"coding={m['coding_score']:.1%} reasoning={m['reasoning_score']:.1%} "
+            f"math={m['math_score']:.1%} speed={r['performance']['tokens_per_sec']:.0f} tok/s"
+        )
 
 
 if __name__ == "__main__":

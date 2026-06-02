@@ -1,6 +1,6 @@
-# ModelLens Documentation
+# Model Lens Documentation
 
-Detailed guides for each component of ModelLens.
+Detailed guides for each component of Model Lens.
 
 ---
 

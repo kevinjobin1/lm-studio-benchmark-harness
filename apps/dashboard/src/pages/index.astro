@@ -2,6 +2,8 @@
 import BaseLayout from "../layouts/BaseLayout.astro";
 import DashboardShell from "../components/DashboardShell.astro";
 import { loadResults, buildLeaderboard } from "../lib/loadResults";
+import { loadTraceManifest } from "../lib/loadTraces";
+import type { TraceStats } from "../lib/loadTraces";
 import type { BenchmarkResult } from "../lib/loadResults";
 
 const results: BenchmarkResult[] = await loadResults();
@@ -72,11 +74,27 @@ const memoryUtilPct =
         : 0;
 
 const topModels = leaderboard.slice(0, 3);
+
+// ── Trace statistics (V2) ───────────────────────────────────
+let traceStats: TraceStats = { total: 0, modelsWithTraces: 0, completed: 0, failed: 0 };
+try {
+  const manifest = await loadTraceManifest();
+  const tracedModels = new Set<string>();
+  for (const t of manifest.traces) {
+    tracedModels.add(t.model);
+    if (t.status === "completed") traceStats.completed++;
+    else if (t.status === "failed") traceStats.failed++;
+  }
+  traceStats.total = manifest.total_traces;
+  traceStats.modelsWithTraces = tracedModels.size;
+} catch {
+  // Traces not available
+}
 ---
 
 <BaseLayout
     title="Dashboard"
-    description="LM Studio Benchmark Dashboard — compare local LLM performance on Apple Silicon with coding, reasoning, and latency metrics."
+    description="Model Lens Dashboard — compare local LLM performance on Apple Silicon with coding, reasoning, and latency metrics."
 >
     {
         results.length === 0 ? (
@@ -102,6 +120,7 @@ const topModels = leaderboard.slice(0, 3);
                 p95LatencyMs={p95LatencyMs}
                 memoryUtilPct={memoryUtilPct}
                 topModels={topModels}
+                traceStats={traceStats}
             />
         )
     }

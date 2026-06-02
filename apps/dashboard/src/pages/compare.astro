@@ -1,7 +1,10 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
+import TraceComparison from '../components/TraceComparison';
 import { loadResults, buildLeaderboard } from '../lib/loadResults';
+import { loadTraceManifest, loadTrace, mapTraceToRun } from '../lib/loadTraces';
 import type { BenchmarkResult, MetricScores } from '../lib/loadResults';
+import type { TraceRun } from '../lib/traceTypes';
 
 const results: BenchmarkResult[] = await loadResults();
 const { leaderboard } = buildLeaderboard(results);
@@ -13,6 +16,25 @@ const fastestModel = leaderboard.length > 0
   ? leaderboard.reduce((a, b) => a.performance.tokens_per_sec > b.performance.tokens_per_sec ? a : b)
   : null;
 const topModel = leaderboard[0] ?? null;
+
+// ── Load real traces for comparison ────────────────────────────
+const comparisonTraces: TraceRun[][] = [];
+const traceManifest = await loadTraceManifest();
+const modelNames = comparisonModels.map(m => m.model);
+
+for (const model of modelNames) {
+  const modelTraces = traceManifest.traces
+    .filter(t => t.model === model)
+    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+    .slice(0, 3);
+
+  const loaded: TraceRun[] = [];
+  for (const entry of modelTraces) {
+    const data = await loadTrace(entry.trace_id);
+    if (data) loaded.push(mapTraceToRun(data));
+  }
+  comparisonTraces.push(loaded);
+}
 
 // Build comparison rows in frontmatter to avoid complex template expressions
 interface CompareRow {
@@ -89,7 +111,7 @@ compareRows.push(issuesRow);
 
 <BaseLayout
   title="Model Comparison"
-  description="Head-to-head comparison of LLM performance on LM Studio — coding, reasoning, speed, and stability."
+  description="Head-to-head comparison of LLM performance on Model Lens — coding, reasoning, speed, and stability."
 >
   <!-- ═══ Dashboard Header ═══════════════════════════════════════ -->
   <div class="dashboard-header animate-entrance">
@@ -167,6 +189,26 @@ compareRows.push(issuesRow);
           </div>
         </section>
 
+        <!-- ═══ Trace Comparison ═══════════════════════════════ -->
+        {
+          comparisonTraces.length >= 2 && comparisonTraces[0].length > 0 && comparisonTraces[1].length > 0 && (
+            <section class="dashboard-table" style="margin-top:2rem;">
+              <div class="section-header">
+                <h2>Execution Trace Comparison</h2>
+                <p>Side-by-side step analysis — compare how each model processes the same prompt</p>
+              </div>
+              <div class="card table-card">
+                <TraceComparison
+                  tracesA={comparisonTraces[0]}
+                  tracesB={comparisonTraces[1]}
+                  tracesC={comparisonTraces[2]?.length ? comparisonTraces[2] : undefined}
+                  client:load
+                />
+              </div>
+            </section>
+          )
+        }
+
         <!-- ═══ Methodology Cards ═══════════════════════════════ -->
         <section class="methodology-section">
           <div class="section-header">
@@ -192,7 +234,7 @@ compareRows.push(issuesRow);
   }
 </BaseLayout>
 
-<style>
+<style is:global>
   /* Winner summary */
   .winner-summary {
     display: grid;
@@ -250,5 +292,245 @@ compareRows.push(issuesRow);
     font-size: 12px;
     color: var(--text-secondary);
     line-height: 1.5;
+  }
+
+  /* ── Trace Comparison ─────────────────────────────────── */
+  .tcmp-root {
+    padding: 0;
+  }
+
+  .tcmp-diff-bar {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    padding: 0.875rem 1.25rem;
+    background: var(--surface-secondary);
+    border-bottom: 1px solid var(--border-primary);
+    font-size: 12px;
+  }
+  .tcmp-diff-item {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    color: var(--text-secondary);
+  }
+  .tcmp-diff-icon {
+    font-size: 14px;
+    color: var(--brand-primary);
+  }
+  .tcmp-diff-text {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-primary);
+  }
+  .tcmp-diff-divider {
+    width: 1px;
+    height: 16px;
+    background: var(--border-secondary);
+    margin: 0 1rem;
+  }
+
+  .tcmp-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem 1rem;
+    text-align: center;
+  }
+
+  .tcmp-columns {
+    display: grid;
+    gap: 0;
+  }
+  .tcmp-column {
+    border-right: 1px solid var(--border-primary);
+  }
+  .tcmp-column:last-child {
+    border-right: none;
+  }
+
+  .tcmp-col-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.625rem;
+    padding: 1rem 1.25rem;
+    background: var(--surface-secondary);
+    border-bottom: 2px solid var(--border-primary);
+  }
+  .tcmp-col-none {
+    justify-content: center;
+    padding: 2rem;
+  }
+  .tcmp-col-model {
+    font-family: var(--font-mono);
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+  .tcmp-col-meta {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-tertiary);
+    margin-top: 2px;
+  }
+  .tcmp-status-icon {
+    font-size: 18px;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  .tcmp-status-completed {
+    color: var(--success);
+  }
+  .tcmp-status-failed {
+    color: var(--error);
+  }
+  .tcmp-status-running {
+    color: var(--brand-primary);
+    animation: spin 1s linear infinite;
+  }
+
+  .tcmp-col-steps {
+    max-height: 600px;
+    overflow-y: auto;
+  }
+
+  .tcmp-cell {
+    padding: 0.625rem 1.25rem;
+    border-bottom: 1px solid var(--border-secondary);
+    transition: background 150ms ease;
+  }
+  .tcmp-cell:hover {
+    background: var(--surface-hover);
+  }
+  .tcmp-cell-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 48px;
+    background: var(--surface-secondary);
+  }
+  .tcmp-empty-label {
+    color: var(--text-tertiary);
+    font-size: 14px;
+  }
+
+  .tcmp-cell-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.25rem;
+  }
+  .tcmp-step-icon {
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+  .tcmp-type-chip {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 1px 6px;
+    border-radius: 3px;
+    border: 1px solid;
+    white-space: nowrap;
+  }
+  .tcmp-cell-time {
+    margin-left: auto;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-tertiary);
+  }
+  .tcmp-cell-label {
+    font-family: var(--font-ui);
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-primary);
+    margin-left: 22px;
+  }
+  .tcmp-cell-detail {
+    margin-left: 22px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-tertiary);
+    line-height: 1.4;
+    margin-top: 0.25rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .tcmp-fail-icon {
+    font-size: 14px;
+    margin-left: 22px;
+    margin-top: 0.25rem;
+    display: inline-block;
+  }
+
+  .tcmp-legend {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1.25rem;
+    border-top: 1px solid var(--border-primary);
+    font-size: 10px;
+    flex-wrap: wrap;
+  }
+  .tcmp-legend-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .tcmp-legend-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    color: var(--text-secondary);
+  }
+
+  .tcmp-legend-divider {
+    color: var(--border-secondary);
+    font-size: 10px;
+  }
+
+  /* ── Diff Badges ─────────────────────────────────────── */
+  .tcmp-delta {
+    margin-left: 0.5rem;
+    font-family: var(--font-mono);
+    font-size: 9px;
+    font-weight: 600;
+    padding: 1px 5px;
+    border-radius: 3px;
+    white-space: nowrap;
+  }
+  .tcmp-delta-faster {
+    background: rgba(34, 197, 94, 0.12);
+    color: var(--success);
+    border: 1px solid rgba(34, 197, 94, 0.25);
+  }
+  .tcmp-delta-slower {
+    background: rgba(239, 68, 68, 0.12);
+    color: var(--error);
+    border: 1px solid rgba(239, 68, 68, 0.25);
+  }
+  .tcmp-delta-equal {
+    background: rgba(148, 163, 184, 0.08);
+    color: var(--text-tertiary);
+    border: 1px solid rgba(148, 163, 184, 0.15);
+  }
+
+  .tcmp-delta-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    display: inline-block;
+  }
+  .tcmp-dot-faster {
+    background: var(--success);
+  }
+  .tcmp-dot-slower {
+    background: var(--error);
   }
 </style>

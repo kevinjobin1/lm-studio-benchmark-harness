@@ -32,6 +32,25 @@ from prompt_generator import (
     PromptCategory
 )
 
+# ── V2 Trace Capture ────────────────────────────────────────────
+try:
+    from core.trace_capture import TraceCapture, wrap_stream
+except ImportError:
+    TraceCapture = None  # type: ignore
+    wrap_stream = None    # type: ignore
+    import sys
+    print("[devbench] Trace capture not available — traces disabled.", file=sys.stderr)
+
+
+# ── Simple metrics shim for trace capture (module-level, not per-call) ─
+class _TraceMetricsShim:
+    """Minimal metrics duck-type so TraceCapture.finish() gets tps/token data."""
+    def __init__(self, tps: float, total_tok: int, prompt_tok: int, comp_tok: int):
+        self.tokens_per_second = tps
+        self.total_tokens = total_tok
+        self.prompt_tokens = prompt_tok
+        self.completion_tokens = comp_tok
+
 
 @dataclass
 class BenchmarkResult:
@@ -51,6 +70,7 @@ class BenchmarkResult:
     ram_usage_mb: float
     developer_score: float  # Developer realism score
     metadata: Dict[str, Any] = field(default_factory=dict)
+    trace_ids: List[str] = field(default_factory=list)  # V2: link to captured traces
 
 
 class LMStudioModelDetector:
@@ -99,7 +119,9 @@ class AppleSiliconBenchmarkV2:
     def __init__(self, 
                  api_base: str = "http://localhost:1234/v1", 
                  api_key: str = "lm-studio",
-                 num_runs: int = 5):
+                 num_runs: int = 5,
+                 traces_dir: str = "",
+                 no_traces: bool = False):
         self.client = OpenAI(base_url=api_base, api_key=api_key)
         self.prompt_generator = PromptGenerator()
         self.evaluator = ComprehensiveEvaluator(num_runs=num_runs)
@@ -107,13 +129,31 @@ class AppleSiliconBenchmarkV2:
         self.token_metrics = TokenizationAwareMetrics()
         self.results: List[BenchmarkResult] = []
         self.num_runs = num_runs
+        self.no_traces = no_traces
+        self.traces_dir = Path(traces_dir) if traces_dir else Path("results/traces")
+        if not no_traces:
+            self.traces_dir.mkdir(parents=True, exist_ok=True)
     
-    def run_single_completion(self, model_name: str, prompt: str) -> tuple:
-        """Run a single completion and return (response, token_times, ttft, total_time)."""
+    def run_single_completion(self, model_name: str, prompt: str, capture_trace: bool = True) -> tuple:
+        """Run a single completion and return (response, token_times, ttft, total_time, trace).
+
+        Returns 5-tuple: (response_text, token_times, ttft, total_time, trace_or_None)
+        """
         start_time = time.time()
         first_token_time = None
         response_text = ""
         token_times = []
+        trace = None
+        
+        # Set up trace capture if available
+        capture = None
+        if capture_trace and TraceCapture is not None:
+            capture = TraceCapture()
+            capture.start(
+                model=model_name,
+                prompt=prompt,
+                provider="lm-studio",
+            )
         
         try:
             stream = self.client.chat.completions.create(
@@ -125,6 +165,7 @@ class AppleSiliconBenchmarkV2:
             )
             
             last_token_time = start_time
+            token_index = 0
             for chunk in stream:
                 if chunk.choices[0].delta.content:
                     current_time = time.time()
@@ -133,16 +174,36 @@ class AppleSiliconBenchmarkV2:
                     
                     token_times.append(current_time - last_token_time)
                     last_token_time = current_time
-                    response_text += chunk.choices[0].delta.content
+                    text = chunk.choices[0].delta.content
+                    response_text += text
+                    
+                    # Record token in trace
+                    if capture is not None:
+                        capture.record_token(text, token_index)
+                        token_index += 1
             
             total_time = time.time() - start_time
             ttft = first_token_time - start_time if first_token_time else total_time
             
-            return response_text, token_times, ttft, total_time
+            # Finish trace capture
+            if capture is not None:
+                est_tokens = len(response_text) // 4
+                gen_time = total_time - ttft
+                tps = est_tokens / gen_time if gen_time > 0 else 0
+                trace = capture.finish(
+                    response_text,
+                    _TraceMetricsShim(tps, est_tokens, len(prompt) // 4, est_tokens),
+                )
+            
+            return response_text, token_times, ttft, total_time, trace
             
         except Exception as e:
             print(f"Error in completion: {e}")
-            return "", [], 0, 0
+            if capture is not None:
+                capture.record_error(str(e))
+                capture.finish("", None)
+                trace = capture.trace
+            return "", [], 0, 0, trace
     
     def run_benchmark_with_variance(self, 
                                    model_name: str, 
@@ -163,13 +224,23 @@ class AppleSiliconBenchmarkV2:
         
         print(f"   Running {self.num_runs} iterations for variance...")
         
+        traces = []  # V2: collect traces from this benchmark
         for i in range(self.num_runs):
-            response, token_times, ttft, total_time = self.run_single_completion(model_name, prompt)
+            result_tuple = self.run_single_completion(model_name, prompt, capture_trace=not self.no_traces)
+            response, token_times, ttft, total_time, trace = result_tuple
             responses.append(response)
             ttfts.append(ttft)
             total_times.append(total_time)
             token_times_list.append(token_times)
+            if trace is not None:
+                traces.append(trace)
             print(f"     Run {i+1}/{self.num_runs}: {len(response)} chars, {ttft:.3f}s TTFT")
+        
+        # V2: Persist captured traces
+        trace_ids_saved: List[str] = []
+        if traces:
+            saved_paths = self.save_traces(traces)
+            trace_ids_saved = [t.trace_id for t in traces]
         
         # End memory monitoring
         end_ram = process.memory_info().rss / 1024 / 1024
@@ -244,6 +315,7 @@ class AppleSiliconBenchmarkV2:
             tail_latency=tail_latency,
             ram_usage_mb=ram_usage,
             developer_score=developer_score,
+            trace_ids=trace_ids_saved,
             metadata={
                 "difficulty": prompt_data.difficulty,
                 "num_runs": self.num_runs,
@@ -295,6 +367,23 @@ class AppleSiliconBenchmarkV2:
         
         self.results.extend(model_results)
         return model_results
+
+    def save_traces(self, traces: List) -> List[str]:
+        """Save captured traces to disk. Returns list of saved file paths."""
+        saved = []
+        for trace in traces:
+            if trace is None:
+                continue
+            try:
+                file_path = self.traces_dir / f"{trace.trace_id}.json"
+                with open(file_path, 'w') as f:
+                    f.write(trace.to_json())
+                saved.append(str(file_path))
+            except Exception as e:
+                print(f"   ⚠ Could not save trace {trace.trace_id}: {e}")
+        if saved:
+            print(f"   📊 Saved {len(saved)} execution traces to {self.traces_dir}/")
+        return saved
 
 
 class ReportGeneratorV2:

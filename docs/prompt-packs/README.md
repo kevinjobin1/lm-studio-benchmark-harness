@@ -67,7 +67,7 @@ Each prompt file is a JSON document:
 
 ## Built-in packs
 
-ModelLens ships with 4 prompt packs:
+Model Lens ships with 4 prompt packs:
 
 | Pack | Category | Prompt count | Focus |
 |------|----------|-------------|-------|
@@ -106,7 +106,7 @@ packages/prompt_packs/
 
 ## Prompt generation
 
-ModelLens can generate prompt variants automatically to reduce overfitting and increase diversity.
+Model Lens can generate prompt variants automatically to reduce overfitting and increase diversity.
 
 ### Techniques
 

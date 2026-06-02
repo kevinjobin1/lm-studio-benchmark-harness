@@ -5,13 +5,16 @@ import {
   groupByModel,
   buildLeaderboard,
 } from "../lib/loadResults";
+import type { TraceRun } from "../lib/traceTypes";
 import FailureHeatmap from "./FailureHeatmap";
 
 interface ModelDetailProps {
   modelId: string;
+  /** Recent execution traces for this model (V2). */
+  traces?: TraceRun[];
 }
 
-export default function ModelDetail({ modelId }: ModelDetailProps) {
+export default function ModelDetail({ modelId, traces }: ModelDetailProps) {
   const [bestRun, setBestRun] = useState<BenchmarkResult | null>(null);
   const [modelRuns, setModelRuns] = useState<BenchmarkResult[]>([]);
   const [loading, setLoading] = useState(true);
@@ -278,6 +281,91 @@ export default function ModelDetail({ modelId }: ModelDetailProps) {
           </div>
         </div>
       </section>
+
+      {/* Recent Traces (V2) */}
+      {traces && traces.length > 0 && (
+        <section style={{ marginBottom: 48 }}>
+          <div className="section-header">
+            <h2>Recent Execution Traces</h2>
+            <p>
+              Step-by-step replay for {traces.length} recent trace
+              {traces.length !== 1 ? "s" : ""}
+            </p>
+          </div>
+          <div className="md-traces-grid">
+            {traces.map((trace) => (
+              <a
+                key={trace.id}
+                href={`/traces?trace_id=${encodeURIComponent(trace.id)}`}
+                className="card md-trace-card"
+              >
+                <div className="md-trace-header">
+                  <span className="md-trace-id mono-label">{trace.id}</span>
+                  <span
+                    className={`md-trace-status md-trace-status-${trace.status}`}
+                  >
+                    {trace.status}
+                  </span>
+                </div>
+                <div className="md-trace-prompt">
+                  {trace.prompt.length > 100
+                    ? trace.prompt.slice(0, 100) + "…"
+                    : trace.prompt}
+                </div>
+                <div className="md-trace-meta">
+                  <span className="md-trace-meta-item">
+                    <span className="material-symbols-outlined">schedule</span>
+                    {trace.totalTimeMs}ms
+                  </span>
+                  <span className="md-trace-meta-item">
+                    <span className="material-symbols-outlined">stairs</span>
+                    {trace.steps.length} steps
+                  </span>
+                  <span className="md-trace-meta-item">
+                    <span className="material-symbols-outlined">package_2</span>
+                    {trace.pack}
+                  </span>
+                </div>
+                <div className="md-trace-footer">
+                  <span className="md-trace-timestamp">{trace.timestamp}</span>
+                  <span className="md-trace-link">
+                    View trace
+                    <span className="material-symbols-outlined">
+                      arrow_forward
+                    </span>
+                  </span>
+                </div>
+              </a>
+            ))}
+          </div>
+          <div className="md-traces-view-all">
+            <a
+              href={`/traces?model=${encodeURIComponent(modelId)}`}
+              className="btn-outline"
+            >
+              <span
+                className="material-symbols-outlined"
+                style={{ fontSize: 18 }}
+              >
+                replay
+              </span>
+              <span>View all traces for {modelId}</span>
+            </a>
+          </div>
+        </section>
+      )}
+
+      {traces && traces.length === 0 && (
+        <section style={{ marginBottom: 48 }}>
+          <div className="section-header">
+            <h2>Execution Traces</h2>
+            <p>
+              No execution traces captured yet for this model. Run the benchmark
+              suite with trace capture enabled to populate this section.
+            </p>
+          </div>
+        </section>
+      )}
     </>
   );
 }

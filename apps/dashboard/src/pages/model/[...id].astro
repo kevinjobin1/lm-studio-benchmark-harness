@@ -1,6 +1,9 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import ModelDetail from "../../components/ModelDetail";
+import { loadTraceManifest, loadTrace, mapTraceToRun } from "../../lib/loadTraces";
+import { loadSnapshotManifest } from "../../lib/loadSnapshots";
+import type { TraceRun } from "../../lib/traceTypes";
 import fs from "fs";
 import path from "path";
 
@@ -33,6 +36,44 @@ export async function getStaticPaths() {
 
 const { id } = Astro.params;
 const decodedId = decodeURIComponent(id ?? "");
+
+// ── Load recent traces for this model (V2) ────────────────────
+let modelTraces: TraceRun[] = [];
+try {
+  const manifest = await loadTraceManifest();
+  const matchingTraces = manifest.traces
+    .filter((t) => t.model === decodedId)
+    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+    .slice(0, 5);
+
+  if (matchingTraces.length > 0) {
+    const settled = await Promise.allSettled(
+      matchingTraces.map((t) => loadTrace(t.trace_id)),
+    );
+    modelTraces = settled
+      .filter((r) => r.status === "fulfilled" && r.value !== null)
+      .map((r) => mapTraceToRun(r.value!));
+  }
+} catch {
+  // Traces not available — just show benchmark data
+}
+
+// ── Load saved snapshots for this model ────────────────────────
+let modelSnapshotEntries: Array<{ snapshot_id: string; prompt: string; totalTimeMs: number }> = [];
+try {
+  const snapManifest = await loadSnapshotManifest();
+  modelSnapshotEntries = snapManifest.snapshots
+    .filter((s) => s.model === decodedId)
+    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+    .slice(0, 10)
+    .map((s) => ({
+      snapshot_id: s.snapshot_id,
+      prompt: s.prompt,
+      totalTimeMs: s.totalTimeMs,
+    }));
+} catch {
+  // Snapshots not available
+}
 ---
 ---
 
@@ -46,5 +87,178 @@ const decodedId = decodeURIComponent(id ?? "");
         >
         Back to Dashboard
     </a>
-    <ModelDetail client:load modelId={decodedId} />
+    <ModelDetail client:load modelId={decodedId} traces={modelTraces} />
+
+    <!-- ═══ Saved Snapshots ════════════════════════════════════════ -->
+    {
+      modelSnapshotEntries.length > 0 && (
+        <section style="margin-bottom: 48px; animation-delay: 0.3s;" class="animate-entrance">
+          <div class="section-header">
+            <h2>Saved Snapshots</h2>
+            <p>{modelSnapshotEntries.length} shared snapshot{modelSnapshotEntries.length !== 1 ? "s" : ""} for {decodedId}.</p>
+          </div>
+          <div class="md-traces-grid">
+            {modelSnapshotEntries.map((s) => (
+              <a
+                key={s.snapshot_id}
+                href={`/runs/${encodeURIComponent(s.snapshot_id)}`}
+                class="card md-trace-card"
+              >
+                <div class="md-trace-header">
+                  <span class="md-trace-id mono-label">{s.snapshot_id}</span>
+                  <span class="material-symbols-outlined" style="font-size:14px;color:var(--brand-primary)">camera</span>
+                </div>
+                <div class="md-trace-prompt">
+                  {s.prompt.length > 100 ? s.prompt.slice(0, 100) + "…" : s.prompt}
+                </div>
+                <div class="md-trace-meta">
+                  <span class="md-trace-meta-item">
+                    <span class="material-symbols-outlined">schedule</span>
+                    {s.totalTimeMs}ms
+                  </span>
+                </div>
+                <div class="md-trace-footer">
+                  <span class="md-trace-timestamp">Snapshot</span>
+                  <span class="md-trace-link">
+                    Open snapshot
+                    <span class="material-symbols-outlined">arrow_forward</span>
+                  </span>
+                </div>
+              </a>
+            ))}
+          </div>
+        </section>
+      )
+    }
+
 </BaseLayout>
+
+<style is:global>
+  /* ── Trace Cards (Model Detail) ──────────────────────────────── */
+  .md-traces-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 1rem;
+  }
+
+  .md-trace-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.625rem;
+    padding: 1rem 1.25rem;
+    text-decoration: none;
+    color: inherit;
+    transition: border-color 150ms ease, box-shadow 150ms ease;
+  }
+  .md-trace-card:hover {
+    border-color: var(--brand-primary);
+    box-shadow: 0 2px 12px rgba(59, 130, 246, 0.08);
+  }
+
+  .md-trace-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .md-trace-id {
+    font-size: 11px;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 70%;
+  }
+
+  .md-trace-status {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 1px 7px;
+    border-radius: 3px;
+    flex-shrink: 0;
+  }
+  .md-trace-status-completed {
+    background: rgba(34, 197, 94, 0.12);
+    color: var(--success);
+    border: 1px solid rgba(34, 197, 94, 0.25);
+  }
+  .md-trace-status-failed {
+    background: rgba(239, 68, 68, 0.12);
+    color: var(--error);
+    border: 1px solid rgba(239, 68, 68, 0.25);
+  }
+  .md-trace-status-running {
+    background: rgba(59, 130, 246, 0.12);
+    color: var(--brand-primary);
+    border: 1px solid rgba(59, 130, 246, 0.25);
+  }
+
+  .md-trace-prompt {
+    font-family: var(--font-ui);
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .md-trace-meta {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+
+  .md-trace-meta-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-tertiary);
+  }
+  .md-trace-meta-item .material-symbols-outlined {
+    font-size: 12px;
+  }
+
+  .md-trace-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 0.25rem;
+  }
+
+  .md-trace-timestamp {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-tertiary);
+  }
+
+  .md-trace-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--brand-primary);
+    transition: gap 150ms ease;
+  }
+  .md-trace-card:hover .md-trace-link {
+    gap: 0.5rem;
+  }
+  .md-trace-link .material-symbols-outlined {
+    font-size: 12px;
+  }
+
+  .md-traces-view-all {
+    margin-top: 1rem;
+  }
+</style>

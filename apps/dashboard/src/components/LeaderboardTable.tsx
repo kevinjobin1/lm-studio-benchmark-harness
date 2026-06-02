@@ -104,6 +104,17 @@ export default function LeaderboardTable({ models }: LeaderboardTableProps) {
                       >
                         {m.model}
                       </a>
+                      {m.trace_ids && m.trace_ids.length > 0 && (
+                        <a
+                          href={`/traces?trace_id=${encodeURIComponent(m.trace_ids[0])}`}
+                          className="lb-trace-link"
+                          title="View execution traces"
+                        >
+                          <span className="material-symbols-outlined lb-trace-icon">
+                            account_tree
+                          </span>
+                        </a>
+                      )}
                       {m.source === "community" && (
                         <span className="source-badge source-community" title="Community submission">
                           community

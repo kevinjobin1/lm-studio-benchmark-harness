@@ -1,6 +1,6 @@
 ---
 name: Feature request
-about: Suggest a feature for ModelLens
+about: Suggest a feature for Model Lens
 title: "feat: "
 labels: enhancement
 assignees: ""

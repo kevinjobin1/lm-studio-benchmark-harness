@@ -1,6 +1,6 @@
 # Skill System
 
-ModelLens skills are **pure function tools** that benchmark logic can invoke. They are versioned, sandboxed, and validated against a lockfile for deterministic, reproducible evaluation.
+Model Lens skills are **pure function tools** that benchmark logic can invoke. They are versioned, sandboxed, and validated against a lockfile for deterministic, reproducible evaluation.
 
 ---
 
@@ -17,7 +17,7 @@ Benchmark logic should be extensible without bloating core. Skills provide:
 
 ## Built-in skills
 
-Four built-in skills ship with ModelLens (see `packages/skills/builtins/`):
+Four built-in skills ship with Model Lens (see `packages/skills/builtins/`):
 
 | Skill | Description | Input | Output |
 |-------|-------------|-------|--------|

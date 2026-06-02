@@ -1,0 +1,107 @@
+{
+  "trace_id": "trace_google_gemma-4-e4b_nestjs-pack_03",
+  "run_id": "run_google_gemma-4-e4b_03",
+  "model": "google/gemma-4-e4b",
+  "provider": "lm-studio",
+  "prompt": "Write integration tests for the GET /api/users endpoint. Test: pagination, filtering by role, empty results, authorization header validation, and error response format. Use supertest with Jest.",
+  "system_prompt": null,
+  "pack": "nestjs-pack",
+  "timestamp": "2026-06-02T10:45:00Z",
+  "totalTimeMs": 920,
+  "status": "completed",
+  "steps": [
+    {
+      "id": "trace_google_gemma-4-e4b_nestjs-pack_03-s0",
+      "type": "system",
+      "label": "System Instruction",
+      "timing_ms": 0,
+      "status": "success",
+      "detail": "You are an expert QA engineer. Write thorough, maintainable integration tests."
+    },
+    {
+      "id": "trace_google_gemma-4-e4b_nestjs-pack_03-s1",
+      "type": "prompt",
+      "label": "Prompt Received",
+      "timing_ms": 5,
+      "status": "success",
+      "detail": "Write integration tests for the GET /api/users endpoint. Test: pagination, filtering by role, empty results, authorizati"
+    },
+    {
+      "id": "trace_google_gemma-4-e4b_nestjs-pack_03-s2",
+      "type": "reasoning",
+      "label": "Identifying test cases",
+      "timing_ms": 130,
+      "status": "success",
+      "detail": "1) GET /api/users returns 200 + paginated array. 2) ?role=admin filters correctly. 3) Empty results returns 200 + []. 4) No auth header returns 401. 5) Error cases return {error, message} format."
+    },
+    {
+      "id": "trace_google_gemma-4-e4b_nestjs-pack_03-s3",
+      "type": "tool_call",
+      "label": "Calling: read_file users.controller.ts",
+      "timing_ms": 50,
+      "status": "success",
+      "tool": "file_read",
+      "input": "src/users/users.controller.ts",
+      "output": "GET /api/users with @Query() pagination and role filter. Uses JwtAuthGuard."
+    },
+    {
+      "id": "trace_google_gemma-4-e4b_nestjs-pack_03-s4",
+      "type": "tool_call",
+      "label": "Calling: read_file users.service.ts",
+      "timing_ms": 35,
+      "status": "success",
+      "tool": "file_read",
+      "input": "src/users/users.service.ts",
+      "output": "findAll(pagination, roleFilter) \u2192 Promise<PaginatedResult<User>>."
+    },
+    {
+      "id": "trace_google_gemma-4-e4b_nestjs-pack_03-s5",
+      "type": "reasoning",
+      "label": "Structuring test file",
+      "timing_ms": 80,
+      "status": "success",
+      "detail": "Use describe blocks for each scenario. beforeEach seeds test data. afterEach cleans up."
+    },
+    {
+      "id": "trace_google_gemma-4-e4b_nestjs-pack_03-s6",
+      "type": "tool_call",
+      "label": "Calling: write_file users.integration.test.ts",
+      "timing_ms": 420,
+      "status": "success",
+      "tool": "file_write",
+      "input": "src/users/users.integration.test.ts",
+      "output": "Wrote 130 lines. 8 test cases covering pagination, filtering, auth, error handling."
+    },
+    {
+      "id": "trace_google_gemma-4-e4b_nestjs-pack_03-s7",
+      "type": "response",
+      "label": "Tests Generated",
+      "timing_ms": 200,
+      "status": "success",
+      "detail": "Created 8 integration tests using supertest \u2014 pagination, role filter, empty results, auth validation, error format checks."
+    }
+  ],
+  "metrics": {
+    "ttft_ms": 195,
+    "tokens_per_second": 48,
+    "total_tokens": 145,
+    "prompt_tokens": 48,
+    "completion_tokens": 97,
+    "total_latency_ms": 920,
+    "memory_pressure_mb": 850,
+    "token_timings_ms": []
+  },
+  "artifacts": {
+    "response": "import request from 'supertest';\nimport { app } from '../app';\n\ndescribe('GET /api/users', () => {\n  it('returns paginated users with 200', async () => {\n    const res = await request(app).get('/api/users?page=1&limit=10');\n    expect(res.status).toBe(200);\n    expect(res.body.data).toBeInstanceOf(Array);\n    expect(res.body.meta).toHaveProperty('total');\n  });\n  // ... more tests\n});\n",
+    "logs": [
+      "[2026-06-02T10:45:00Z] Trace trace_google_gemma-4-e4b_nestjs-pack_03 captured"
+    ],
+    "errors": []
+  },
+  "hardware": {
+    "platform": "macOS 15.6.1",
+    "processor": "Apple M3 Pro",
+    "memory_gb": 18,
+    "architecture": "arm64"
+  }
+}

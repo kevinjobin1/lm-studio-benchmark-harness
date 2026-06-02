@@ -1,6 +1,6 @@
 # Benchmark Methodology
 
-ModelLens evaluates local AI models across 11 standard benchmarks, plus DevBench — a developer-realistic evaluation harness for TypeScript, NestJS, and React.
+Model Lens evaluates local AI models across 11 standard benchmarks, plus DevBench — a developer-realistic evaluation harness for TypeScript, NestJS, and React.
 
 ---
 

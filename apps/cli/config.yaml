@@ -1,4 +1,4 @@
-# LM Studio Benchmark Configuration
+# Model Lens Benchmark Configuration
 
 api:
   base_url: "http://localhost:1234/v1"

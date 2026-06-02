@@ -84,7 +84,7 @@ describe("GET /api/status", () => {
     (spawnSync as any).mockReturnValue({
       status: 0,
       stdout: JSON.stringify({
-        cpu: { model: "Apple M3 Max", cores_physical: 14 },
+        cpu: { model: "Apple M3 Pro", cores_physical: 14 },
         memory: { ram_total_mb: 18432 },
       }),
     });
@@ -93,7 +93,7 @@ describe("GET /api/status", () => {
     const body = await response.json();
 
     expect(body.hardware).toBeDefined();
-    expect(body.hardware.cpu.model).toBe("Apple M3 Max");
+    expect(body.hardware.cpu.model).toBe("Apple M3 Pro");
   });
 
   it("returns empty hardware object when spawnSync fails", async () => {

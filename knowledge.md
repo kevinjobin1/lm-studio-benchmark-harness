@@ -3,7 +3,7 @@
 This file gives Codebuff context about your project: goals, commands, conventions, and gotchas.
 
 ## Overview
-ModelLens — an open-source observability and evaluation platform for local AI models. Supports LM Studio and Ollama providers. Monorepo with `apps/` (CLI + dashboard) and `packages/` (core, benchmarks, providers, skills, prompt_packs).
+Model Lens — an open-source observability and evaluation platform for local AI models. Supports LM Studio and Ollama providers. Monorepo with `apps/` (CLI + dashboard) and `packages/` (core, benchmarks, providers, skills, prompt_packs).
 
 Primary entry point: **`apps/cli/modellens.py`** — unified Click CLI with `run`, `info`, `leaderboard` commands.
 

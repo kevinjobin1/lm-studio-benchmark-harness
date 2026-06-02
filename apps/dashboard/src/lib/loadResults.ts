@@ -74,6 +74,8 @@ export interface BenchmarkResult {
   prompt_version: string;
   packs_used: string[];
   seed: number | null;
+  /** V2: trace IDs captured during this benchmark run (links to execution traces) */
+  trace_ids?: string[];
 }
 
 export interface AggregatedResults {
@@ -93,6 +95,8 @@ export interface ModelSummary {
   stats: { mean: number; std: number; runs: number };
   total_failures: number;
   source: "local" | "community";
+  /** V2: trace IDs from the best run — available when benchmarks were run with trace capture */
+  trace_ids?: string[];
 }
 
 export interface LeaderboardData {
@@ -138,7 +142,7 @@ export async function loadResults(): Promise<BenchmarkResult[]> {
       console.warn("results.json has no runs. Using demo data.");
     } catch (err) {
       console.warn(
-        `No results.json found at build time (${(err as Error).message || err}). Using demo data.`
+        `No results.json found at build time (${(err as Error).message || err}). Using demo data.`,
       );
     }
     return generateDemoData();
@@ -190,6 +194,7 @@ export function buildLeaderboard(results: BenchmarkResult[]): LeaderboardData {
       },
       total_failures: Object.values(best.failures).reduce((a, b) => a + b, 0),
       source: "local",
+      trace_ids: best.trace_ids,
     });
   }
 
@@ -211,7 +216,11 @@ export async function loadCommunityResults(): Promise<ModelSummary[]> {
     try {
       const fs = await import("fs");
       const path = await import("path");
-      const filePath = path.resolve(process.cwd(), "public", "leaderboard.json");
+      const filePath = path.resolve(
+        process.cwd(),
+        "public",
+        "leaderboard.json",
+      );
       const raw = fs.readFileSync(filePath, "utf-8");
       const data = JSON.parse(raw);
       if (data.models && data.models.length > 0) {
@@ -240,10 +249,13 @@ export async function loadCommunityResults(): Promise<ModelSummary[]> {
  * Load both local and community results and merge into a unified leaderboard.
  * Community results are ranked alongside local results with source attribution.
  */
-export async function loadAllResults(): Promise<LeaderboardData> {
+export async function loadAllResults(
+  localLoader: () => Promise<BenchmarkResult[]> = loadResults,
+  communityLoader: () => Promise<ModelSummary[]> = loadCommunityResults,
+): Promise<LeaderboardData> {
   const [results, communityModels] = await Promise.all([
-    loadResults(),
-    loadCommunityResults(),
+    localLoader(),
+    communityLoader(),
   ]);
 
   const localLeaderboard = buildLeaderboard(results);
@@ -405,8 +417,8 @@ function generateDemoData(): BenchmarkResult[] {
     model: m.name,
     model_metadata: { size: "7B", quantization: "Q4_K_M" },
     hardware: {
-      platform: "macOS 14.5",
-      processor: "Apple M3",
+      platform: "macOS 15.6.1",
+      processor: "Apple M3 Pro",
       memory_gb: 18,
       architecture: "arm64",
     },
@@ -446,5 +458,6 @@ function generateDemoData(): BenchmarkResult[] {
     prompt_version: "v1",
     packs_used: ["nestjs-pack", "react-pack", "debugging-pack"],
     seed: 42,
+    trace_ids: [`demo_trace_${m.name.replace(/[^a-zA-Z0-9]/g, "_")}_${i}`],
   }));
 }

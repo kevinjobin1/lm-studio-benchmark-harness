@@ -2,7 +2,7 @@
 
 > **Status:** V2 — Planned
 
-Trace replay lets you record and replay model execution sessions with playback controls. This is the core observability feature of ModelLens.
+Trace replay lets you record and replay model execution sessions with playback controls. This is the core observability feature of Model Lens.
 
 ---
 
@@ -102,6 +102,6 @@ Shareable URL: `/runs/abc123`
 
 ## Current status
 
-Trace capture and replay are planned for **V2** of ModelLens. The data model and API surface are designed but not yet implemented.
+Trace capture and replay are planned for **V2** of Model Lens. The data model and API surface are designed but not yet implemented.
 
 See [ROADMAP.md](../../ROADMAP.md) for the full V2 scope.
