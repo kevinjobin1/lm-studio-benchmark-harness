@@ -8,7 +8,7 @@ interface HealthResponse {
   version: string;
 }
 
-function fmtUptime(totalSeconds: number): string {
+export function fmtUptime(totalSeconds: number): string {
   const h = Math.floor(totalSeconds / 3600);
   const m = Math.floor((totalSeconds % 3600) / 60);
   const s = totalSeconds % 60;
