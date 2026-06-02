@@ -22,7 +22,7 @@ Most LLM benchmarks give you a single score. ModelLens gives you the full pictur
 - 📊 **Observability** — TTFT, tokens/sec, memory, run variance
 - 🔁 **Replay** — Capture and replay model execution traces
 - 📦 **Prompt Packs** — Versioned, community-extensible benchmark collections
-- 🖥️ **Dashboard** — Astro + React, GitHub Pages deployable
+- 🖥️ **Dashboard** — Astro + React, Cloudflare Pages deployable
 - 🤖 **Multi-provider** — LM Studio + Ollama support
 
 ---
@@ -60,6 +60,42 @@ packages/
 ```
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for details.
+
+---
+
+## Dashboard
+
+The project includes an [Astro](https://astro.build) + React dashboard at `apps/dashboard/` for visualizing benchmark results, managing runs, and monitoring LM Studio connections.
+
+### Quick Start
+
+```bash
+cd apps/dashboard
+bun install
+bun run dev          # → http://localhost:4321
+```
+
+### API Endpoints
+
+The dashboard runs in server mode (`output: "server"`) with live API endpoints for the benchmark runner UI:
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/status` | GET | LM Studio connection status, loaded models, hardware info |
+| `/api/run-benchmark` | POST | Start a benchmark process (`{ quick: boolean }`) |
+| `/api/run-benchmark/active` | GET | Currently running benchmark processes |
+| `/api/run-benchmark/logs?pid=X` | GET | Live stdout/stderr for a process |
+| `/api/run-benchmark/kill?pid=X` | POST | Kill a running process |
+
+### LM Studio URL
+
+By default the dashboard checks LM Studio at `http://127.0.0.1:1234/v1`. Override with:
+
+```bash
+LM_STUDIO_URL=http://192.168.1.50:1234/v1 bun run dev
+```
+
+See [apps/dashboard/README.md](apps/dashboard/README.md) for full documentation.
 
 ---
 

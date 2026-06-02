@@ -17,6 +17,7 @@ Usage:
 import json
 import os
 import sys
+from datetime import datetime
 from pathlib import Path
 from typing import Optional, List
 
@@ -24,6 +25,8 @@ import click
 
 # Add packages/ to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "packages"))
+
+from core.hardware import detect_hardware
 
 # ── Rich terminal output ──────────────────────────────────────────────
 try:
@@ -56,6 +59,31 @@ def _get_git_sha() -> str:
         return "unknown"
 
 
+def _resolve_provider(provider: Optional[str] = None) -> tuple:
+    """Resolve provider and return (provider_name, api_base, api_key).
+
+    Auto-detects if provider is None: tries LM Studio first, then Ollama.
+    """
+    if provider is None:
+        from providers.ollama import OllamaClient
+        try:
+            import requests
+            lm_resp = requests.get("http://localhost:1234/v1/models", timeout=2)
+            if lm_resp.status_code == 200 and len(lm_resp.json().get("data", [])) > 0:
+                provider = "lm-studio"
+        except Exception:
+            pass
+        if not provider:
+            ollama = OllamaClient()
+            if ollama.health_check():
+                provider = "ollama"
+            else:
+                provider = "lm-studio"
+    api_base = "http://localhost:1234/v1" if provider == "lm-studio" else "http://localhost:11434"
+    api_key = "lm-studio" if provider == "lm-studio" else "ollama"
+    return provider, api_base, api_key
+
+
 def _list_provider_models(provider: str, api_base: str, api_key: str) -> List[str]:
     """Query provider for available model names via lightweight HTTP GET."""
     import requests
@@ -72,6 +100,59 @@ def _list_provider_models(provider: str, api_base: str, api_key: str) -> List[st
     except Exception:
         pass
     return []
+
+
+def _list_models_detailed(provider: str, api_base: str, api_key: str) -> list:
+    """Query provider for model details (name, parameters, quantization, size)."""
+    import requests
+    models = []
+    try:
+        if provider == "lm-studio":
+            resp = requests.get(f"{api_base}/models", timeout=5)
+            if resp.status_code == 200:
+                for m in resp.json().get("data", []):
+                    models.append({
+                        "id": m.get("id", "unknown"),
+                        "provider": "lm-studio",
+                        "parameters": "unknown",
+                        "quantization": "unknown",
+                        "size_bytes": 0,
+                    })
+        elif provider == "ollama":
+            ollama_base = api_base.rstrip("/v1").rstrip("/")
+            resp = requests.get(f"{ollama_base}/api/tags", timeout=5)
+            if resp.status_code == 200:
+                for m in resp.json().get("models", []):
+                    full_name = m.get("name", "unknown")
+                    parts = full_name.split(":")
+                    base_name = parts[0]
+                    tag = parts[1] if len(parts) > 1 else "latest"
+                    details = m.get("details", {})
+                    size = m.get("size", 0)
+                    models.append({
+                        "id": full_name,
+                        "name": base_name,
+                        "provider": "ollama",
+                        "parameters": tag,
+                        "quantization": details.get("quantization_level", "unknown"),
+                        "size_bytes": size,
+                        "family": details.get("family", ""),
+                        "format": details.get("format", ""),
+                    })
+    except Exception:
+        pass
+    return models
+
+
+def _fmt_size(size_bytes: int) -> str:
+    """Format bytes to human-readable size."""
+    if size_bytes >= 1024 ** 3:
+        return f"{size_bytes / (1024 ** 3):.1f} GB"
+    elif size_bytes >= 1024 ** 2:
+        return f"{size_bytes / (1024 ** 2):.0f} MB"
+    elif size_bytes >= 1024:
+        return f"{size_bytes / 1024:.0f} KB"
+    return f"{size_bytes} B"
 
 
 # ── CLI Group ─────────────────────────────────────────────────────────
@@ -144,31 +225,12 @@ def run(api_base, api_key, provider, models, model_name, framework, output_dir,
 
     # ── Provider resolution ─────────────────────────────────────
     if provider is None:
-        # Auto-detect: try LM Studio first, then Ollama
-        from providers.ollama import OllamaClient
-        # Quick check: try LM Studio
-        try:
-            import requests
-            lm_resp = requests.get("http://localhost:1234/v1/models", timeout=2)
-            if lm_resp.status_code == 200 and len(lm_resp.json().get("data", [])) > 0:
-                provider = "lm-studio"
-        except Exception:
-            pass
-        if not provider:
-            ollama = OllamaClient()
-            if ollama.health_check():
-                provider = "ollama"
-            else:
-                provider = "lm-studio"  # fallback default
+        provider, detected_base, detected_key = _resolve_provider()
+        api_base = api_base or detected_base
+        api_key = api_key or detected_key
+    else:
         api_base = api_base or ("http://localhost:1234/v1" if provider == "lm-studio" else "http://localhost:11434")
         api_key = api_key or ("lm-studio" if provider == "lm-studio" else "ollama")
-    else:
-        if provider == "lm-studio":
-            api_base = api_base or "http://localhost:1234/v1"
-            api_key = api_key or "lm-studio"
-        elif provider == "ollama":
-            api_base = api_base or "http://localhost:11434"
-            api_key = api_key or "ollama"
 
     # Validate connection
     try:
@@ -215,10 +277,14 @@ def run(api_base, api_key, provider, models, model_name, framework, output_dir,
 
     sha = _get_git_sha()
 
+    # ── Hardware detection ───────────────────────────────────────
+    hw = detect_hardware()
+
     if not ci_mode:
         _echo("")
         _echo("🔬  ModelLens v0.1.0", "bold blue")
         _echo(f"   Provider: {provider}  |  Framework: {framework}  |  git: {sha}", "dim")
+        _echo(f"   Hardware: {hw.summary()}", "dim")
 
     # ── Framework dispatch ─────────────────────────────────────────
 
@@ -233,6 +299,7 @@ def run(api_base, api_key, provider, models, model_name, framework, output_dir,
             output_dir=output_dir,
             verbose=verbose,
             ci_mode=ci_mode,
+            hardware=hw,
         )
 
     if framework in ("devbench", "compare"):
@@ -248,6 +315,7 @@ def run(api_base, api_key, provider, models, model_name, framework, output_dir,
             seed=seed,
             ci_mode=ci_mode,
             json_output=json_output,
+            hardware=hw,
         )
 
     if not ci_mode:
@@ -256,7 +324,7 @@ def run(api_base, api_key, provider, models, model_name, framework, output_dir,
 
 
 def _run_general_framework(api_base, api_key, models, config, samples,
-                           quick, output_dir, verbose, ci_mode):
+                           quick, output_dir, verbose, ci_mode, hardware=None):
     """Delegate to the general-purpose benchmark.py suite."""
     from core import BenchmarkSuite, LMStudioClient
     from benchmarks import (
@@ -330,6 +398,13 @@ def _run_general_framework(api_base, api_key, models, config, samples,
     report_gen = ReportGenerator(output_dir)
     report_gen.generate_all(summary, suite.all_results)
 
+    # Save hardware info alongside results
+    if hardware:
+        hw_path = Path(output_dir) / "hardware.json"
+        hw_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(hw_path, "w") as f:
+            json.dump(hardware.to_dict(), f, indent=2, default=str)
+
     if not ci_mode and RICH_AVAILABLE:
         table = Table(title=f"General Benchmark: {model_name}")
         table.add_column("Benchmark", style="cyan")
@@ -344,7 +419,8 @@ def _run_general_framework(api_base, api_key, models, config, samples,
 
 
 def _run_devbench_framework(api_base, api_key, models, num_runs, num_prompts,
-                            quick, output_dir, parallel, seed, ci_mode, json_output):
+                            quick, output_dir, parallel, seed, ci_mode, json_output,
+                            hardware=None):
     """Delegate to the DevBench v2 Apple Silicon benchmark."""
     import bench_apple_silicon_v2 as devbench
     from prompt_generator import PromptGenerator, GeneratedPrompt, PromptCategory
@@ -420,6 +496,13 @@ def _run_devbench_framework(api_base, api_key, models, num_runs, num_prompts,
 
     saved = collector.save_all()
 
+    # Save hardware info alongside results
+    if hardware:
+        hw_path = Path(output_dir) / "hardware.json"
+        hw_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(hw_path, "w") as f:
+            json.dump(hardware.to_dict(), f, indent=2, default=str)
+
     if json_output:
         aggregated = collector._aggregate()
         click.echo(json.dumps(aggregated, indent=2, default=str))
@@ -449,6 +532,20 @@ def info():
     _echo("🔬  ModelLens v0.1.0", "bold blue")
     _echo(f"   git: {_get_git_sha()}", "dim")
 
+    # ── Hardware ─────────────────────────────────────────────────
+    hw = detect_hardware()
+    _echo(f"\n🖥  Hardware: {hw.summary()}", "bold")
+    _echo(f"   CPU: {hw.cpu_model} ({hw.cpu_cores_physical} phys / {hw.cpu_cores_logical} log)", "dim")
+    _echo(f"   RAM: {hw.ram_total_mb / 1024:.0f} GB ({(hw.ram_total_mb - hw.ram_available_mb) / 1024:.1f} GB used)", "dim")
+    if hw.gpu_available:
+        vram_info = "unified" if hw.unified_memory else f"{hw.gpu_vram_mb:.0f} MB"
+        _echo(f"   GPU: {hw.gpu_model} ({vram_info})", "dim")
+    if hw.is_apple_silicon:
+        _echo(f"   Arch: {hw.architecture} (Apple Silicon, unified memory)", "dim")
+    else:
+        _echo(f"   Arch: {hw.architecture}", "dim")
+    _echo(f"   OS: {hw.os_name} {hw.os_version} (kernel {hw.kernel})", "dim")
+
     try:
         import bench_apple_silicon_v2 as devbench
         detector = devbench.LMStudioModelDetector()
@@ -462,6 +559,192 @@ def info():
     except Exception:
         _echo("\n🤖 LM Studio Models: Could not detect", "yellow")
 
+    _echo("")
+
+
+# ── Models command ────────────────────────────────────────────────────
+
+@cli.command()
+@click.option("--api-base", default=None, show_default=False,
+              help="Provider base URL (auto-detected for known providers)")
+@click.option("--api-key", default=None, show_default=False)
+@click.option("--provider", "-p",
+              type=click.Choice(["lm-studio", "ollama"]),
+              default=None,
+              help="Provider to query (auto-detected if omitted)")
+@click.option("--json", "json_output", is_flag=True,
+              help="Output as JSON")
+def models(api_base, api_key, provider, json_output):
+    """List available models from the connected provider.
+
+    \\b
+    Examples:
+      modellens models
+      modellens models --provider ollama
+      modellens models --json
+    """
+    # ── Provider resolution ─────────────────────────────────────
+    if provider is None:
+        provider, detected_base, detected_key = _resolve_provider()
+        api_base = api_base or detected_base
+        api_key = api_key or detected_key
+    else:
+        api_base = api_base or ("http://localhost:1234/v1" if provider == "lm-studio" else "http://localhost:11434")
+        api_key = api_key or ("lm-studio" if provider == "lm-studio" else "ollama")
+
+    # Validate connection
+    try:
+        import requests
+        check_url = f"{api_base}/models" if provider == "lm-studio" else f"{api_base.rstrip('/v1').rstrip('/')}/v1/models"
+        resp = requests.get(check_url, timeout=3)
+        if resp.status_code != 200:
+            _echo(f"✗ {provider} is not reachable at {check_url}", "red")
+            sys.exit(1)
+    except Exception:
+        _echo(f"✗ {provider} is not reachable", "red")
+        sys.exit(1)
+
+    # Fetch model details
+    model_list = _list_models_detailed(provider, api_base, api_key)
+
+    if not model_list:
+        _echo(f"No models found on {provider}", "yellow")
+        return
+
+    if json_output:
+        click.echo(json.dumps({
+            "provider": provider,
+            "count": len(model_list),
+            "models": model_list,
+        }, indent=2, default=str))
+        return
+
+    _echo("")
+    _echo(f"🤖 {provider.upper()} Models ({len(model_list)})", "bold blue")
+
+    # LM Studio doesn't expose parameters/quantization/size
+    is_lmstudio = provider == "lm-studio"
+
+    if RICH_AVAILABLE:
+        table = Table(title=None, show_header=True, header_style="bold")
+        table.add_column("Name", style="cyan", no_wrap=True)
+        if is_lmstudio:
+            table.add_column("Details", style="dim")
+        else:
+            table.add_column("Params", style="green", justify="right")
+            table.add_column("Quantization", style="magenta")
+            table.add_column("Size", style="yellow", justify="right")
+        for m in model_list:
+            if is_lmstudio:
+                table.add_row(m.get("id", "unknown"), "—")
+            else:
+                table.add_row(
+                    m.get("id", m.get("name", "unknown")),
+                    m.get("parameters", "unknown"),
+                    m.get("quantization", "unknown"),
+                    _fmt_size(m.get("size_bytes", 0)) if m.get("size_bytes") else "—",
+                )
+        console.print("")
+        console.print(table)
+        if is_lmstudio:
+            _echo("   ℹ  LM Studio API doesn't expose parameter/quantization details", "dim")
+        console.print("")
+    else:
+        for m in model_list:
+            name = m.get("id", m.get("name", "unknown"))
+            if is_lmstudio:
+                _echo(f"  {name}")
+            else:
+                params = m.get("parameters", "unknown")
+                quant = m.get("quantization", "unknown")
+                size = _fmt_size(m.get("size_bytes", 0)) if m.get("size_bytes") else "—"
+                _echo(f"  {name:<40} {params:<12} {quant:<14} {size}")
+        _echo("")
+
+
+# ── Publish command ──────────────────────────────────────────────
+
+@cli.command()
+@click.argument("results_dir", type=click.Path(exists=True), default="results")
+@click.option("--output", "-o", default=None,
+              help="Output path for leaderboard.json (default: apps/dashboard/public/leaderboard.json)")
+@click.option("--merge", "merge_existing", is_flag=True,
+              help="Merge with existing published results instead of overwriting")
+def publish(results_dir, output, merge_existing):
+    """Publish benchmark results as a community leaderboard JSON file.
+
+    \\b
+    Reads results from RESULTS_DIR, aggregates them, and writes
+    a leaderboard.json to the dashboard's public/ directory.
+    The dashboard reads this file to display community-submitted results.
+
+    Examples:
+      modellens publish results/
+      modellens publish results/ --merge
+      modellens publish results/ --output ~/my-leaderboard.json
+    """
+    from results_schema import ResultsCollector
+
+    # Resolve output path
+    if output is None:
+        dashboard_public = Path(__file__).parent.parent / "dashboard" / "public"
+        dashboard_public.mkdir(parents=True, exist_ok=True)
+        output_path = dashboard_public / "leaderboard.json"
+    else:
+        output_path = Path(output).expanduser().resolve()
+
+    # Load existing published results if merging
+    existing_models: dict = {}
+    if merge_existing and output_path.exists():
+        try:
+            with open(output_path) as f:
+                existing = json.load(f)
+            for model in existing.get("models", []):
+                existing_models[model["model"]] = model
+        except Exception:
+            pass
+
+    # Load results from results dir
+    collector = ResultsCollector(str(Path(results_dir)))
+    results = collector.load_all()
+
+    if not results:
+        _echo(f"No results found in {results_dir}", "yellow")
+        return
+
+    # Build leaderboard entries
+    from results_schema import merge_results
+    merged = merge_results(results)
+    new_models = {m["model"]: m for m in merged.get("leaderboard", [])}
+
+    # Merge with existing if requested
+    if merge_existing:
+        existing_models.update(new_models)  # Newer results take precedence
+        all_models = list(existing_models.values())
+    else:
+        all_models = list(new_models.values())
+
+    # Sort by overall score
+    all_models.sort(key=lambda m: m["metrics"]["overall_score"], reverse=True)
+
+    # Build output
+    published = {
+        "version": "1.0.0",
+        "generated_at": datetime.now().isoformat(),
+        "total_models": len(all_models),
+        "source": "community",
+        "models": all_models,
+    }
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(output_path, "w") as f:
+        json.dump(published, f, indent=2, default=str)
+
+    _echo("")
+    _echo(f"📊 Published {len(all_models)} model(s) to community leaderboard", "bold green")
+    _echo(f"   File: {output_path}", "dim")
+    if merge_existing:
+        _echo(f"   Mode: merged with existing ({len(existing_models) - len(new_models)} existing preserved)", "dim")
     _echo("")
 
 

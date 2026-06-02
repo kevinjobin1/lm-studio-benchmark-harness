@@ -1,11 +1,9 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
 import LeaderboardTable from "../components/LeaderboardTable";
-import { loadResults, buildLeaderboard } from "../lib/loadResults";
-import type { BenchmarkResult } from "../lib/loadResults";
+import { loadAllResults } from "../lib/loadResults";
 
-const results: BenchmarkResult[] = await loadResults();
-const { leaderboard } = buildLeaderboard(results);
+const { leaderboard, generated_at, localCount, communityCount } = await loadAllResults();
 ---
 
 <BaseLayout
@@ -18,8 +16,11 @@ const { leaderboard } = buildLeaderboard(results);
         <div>
             <h2 class="dashboard-title">Global Model Leaderboard</h2>
             <p class="dashboard-subtitle">
-                Ranked by overall agentic score across {results.length} benchmark
+                Ranked by overall agentic score across {localCount ?? leaderboard.length} benchmark
                 runs on Apple M3 Max.
+                {communityCount && communityCount > 0 ? (
+                    <span class="community-badge">+{communityCount} community submissions</span>
+                ) : null}
             </p>
         </div>
         <div class="dashboard-actions">

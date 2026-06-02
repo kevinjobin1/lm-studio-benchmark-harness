@@ -255,19 +255,21 @@ class CodeScorer:
         # Check for hallucinated APIs
         common_apis = ["useState", "useEffect", "useQuery", "Injectable", "Controller"]
         for api in common_apis:
-            if api in code and "import" not in code[:code.find(api)]:
+            pattern = re.compile(r'\b' + re.escape(api) + r'\b')
+            match = pattern.search(code)
+            if match and "import" not in code[:match.start()]:
                 failures.append(FailureType.MISSING_IMPORT)
         
         # Check for async/await issues
-        if "async" in code and "await" not in code:
+        if re.search(r'\basync\b', code) and not re.search(r'\bawait\b', code):
             failures.append(FailureType.WRONG_ASYNC_USAGE)
         
         # Check for DI issues in NestJS
-        if "@Injectable()" in code and "constructor" not in code:
+        if "@Injectable()" in code and not re.search(r'\bconstructor\b', code):
             failures.append(FailureType.INCORRECT_DEPENDENCY_INJECTION)
         
         # Check for stale closure patterns
-        if "useEffect" in code and "[]" in code and "function()" in code:
+        if re.search(r'\buseEffect\b', code) and "[]" in code and "function()" in code:
             failures.append(FailureType.STALE_CLOSURE)
         
         # Check for race conditions
@@ -305,7 +307,7 @@ class InstructionScorer:
         
         # Check no markdown
         if constraints.get("no_markdown"):
-            if "**" in response or "```" in response or "_" in response:
+            if "**" in response or "```" in response or re.search(r'(?<!\w)_\w+_(?!\w)', response):
                 score *= 0.5
         
         # Check exact sentence count

@@ -92,11 +92,14 @@ export interface ModelSummary {
   performance: PerformanceMetrics;
   stats: { mean: number; std: number; runs: number };
   total_failures: number;
+  source: "local" | "community";
 }
 
 export interface LeaderboardData {
   leaderboard: ModelSummary[];
   generated_at: string;
+  communityCount?: number;
+  localCount?: number;
 }
 
 // ── Loaders ────────────────────────────────────────────────────────
@@ -186,6 +189,7 @@ export function buildLeaderboard(results: BenchmarkResult[]): LeaderboardData {
         runs: best.stats.runs,
       },
       total_failures: Object.values(best.failures).reduce((a, b) => a + b, 0),
+      source: "local",
     });
   }
 
@@ -194,6 +198,71 @@ export function buildLeaderboard(results: BenchmarkResult[]): LeaderboardData {
   return {
     leaderboard: models,
     generated_at: new Date().toISOString(),
+    localCount: models.length,
+  };
+}
+
+/**
+ * Load community-published results from leaderboard.json.
+ * These are results published by users via `modellens publish`.
+ */
+export async function loadCommunityResults(): Promise<ModelSummary[]> {
+  if (import.meta.env.SSR) {
+    try {
+      const fs = await import("fs");
+      const path = await import("path");
+      const filePath = path.resolve(process.cwd(), "public", "leaderboard.json");
+      const raw = fs.readFileSync(filePath, "utf-8");
+      const data = JSON.parse(raw);
+      if (data.models && data.models.length > 0) {
+        return data.models.map((m: any) => ({ ...m, source: "community" }));
+      }
+    } catch {
+      // No community results yet — that's fine
+    }
+    return [];
+  }
+
+  try {
+    const response = await fetch("/leaderboard.json");
+    if (!response.ok) return [];
+    const data = await response.json();
+    if (data.models && data.models.length > 0) {
+      return data.models.map((m: any) => ({ ...m, source: "community" }));
+    }
+  } catch {
+    // No community results yet
+  }
+  return [];
+}
+
+/**
+ * Load both local and community results and merge into a unified leaderboard.
+ * Community results are ranked alongside local results with source attribution.
+ */
+export async function loadAllResults(): Promise<LeaderboardData> {
+  const [results, communityModels] = await Promise.all([
+    loadResults(),
+    loadCommunityResults(),
+  ]);
+
+  const localLeaderboard = buildLeaderboard(results);
+  const localModels = localLeaderboard.leaderboard;
+
+  // Merge: local results take precedence over community for the same model
+  const localNames = new Set(localModels.map((m) => m.model));
+  const deduplicatedCommunity = communityModels.filter(
+    (m) => !localNames.has(m.model),
+  );
+
+  const merged = [...localModels, ...deduplicatedCommunity];
+  merged.sort((a, b) => b.metrics.overall_score - a.metrics.overall_score);
+
+  return {
+    leaderboard: merged,
+    generated_at: new Date().toISOString(),
+    localCount: localModels.length,
+    communityCount: deduplicatedCommunity.length,
   };
 }
 

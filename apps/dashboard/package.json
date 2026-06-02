@@ -1,7 +1,7 @@
 {
   "name": "lmbench-dashboard",
   "version": "1.0.0",
-  "description": "Static dashboard for LM Studio Benchmark results - model comparison, radar charts, failure heatmaps",
+  "description": "Dashboard for LM Studio Benchmark results - model comparison, radar charts, failure heatmaps",
   "type": "module",
   "scripts": {
     "dev": "astro dev",
@@ -12,7 +12,9 @@
     "generate-demo": "python3 scripts/generate_results_json.py --demo",
     "generate-real": "python3 scripts/generate_real_results.py",
     "prebuild": "npm run generate-real",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "deploy": "npm run build && node dist/server/entry.mjs",
+    "cf-build": "astro build"
   },
   "dependencies": {
     "@astrojs/node": "^10.1.2",

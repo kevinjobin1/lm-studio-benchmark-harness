@@ -2,9 +2,9 @@
 IFEval benchmark for instruction following evaluation.
 """
 
+import re
 from typing import Dict, List, Any
 from core import Benchmark, BenchmarkResult
-import re
 
 
 class IFEvalBenchmark(Benchmark):
@@ -30,7 +30,7 @@ class IFEvalBenchmark(Benchmark):
         {
             "instruction": "Write a paragraph with exactly 3 sentences. Each sentence should be about dogs.",
             "constraints": ["exactly_3_sentences", "about_dogs"],
-            "check": lambda x: len([s for s in x.split('.') if s.strip()]) == 3 and 'dog' in x.lower()
+            "check": lambda x: len([s for s in x.split('.') if s.strip()]) == 3 and bool(re.search(r'\bdogs?\b', x.lower()))
         },
         {
             "instruction": "Write a response that includes the word 'artificial' at least twice.",

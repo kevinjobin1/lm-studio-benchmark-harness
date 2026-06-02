@@ -1,0 +1,50 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import ModelDetail from "../../components/ModelDetail";
+import fs from "fs";
+import path from "path";
+
+export async function getStaticPaths() {
+    // Read model names from results.json and leaderboard.json at build time
+    const models = new Set<string>();
+
+    for (const file of ["results.json", "leaderboard.json"]) {
+        const filePath = path.resolve(process.cwd(), "public", file);
+        try {
+            if (fs.existsSync(filePath)) {
+                const data = JSON.parse(fs.readFileSync(filePath, "utf-8"));
+                const items = data.runs || data.models || [];
+                for (const item of items) {
+                    const name = item.model;
+                    if (name) models.add(name);
+                }
+            }
+        } catch { /* file doesn't exist or can't be parsed */ }
+    }
+
+    // Fallback: generate at least one page for the catch-all to work
+    if (models.size === 0) {
+        return [{ params: { id: "index" } }];
+    }
+
+    const paths = Array.from(models).map((m) => ({ params: { id: m } }));
+    return paths;
+}
+
+const { id } = Astro.params;
+const decodedId = decodeURIComponent(id ?? "");
+---
+---
+
+<BaseLayout
+    title={decodedId}
+    description={`Benchmark results for ${decodedId} — coding, reasoning, latency on Apple Silicon`}
+>
+    <a href="/" class="back-link">
+        <span class="material-symbols-outlined" style="font-size: 16px;"
+            >arrow_back</span
+        >
+        Back to Dashboard
+    </a>
+    <ModelDetail client:load modelId={decodedId} />
+</BaseLayout>

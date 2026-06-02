@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generated_at": "2026-06-01T11:59:31.596517",
+  "generated_at": "2026-06-01T13:30:29.604552",
   "total_models": 2,
   "total_runs": 2,
   "runs": [
@@ -17,7 +17,7 @@
         "memory_gb": 64,
         "architecture": "arm64"
       },
-      "timestamp": "2026-06-01T11:59:31.596490",
+      "timestamp": "2026-06-01T13:30:29.604526",
       "git_sha": "main",
       "git_branch": "main",
       "metrics": {
@@ -119,7 +119,7 @@
         "memory_gb": 64,
         "architecture": "arm64"
       },
-      "timestamp": "2026-06-01T11:59:31.596510",
+      "timestamp": "2026-06-01T13:30:29.604546",
       "git_sha": "main",
       "git_branch": "main",
       "metrics": {

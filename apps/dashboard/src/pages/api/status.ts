@@ -1,51 +1,72 @@
-/**
- * GET /api/status
- * Check which providers are connected and list available models.
- */
-
 import type { APIRoute } from "astro";
 
-export const GET: APIRoute = async () => {
-  let connected = false;
-  let models: string[] = [];
-  let provider = "";
+// Configurable via LM_STUDIO_URL env var (default: http://127.0.0.1:1234/v1)
+const LM_STUDIO_BASE = (import.meta.env.LM_STUDIO_URL as string) || "http://127.0.0.1:1234/v1";
 
-  // Try LM Studio
+async function checkLmStudio(): Promise<{ connected: boolean; models: string[]; error?: string }> {
   try {
-    const lmResp = await fetch("http://localhost:1234/v1/models", {
-      signal: AbortSignal.timeout(3000),
-    });
-    if (lmResp.ok) {
-      const data = await lmResp.json();
-      const lmModels: string[] = (data.data || []).map((m: { id: string }) => m.id);
-      if (lmModels.length > 0) {
-        connected = true;
-        models = lmModels;
-        provider = "lm-studio";
-      }
+    const resp = await fetch(`${LM_STUDIO_BASE}/models`, { signal: AbortSignal.timeout(3000) });
+    if (!resp.ok) {
+      return { connected: false, models: [], error: `LM Studio returned ${resp.status}` };
     }
-  } catch { /* LM Studio not reachable */ }
-
-  // Try Ollama if LM Studio had no models
-  if (!connected) {
-    try {
-      const ollamaResp = await fetch("http://localhost:11434/api/tags", {
-        signal: AbortSignal.timeout(3000),
-      });
-      if (ollamaResp.ok) {
-        const data = await ollamaResp.json();
-        const ollamaModels: string[] = (data.models || []).map((m: { name: string }) => m.name);
-        if (ollamaModels.length > 0) {
-          connected = true;
-          models = ollamaModels;
-          provider = "ollama";
-        }
-      }
-    } catch { /* Ollama not reachable */ }
+    const data: { data?: { id: string }[] } = await resp.json();
+    const models = (data.data || []).map((m) => m.id);
+    return { connected: true, models };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    return { connected: false, models: [], error: message };
   }
+}
+
+/** Resolve project root (works when cwd is project root or apps/dashboard). */
+function resolveProjectRoot(): string {
+  const cwd = process.cwd();
+  if (cwd.endsWith("apps/dashboard")) {
+    return cwd.replace(/\/apps\/dashboard$/, "");
+  }
+  if (cwd.endsWith("apps")) {
+    return cwd.replace(/\/apps$/, "");
+  }
+  return cwd;
+}
+
+/** Gather hardware info from the Python CLI (non-blocking best-effort). */
+async function getHardware(): Promise<Record<string, unknown>> {
+  try {
+    const { spawnSync } = await import("node:child_process");
+    const projectRoot = resolveProjectRoot();
+    const result = spawnSync("python3", [
+      "-c",
+      `import sys; sys.path.insert(0, '${projectRoot}'); sys.path.insert(0, '${projectRoot}/apps/cli'); from core.hardware import detect_hardware; import json; hw = detect_hardware(); print(json.dumps(hw.to_dict()))`,
+    ], {
+      cwd: projectRoot,
+      timeout: 5000,
+      encoding: "utf-8",
+    });
+    if (result.status === 0 && result.stdout) {
+      return JSON.parse(result.stdout);
+    }
+  } catch {
+    // best-effort
+  }
+  return {};
+}
+
+export const GET: APIRoute = async () => {
+  const status = await checkLmStudio();
+  const hardware = status.connected ? await getHardware() : {};
 
   return new Response(
-    JSON.stringify({ connected, models, provider }),
-    { status: 200, headers: { "Content-Type": "application/json" } }
+    JSON.stringify({
+      connected: status.connected,
+      models: status.models,
+      provider: "LM Studio",
+      error: status.error,
+      hardware,
+    }),
+    {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    },
   );
 };

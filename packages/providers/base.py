@@ -65,6 +65,7 @@ class RunResult:
     completion_tokens: int
     total_tokens: int
     timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
+    hardware: Optional[Dict] = None  # HardwareInfo.to_dict() snapshot
 
 
 @dataclass

@@ -97,12 +97,19 @@ export default function LeaderboardTable({ models }: LeaderboardTableProps) {
                 </td>
                 <td className="lb-td-model">
                   <div className="lb-model-cell">
-                    <a
-                      href={`/model/${encodeURIComponent(m.model)}`}
-                      className="lb-model-link"
-                    >
-                      {m.model}
-                    </a>
+                    <div className="lb-model-name-row">
+                      <a
+                        href={`/model/${encodeURIComponent(m.model)}`}
+                        className="lb-model-link"
+                      >
+                        {m.model}
+                      </a>
+                      {m.source === "community" && (
+                        <span className="source-badge source-community" title="Community submission">
+                          community
+                        </span>
+                      )}
+                    </div>
                     <span className="lb-model-sub">
                       {m.metadata.size || "—"}
                       {m.metadata.quantization

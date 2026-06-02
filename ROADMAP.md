@@ -9,19 +9,19 @@ See [VISION.md](VISION.md) for the full philosophy.
 
 ## V1 — Replace ad-hoc benchmarking
 
-Status: **In Progress**
+Status: **Complete**
 
 - [x] LM Studio provider
 - [x] Ollama provider
-- [x] Unified `modellens` CLI
+- [x] Unified `modellens` CLI (`run`, `info`, `leaderboard`, `models`)
 - [x] Unified benchmark harness (MMLU-Pro, GSM8K, HumanEval, etc.)
 - [x] DevBench v2 (TypeScript/NestJS/React, statistical rigor)
 - [x] Benchmark dashboard (Astro + React)
 - [x] Prompt packs (React, NestJS, debugging, agentic)
-- [ ] Prompt generation (paraphrasing, variable substitution, contextual mutation)
-- [ ] Hardware detection (CPU, GPU, RAM, OS, architecture)
-- [ ] GitHub Pages deployment
-- [ ] Community leaderboard
+- [x] Prompt generation (paraphrasing, variable substitution, contextual mutation)
+- [x] Hardware detection (CPU, GPU, RAM, OS, architecture)
+- [x] Cloudflare Pages deployment
+- [x] Community leaderboard
 
 ---
 
@@ -64,9 +64,9 @@ Status: **Future**
 ### V1
 - Benchmark LM Studio models ✅
 - Benchmark Ollama models ✅
-- Publish GitHub Pages report
+- Publish Cloudflare Pages report ✅
 - Prompt packs ✅
-- Leaderboard
+- Leaderboard ✅
 
 ### V2
 - Trace capture

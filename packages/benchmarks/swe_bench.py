@@ -3,6 +3,7 @@ SWE-bench Lite benchmark for coding agent evaluation.
 Simplified version for demonstration.
 """
 
+import re
 from typing import Dict, List, Any
 from core import Benchmark, BenchmarkResult
 
@@ -139,15 +140,18 @@ Be specific and include file paths, function names, and code patterns."""
     def _evaluate_response_quality(self, response: str, task: Dict) -> float:
         """Evaluate the quality of the agent's response (simplified)."""
         score = 0.0
+        response_lower = response.lower()
         
-        # Check for key elements
-        if "understand" in response.lower() or "problem" in response.lower():
+        # Check for key elements using word boundaries to avoid
+        # false positives like 'file' matching inside 'profile'.
+        # Uses optional 's' and 'es' to also match common plurals.
+        if re.search(r'\b(understand|problem)s?\b', response_lower):
             score += 0.25
-        if "file" in response.lower() or "examine" in response.lower():
+        if re.search(r'\b(files?|examines?)\b', response_lower):
             score += 0.25
-        if "change" in response.lower() or "fix" in response.lower():
+        if re.search(r'\b(changes?|fix(es)?)\b', response_lower):
             score += 0.25
-        if "test" in response.lower() or "verify" in response.lower():
+        if re.search(r'\b(tests?|verif(y|ies))\b', response_lower):
             score += 0.25
         
         # Ensure score is in [0, 1]

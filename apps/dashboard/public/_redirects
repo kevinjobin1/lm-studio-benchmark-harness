@@ -1,0 +1,5 @@
+# Cloudflare Pages redirects
+# SPA fallback for model detail pages added after build:
+# /model/* routes to 404 page with 200 status so client-side JS can handle it
+# (uncomment if you need post-build model page support)
+# /model/* /404.html 200

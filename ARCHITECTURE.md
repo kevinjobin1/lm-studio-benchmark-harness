@@ -79,7 +79,7 @@ modellens.py (CLI entry point)
     └──[compare]──→ both frameworks
     │
     ▼
-Results (JSON, HTML, CSV)  →  Dashboard (Astro + React)  →  GitHub Pages
+Results (JSON, HTML, CSV)  →  Dashboard (Astro + React)  →  Cloudflare Pages
 ```
 
 ---
@@ -175,4 +175,4 @@ All dashboard UI follows the **Kinetic Logic** design system. See [DESIGN.md](DE
 | Core framework | Python 3.10+, OpenAI SDK, psutil |
 | Dashboard | Astro 5, React 18, TypeScript |
 | Providers | Python requests, OpenAI SDK |
-| Deployment | GitHub Pages, GitHub Actions |
+| Deployment | Cloudflare Pages |

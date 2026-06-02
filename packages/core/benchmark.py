@@ -11,7 +11,10 @@ from datetime import datetime
 from openai import OpenAI
 import yaml
 
-from providers.base import APICallMetrics@dataclass
+from providers.base import APICallMetrics
+
+
+@dataclass
 class BenchmarkResult:
     """Stores results from a single benchmark run."""
     benchmark_name: str

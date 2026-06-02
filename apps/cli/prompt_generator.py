@@ -5,6 +5,7 @@ Includes real-world debugging scenarios and category-specific generation
 """
 
 import random
+import re
 from typing import Dict, List, Optional
 from dataclasses import dataclass
 from enum import Enum
@@ -616,8 +617,243 @@ class InstructionPromptGenerator:
 
 
 class PromptGenerator:
-    """Main prompt generator with category-based generation and parameterization."""
+    """Main prompt generator with category-based generation and parameterization.
+
+    V1 feature: prompt variant generation via paraphrasing, variable substitution,
+    and contextual mutation to reduce overfitting and increase diversity.
+    """
+
+    # ── Synonym maps for paraphrasing ────────────────────────────
+    ACTION_SYNONYMS = {
+        "Implement": ["Build", "Create", "Develop", "Write", "Code"],
+        "implement": ["build", "create", "develop", "write", "code"],
+        "Fix": ["Resolve", "Repair", "Correct", "Address", "Patch"],
+        "fix": ["resolve", "repair", "correct", "address", "patch"],
+        "Optimize": ["Improve", "Enhance", "Refine", "Streamline", "Boost"],
+        "optimize": ["improve", "enhance", "refine", "streamline", "boost"],
+        "Explain": ["Describe", "Outline", "Clarify", "Detail", "Elaborate on"],
+        "explain": ["describe", "outline", "clarify", "detail", "elaborate on"],
+    }
+
+    NOUN_SYNONYMS = {
+        "component": ["element", "widget", "module", "block", "unit"],
+        "function": ["method", "routine", "handler", "procedure", "operation"],
+        "service": ["provider", "manager", "handler", "processor", "worker"],
+        "endpoint": ["route", "handler", "controller", "gateway", "interface"],
+        "database": ["datastore", "repository", "storage", "persistence layer", "DB"],
+    }
+
+    # ── Variable substitution pools ──────────────────────────────
+    FUNCTION_NAMES = [
+        "processData", "handleRequest", "fetchRecords", "transformPayload",
+        "validateInput", "sanitizeOutput", "resolveEntity", "normalizeResponse",
+        "aggregateResults", "dispatchEvent", "enqueueTask", "delegateWork",
+    ]
+
+    TYPE_NAMES = ["string", "number", "boolean", "string[]", "Record<string, any>",
+                  "Promise<void>", "Observable<Response>", "Maybe<T>", "Result<T, E>"]
+
+    IDENTIFIER_NAMES = [
+        "userId", "customerId", "orderRef", "sessionToken", "requestId",
+        "tenantKey", "workspaceId", "projectSlug", "teamHandle", "orgCode",
+    ]
+
+    # ── Context mutation maps ────────────────────────────────────
+    FRAMEWORK_SWAPS = {
+        "react": {
+            "name": "Vue 3",
+            "hooks": {"useState": "ref", "useEffect": "watch", "useCallback": "computed"},
+            "patterns": {"JSX": "template", "component": "component", "props": "props"},
+            "keywords": ["ref", "reactive", "computed", "watch", "defineComponent"],
+        },
+        "nestjs": {
+            "name": "Express.js",
+            "hooks": {"@Injectable": "middleware", "@Controller": "router", "@Module": "app.use"},
+            "patterns": {"decorator": "middleware", "provider": "service", "guard": "middleware"},
+            "keywords": ["express", "middleware", "router", "app.use", "request handler"],
+        },
+        "typescript": {
+            "name": "JavaScript",
+            "hooks": {"interface": "JSDoc @typedef", "type": "JSDoc @type", "generics": "any"},
+            "patterns": {"type guard": "typeof check", "decorator": "higher-order function"},
+            "keywords": ["function", "var", "JSDoc", "typeof", "prototype"],
+        },
+    }
     
+    # ── Prompt variant generation (V1 feature) ───────────────────────
+
+    def paraphrase(self, prompt: str, intensity: float = 0.3) -> str:
+        """Generate a paraphrased variant of the prompt.
+
+        Swaps action verbs and nouns with synonyms at the given intensity
+        (0.0 = no changes, 1.0 = maximum changes). Uses word-boundary matching
+        to avoid corrupting longer words (e.g. "function" inside "functionality").
+        """
+        result = prompt
+        changes = 0
+        max_changes = max(1, int(len(prompt.split()) * intensity * 0.25))
+
+        def _has_word(text: str, word: str) -> bool:
+            """Check if `word` appears as a whole word in `text`."""
+            return bool(re.search(r'\b' + re.escape(word) + r'\b', text))
+
+        # Swap action verbs
+        for word, synonyms in self.ACTION_SYNONYMS.items():
+            if changes >= max_changes:
+                break
+            if _has_word(result, word) and random.random() < intensity:
+                result = result.replace(word, random.choice(synonyms), 1)
+                changes += 1
+
+        # Swap nouns
+        for word, synonyms in self.NOUN_SYNONYMS.items():
+            if changes >= max_changes:
+                break
+            if _has_word(result, word) and random.random() < intensity * 0.5:
+                result = result.replace(word, random.choice(synonyms), 1)
+                changes += 1
+
+        return result
+
+    def substitute_variables(self, prompt: str, intensity: float = 0.5) -> str:
+        """Replace identifiers, types, and function names in the prompt.
+
+        Swaps camelCase identifiers, TypeScript types, and function names
+        with random alternatives from the substitution pools.
+        """
+        result = prompt
+
+        # Substitute camelCase identifiers (first occurrence only)
+        camel_words = re.findall(r'\b([a-z]+[A-Z][a-zA-Z]*)\b', result)
+        for word in set(camel_words):
+            if len(word) > 5 and random.random() < intensity:
+                replacement = random.choice(self.IDENTIFIER_NAMES)
+                result = result.replace(word, replacement, 1)
+
+        # Substitute function names (first occurrence only)
+        func_words = re.findall(r'\b([a-z]+(?:Data|Request|Records|Payload|Input|Output|Response|Result|Entity|Event|Task|Work))\b', result)
+        for word in set(func_words):
+            if random.random() < intensity * 0.5:
+                result = result.replace(word, random.choice(self.FUNCTION_NAMES), 1)
+
+        return result
+
+    @staticmethod
+    def _whole_word_pattern(word: str) -> str:
+        """Build a regex that matches `word` only as a whole word.
+
+        Uses \\b (standard word boundary) when the word starts and ends with
+        word characters. Falls back to (?<!\\w)/(?!\\w) (negative lookarounds)
+        for words starting or ending with non-word chars (e.g. "@Injectable"),
+        where \\b would not anchor correctly at string edges.
+        """
+        escaped = re.escape(word)
+        if word and word[0].isalnum() and word[-1].isalnum():
+            return rf'\b{escaped}\b'
+        return rf'(?<!\w){escaped}(?!\w)'
+
+    def mutate_context(self, prompt: str, framework: Optional[str] = None) -> str:
+        """Mutate the framework/technology context of a prompt.
+
+        Swaps React → Vue, NestJS → Express, TypeScript → JavaScript
+        and rewrites technology-specific terms accordingly.
+
+        Order of operations:
+        1. Apply keyword normalization (on original text, before framework name is
+           inserted — prevents keywords from matching parts of the new name).
+        2. Swap framework name variants.
+        3. Swap hooks and patterns.
+        """
+        if framework is None:
+            framework = random.choice(list(self.FRAMEWORK_SWAPS.keys()))
+
+        swap = self.FRAMEWORK_SWAPS.get(framework.lower() if framework else "")
+        if not swap:
+            return prompt
+
+        result = prompt
+
+        # ── Step 1: Keyword normalization (before framework name insertion) ──
+        # Apply keyword regex before inserting the new framework name so that
+        # keywords (e.g. "express") don't accidentally match parts of the
+        # swapped-in name (e.g. "Express.js" → "express.js").
+        for kw in swap.get("keywords", []):
+            pattern = self._whole_word_pattern(kw)
+            if re.search(pattern, result, re.IGNORECASE):
+                result = re.sub(pattern, kw, result, flags=re.IGNORECASE)
+
+        # ── Step 2: Replace all framework name variants (whole-word only) ──
+        framework_names = {
+            "react": ["React", "react", "React.js", "ReactJS"],
+            "nestjs": ["NestJS", "Nest", "nestjs", "Nest.js"],
+            "typescript": ["TypeScript", "TS", "typescript", "Typescript"],
+        }
+        for name in framework_names.get(framework.lower(), []):
+            pattern = self._whole_word_pattern(name)
+            result = re.sub(pattern, swap["name"], result)
+
+        # ── Step 3: Swap hooks/patterns in text (whole-word only) ──
+        for old, new in swap.get("hooks", {}).items():
+            result = re.sub(self._whole_word_pattern(old), new, result)
+
+        for old, new in swap.get("patterns", {}).items():
+            result = re.sub(self._whole_word_pattern(old), new, result)
+
+        return result
+
+    def generate_variants(
+        self,
+        base_prompt: GeneratedPrompt,
+        count: int = 3,
+        techniques: Optional[List[str]] = None,
+    ) -> List[GeneratedPrompt]:
+        """Generate variants of a base prompt using multiple techniques.
+
+        Args:
+            base_prompt: The prompt to generate variants from.
+            count: Number of variants to generate.
+            techniques: Subset of ['paraphrase', 'substitute', 'mutate'].
+                        Defaults to all three.
+
+        Returns:
+            List of GeneratedPrompt objects (includes the original as index 0).
+        """
+        if techniques is None:
+            techniques = ["paraphrase", "substitute", "mutate"]
+
+        variants = [base_prompt]
+
+        for i in range(1, count):
+            prompt_text = base_prompt.prompt
+
+            # Apply techniques in sequence with increasing intensity per variant
+            intensity = 0.2 + (i / count) * 0.6  # 0.2 → 0.8
+
+            if "paraphrase" in techniques:
+                prompt_text = self.paraphrase(prompt_text, intensity=intensity)
+
+            if "substitute" in techniques:
+                prompt_text = self.substitute_variables(prompt_text, intensity=intensity)
+
+            if "mutate" in techniques and random.random() < 0.4:
+                prompt_text = self.mutate_context(prompt_text)
+
+            # Create variant with same metadata, updated prompt
+            variant = GeneratedPrompt(
+                category=base_prompt.category,
+                prompt=prompt_text,
+                expected_keywords=base_prompt.expected_keywords,
+                constraints=base_prompt.constraints,
+                expected_answer=base_prompt.expected_answer,
+                json_schema=base_prompt.json_schema,
+                difficulty=base_prompt.difficulty,
+            )
+            variants.append(variant)
+
+        return variants
+
+    # ── Original generation methods ───────────────────────────────
+
     def __init__(self, seed: Optional[int] = None):
         if seed is not None:
             random.seed(seed)

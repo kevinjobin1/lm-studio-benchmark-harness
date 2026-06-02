@@ -1,0 +1,3 @@
+# Cloudflare Pages deployment config for ModelLens Dashboard
+# Deploy: npm run deploy (builds then runs wrangler pages deploy dist)
+pages_build_output_dir = "dist"

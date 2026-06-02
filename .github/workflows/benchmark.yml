@@ -3,19 +3,19 @@ name: Run Benchmarks
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 8 * * 1'  # Every Monday at 8 AM UTC
+    - cron: "0 8 * * 1" # Every Monday at 8 AM UTC
   push:
     paths:
-      - 'benchmark/**'
-      - 'benchmarks/**'
-      - 'scoring.py'
-      - 'evaluators.py'
-      - 'prompt_generator.py'
-      - 'bench_apple_silicon_v2.py'
-      - 'benchmark.py'
-      - 'config.json'
-      - 'config.yaml'
-      - 'requirements.txt'
+      - "benchmark/**"
+      - "benchmarks/**"
+      - "scoring.py"
+      - "evaluators.py"
+      - "prompt_generator.py"
+      - "bench_apple_silicon_v2.py"
+      - "benchmark.py"
+      - "config.json"
+      - "config.yaml"
+      - "requirements.txt"
 
 jobs:
   benchmark:
@@ -29,7 +29,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: "3.11"
 
       - name: Cache pip packages
         uses: actions/cache@v4
@@ -52,8 +52,8 @@ jobs:
             --num-prompts 20 \
             --output-dir results/ci-run
 
-      - name: Generate X thread
-        run: python x_thread_generator.py
+      # - name: Generate X thread
+      #   run: python x_thread_generator.py
 
       - name: Upload benchmark artifacts
         uses: actions/upload-artifact@v4
