@@ -35,10 +35,20 @@ async function getHardware(): Promise<Record<string, unknown>> {
   try {
     const { spawnSync } = await import("node:child_process");
     const projectRoot = resolveProjectRoot();
-    const result = spawnSync("python3", [
-      "-c",
-      `import sys; sys.path.insert(0, '${projectRoot}'); sys.path.insert(0, '${projectRoot}/apps/cli'); from core.hardware import detect_hardware; import json; hw = detect_hardware(); print(json.dumps(hw.to_dict()))`,
-    ], {
+
+    // detect_hardware lives at packages/core/hardware.py —
+    // add projectRoot/packages to sys.path so "from core.hardware" resolves
+    const pythonScript = [
+      "import sys",
+      `sys.path.insert(0, '${projectRoot}/packages')`,
+      `sys.path.insert(0, '${projectRoot}')`,
+      "from core.hardware import detect_hardware",
+      "import json",
+      "hw = detect_hardware()",
+      "print(json.dumps(hw.to_dict()))",
+    ].join("; ");
+
+    const result = spawnSync("python3", ["-c", pythonScript], {
       cwd: projectRoot,
       timeout: 5000,
       encoding: "utf-8",

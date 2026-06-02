@@ -13,6 +13,7 @@ export interface Props {
 
 import RunBenchmarkButton from "../components/RunBenchmarkButton";
 import ConnectionStatusBadge from "../components/ConnectionStatusBadge";
+import ServerUptimeBadge from "../components/ServerUptimeBadge";
 import BenchmarkStatusBadge from "../components/BenchmarkStatusBadge";
 
 const { title, description, activeNav = "models" } = Astro.props;
@@ -122,6 +123,7 @@ const navItems = [
                 </form>
             </div>
             <div class="topbar-right">
+                <ServerUptimeBadge client:load />
                 <ConnectionStatusBadge client:load />
                 <div class="hardware-badge">
                     <span class="material-symbols-outlined hw-icon"
@@ -453,6 +455,25 @@ const navItems = [
         font-size: 12px;
         font-weight: 500;
         color: var(--text-secondary);
+    }
+
+    /* Server Uptime Badge */
+    .server-uptime-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        font-family: var(--font-mono);
+        font-size: 11px;
+        font-weight: 500;
+        color: var(--text-tertiary);
+        cursor: default;
+    }
+    .uptime-icon {
+        font-size: 14px !important;
+        color: var(--text-tertiary);
+    }
+    .uptime-label {
+        white-space: nowrap;
     }
 
     /* Connection Status Badge */
