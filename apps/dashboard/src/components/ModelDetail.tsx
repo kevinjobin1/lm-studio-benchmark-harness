@@ -8,13 +8,22 @@ import {
 import type { TraceRun } from "../lib/traceTypes";
 import FailureHeatmap from "./FailureHeatmap";
 
+interface ReplayEntry {
+  run_id: string;
+  workload: string;
+  event_count: number;
+  started_at: string;
+}
+
 interface ModelDetailProps {
   modelId: string;
   /** Recent execution traces for this model (V2). */
   traces?: TraceRun[];
+  /** Recent replay sessions for this model. */
+  replays?: ReplayEntry[];
 }
 
-export default function ModelDetail({ modelId, traces }: ModelDetailProps) {
+export default function ModelDetail({ modelId, traces, replays }: ModelDetailProps) {
   const [bestRun, setBestRun] = useState<BenchmarkResult | null>(null);
   const [modelRuns, setModelRuns] = useState<BenchmarkResult[]>([]);
   const [loading, setLoading] = useState(true);
@@ -362,6 +371,89 @@ export default function ModelDetail({ modelId, traces }: ModelDetailProps) {
             <p>
               No execution traces captured yet for this model. Run the benchmark
               suite with trace capture enabled to populate this section.
+            </p>
+          </div>
+        </section>
+      )}
+
+      {/* Recent Replays */}
+      {replays && replays.length > 0 && (
+        <section style={{ marginBottom: 48 }}>
+          <div className="section-header">
+            <h2>Replay Sessions</h2>
+            <p>
+              {replays.length} recorded replay session{replays.length !== 1 ? "s" : ""} for {modelId} — step through events chronologically.
+            </p>
+          </div>
+          <div className="md-traces-grid">
+            {replays.map((rep) => (
+              <a
+                key={rep.run_id}
+                href={`/replays?run_id=${encodeURIComponent(rep.run_id)}`}
+                className="card md-trace-card"
+              >
+                <div className="md-trace-header">
+                  <span className="md-trace-id mono-label">{rep.run_id}</span>
+                  {rep.workload && (
+                    <span
+                      className="chip chip-primary"
+                      style={{ fontSize: 9 }}
+                    >
+                      {rep.workload}
+                    </span>
+                  )}
+                </div>
+                <div className="md-trace-meta">
+                  <span className="md-trace-meta-item">
+                    <span className="material-symbols-outlined">notifications</span>
+                    {rep.event_count} events
+                  </span>
+                  <span className="md-trace-meta-item">
+                    <span className="material-symbols-outlined">schedule</span>
+                    {new Date(rep.started_at).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      hour: "numeric",
+                      minute: "2-digit",
+                    })}
+                  </span>
+                </div>
+                <div className="md-trace-footer">
+                  <span className="md-trace-timestamp">Replay</span>
+                  <span className="md-trace-link">
+                    Open in viewer
+                    <span className="material-symbols-outlined">
+                      arrow_forward
+                    </span>
+                  </span>
+                </div>
+              </a>
+            ))}
+          </div>
+          <div className="md-traces-view-all">
+            <a
+              href={`/replays?model=${encodeURIComponent(modelId)}`}
+              className="btn-outline"
+            >
+              <span
+                className="material-symbols-outlined"
+                style={{ fontSize: 18 }}
+              >
+                replay
+              </span>
+              <span>View all replays for {modelId}</span>
+            </a>
+          </div>
+        </section>
+      )}
+
+      {replays && replays.length === 0 && (
+        <section style={{ marginBottom: 48 }}>
+          <div className="section-header">
+            <h2>Replay Sessions</h2>
+            <p>
+              No replay sessions recorded yet for this model. Run a benchmark
+              with <code>--sse-port 9090</code> to capture replay data.
             </p>
           </div>
         </section>

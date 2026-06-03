@@ -1,0 +1,53 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import ReplayViewer from "../components/ReplayViewer";
+
+// Read ?run_id= and ?model= from URL to pre-select a specific replay
+const url = new URL(Astro.request.url);
+const initialRunId = url.searchParams.get("run_id") || undefined;
+const initialModel = url.searchParams.get("model") || undefined;
+---
+
+<BaseLayout
+    title="Replay Viewer"
+    description="Step through recorded benchmark events chronologically — play, pause, and inspect every token, metric, and lifecycle event."
+    activeNav="replays"
+>
+    <!-- ═══ Dashboard Header ═══════════════════════════════════════ -->
+    <div class="dashboard-header animate-entrance">
+        <div>
+            <h2 class="dashboard-title">Replay Viewer</h2>
+            <p class="dashboard-subtitle">
+                Step through recorded benchmark events chronologically — play, pause, and inspect every token, metric, and lifecycle event.
+                Use <kbd class="rpv-kbd">Space</kbd> to play/pause, <kbd class="rpv-kbd">→</kbd> <kbd class="rpv-kbd">←</kbd> to navigate, and <kbd class="rpv-kbd">1</kbd> <kbd class="rpv-kbd">2</kbd> <kbd class="rpv-kbd">4</kbd> for speed.
+            </p>
+        </div>
+    </div>
+
+    <ReplayViewer
+        client:load
+        initialRunId={initialRunId}
+        initialModel={initialModel}
+    />
+</BaseLayout>
+
+<style is:global>
+  /* ── Replay page keyboard hints ─────────────────────────────── */
+  .rpv-kbd {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 22px;
+    height: 18px;
+    padding: 0 4px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-primary);
+    background: var(--bg-low);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    box-shadow: 0 1px 0 var(--border-prominent);
+    vertical-align: middle;
+  }
+</style>

@@ -71,7 +71,7 @@ describe("POST /api/run-benchmark", () => {
 
     expect(spawn).toHaveBeenCalledWith(
       "python3",
-      ["bench_apple_silicon_v2.py", "--quick"],
+      ["bench_apple_silicon_v2.py", "--quick", "--sse-port", "9090"],
       expect.objectContaining({
         detached: true,
         stdio: ["ignore", "pipe", "pipe"],
@@ -86,7 +86,7 @@ describe("POST /api/run-benchmark", () => {
 
     expect(spawn).toHaveBeenCalledWith(
       "python3",
-      ["bench_apple_silicon_v2.py"],
+      ["bench_apple_silicon_v2.py", "--sse-port", "9090"],
       expect.anything(),
     );
   });
@@ -104,7 +104,7 @@ describe("POST /api/run-benchmark", () => {
 
     expect(spawn).toHaveBeenCalledWith(
       "python3",
-      ["bench_apple_silicon_v2.py", "--quick"],
+      ["bench_apple_silicon_v2.py", "--quick", "--sse-port", "9090"],
       expect.anything(),
     );
   });

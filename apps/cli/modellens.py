@@ -59,29 +59,48 @@ def _get_git_sha() -> str:
         return "unknown"
 
 
+# Provider configuration: default URLs and API keys
+PROVIDER_CONFIG = {
+    "lm-studio": {"url": "http://localhost:1234/v1", "key": "lm-studio"},
+    "ollama": {"url": "http://localhost:11434/v1", "key": "ollama"},
+    "open-webui": {"url": "http://localhost:3000/api/v1", "key": "open-webui"},
+    "jan": {"url": "http://localhost:1337/v1", "key": "jan"},
+    "llama.cpp": {"url": "http://localhost:8080/v1", "key": "llamacpp"},
+    "vllm": {"url": "http://localhost:8000/v1", "key": "vllm"},
+}
+
+
 def _resolve_provider(provider: Optional[str] = None) -> tuple:
     """Resolve provider and return (provider_name, api_base, api_key).
 
-    Auto-detects if provider is None: tries LM Studio first, then Ollama.
+    Auto-detects if provider is None: checks all known providers in
+    order of likelihood (LM Studio → Ollama → llama.cpp → vLLM →
+    Open WebUI → Jan).
     """
     if provider is None:
-        from providers.ollama import OllamaClient
-        try:
-            import requests
-            lm_resp = requests.get("http://localhost:1234/v1/models", timeout=2)
-            if lm_resp.status_code == 200 and len(lm_resp.json().get("data", [])) > 0:
-                provider = "lm-studio"
-        except Exception:
-            pass
+        import requests
+        # Probe order: LM Studio, Ollama, llama.cpp, vLLM, Open WebUI, Jan
+        probes = [
+            ("lm-studio", "http://localhost:1234/v1/models"),
+            ("ollama", "http://localhost:11434/api/tags"),
+            ("llama.cpp", "http://localhost:8080/v1/models"),
+            ("vllm", "http://localhost:8000/v1/models"),
+            ("open-webui", "http://localhost:3000/api/v1/models"),
+            ("jan", "http://localhost:1337/v1/models"),
+        ]
+        for p_name, probe_url in probes:
+            try:
+                resp = requests.get(probe_url, timeout=2)
+                if resp.status_code == 200:
+                    provider = p_name
+                    break
+            except Exception:
+                continue
         if not provider:
-            ollama = OllamaClient()
-            if ollama.health_check():
-                provider = "ollama"
-            else:
-                provider = "lm-studio"
-    api_base = "http://localhost:1234/v1" if provider == "lm-studio" else "http://localhost:11434"
-    api_key = "lm-studio" if provider == "lm-studio" else "ollama"
-    return provider, api_base, api_key
+            provider = "lm-studio"  # Default fallback
+
+    cfg = PROVIDER_CONFIG.get(provider, PROVIDER_CONFIG["lm-studio"])
+    return provider, cfg["url"], cfg["key"]
 
 
 def _list_provider_models(provider: str, api_base: str, api_key: str) -> List[str]:
@@ -97,6 +116,12 @@ def _list_provider_models(provider: str, api_base: str, api_key: str) -> List[st
             resp = requests.get(f"{ollama_base}/api/tags", timeout=5)
             if resp.status_code == 200:
                 return [m.get("name", "") for m in resp.json().get("models", [])]
+        else:
+            # Generic OpenAI-compatible provider (open-webui, jan, llama.cpp, vllm)
+            base = api_base.rstrip("/v1").rstrip("/")
+            resp = requests.get(f"{base}/v1/models", timeout=5)
+            if resp.status_code == 200:
+                return [m.get("id", "") for m in resp.json().get("data", [])]
     except Exception:
         pass
     return []
@@ -139,6 +164,21 @@ def _list_models_detailed(provider: str, api_base: str, api_key: str) -> list:
                         "family": details.get("family", ""),
                         "format": details.get("format", ""),
                     })
+        else:
+            # Generic OpenAI-compatible provider (open-webui, jan, llama.cpp, vllm)
+            base = api_base.rstrip("/v1").rstrip("/")
+            resp = requests.get(f"{base}/v1/models", timeout=5)
+            if resp.status_code == 200:
+                for m in resp.json().get("data", []):
+                    mid = m.get("id", "unknown")
+                    models.append({
+                        "id": mid,
+                        "name": mid,
+                        "provider": provider,
+                        "parameters": m.get("metadata", {}).get("parameter_count", "unknown"),
+                        "quantization": m.get("metadata", {}).get("quantization", "unknown"),
+                        "size_bytes": m.get("metadata", {}).get("model_size", 0),
+                    })
     except Exception:
         pass
     return models
@@ -175,7 +215,7 @@ def cli():
               help="Provider base URL (auto-detected for known providers)")
 @click.option("--api-key", default=None, show_default=False)
 @click.option("--provider", "-p",
-              type=click.Choice(["lm-studio", "ollama"]),
+              type=click.Choice(["lm-studio", "ollama", "open-webui", "jan", "llama.cpp", "vllm"]),
               default=None, show_default=False,
               help="Provider to use (auto-detected if omitted)")
 @click.option("--models", "-m", multiple=True,
@@ -233,31 +273,23 @@ def run(api_base, api_key, provider, models, model_name, framework, output_dir,
         api_base = api_base or detected_base
         api_key = api_key or detected_key
     else:
-        api_base = api_base or ("http://localhost:1234/v1" if provider == "lm-studio" else "http://localhost:11434")
-        api_key = api_key or ("lm-studio" if provider == "lm-studio" else "ollama")
+        cfg = PROVIDER_CONFIG.get(provider, PROVIDER_CONFIG["lm-studio"])
+        api_base = api_base or cfg["url"]
+        api_key = api_key or cfg["key"]
 
     # Validate connection
+    cfg = PROVIDER_CONFIG.get(provider, PROVIDER_CONFIG["lm-studio"])
+    models_url = cfg["url"].rstrip("/v1").rstrip("/api/v1").rstrip("/") + "/v1/models"
     try:
         import requests
-        if provider == "lm-studio":
-            check_url = "http://localhost:1234/v1/models"
-            other_url = "http://localhost:11434/v1/models"
-        else:
-            check_url = "http://localhost:11434/v1/models"
-            other_url = "http://localhost:1234/v1/models"
-        resp = requests.get(check_url, timeout=3)
+        resp = requests.get(models_url, timeout=3)
         if resp.status_code != 200:
-            _echo(f"✗ {provider} is not running or unreachable at {check_url}", "red")
-            _echo(f"  Is {provider} running? Try {other_url} for the other provider.", "dim")
+            _echo(f"✗ {provider} is not running or unreachable at {models_url}", "red")
+            _echo(f"  Start {provider} and retry, or use --provider to switch.", "dim")
             sys.exit(1)
     except Exception:
-        if provider:
-            url = "localhost:1234" if provider == "lm-studio" else "localhost:11434"
-            _echo(f"✗ {provider} is not running at {url}.", "red")
-            _echo(f"  Start {provider} and retry, or switch providers.", "dim")
-        else:
-            _echo(f"✗ Neither LM Studio (localhost:1234) nor Ollama (localhost:11434) is reachable.", "red")
-            _echo(f"  Start one and retry with --provider lm-studio or --provider ollama", "dim")
+        _echo(f"✗ {provider} is not running at {models_url}.", "red")
+        _echo(f"  Start {provider} and retry, or use --provider to switch.", "dim")
         sys.exit(1)
 
     # ── Validate model names against provider ──────────────────────
@@ -570,7 +602,7 @@ def workload_list_projects():
               help="Provider base URL (auto-detected)")
 @click.option("--api-key", default=None, show_default=False)
 @click.option("--provider", "-p",
-              type=click.Choice(["lm-studio", "ollama"]),
+              type=click.Choice(["lm-studio", "ollama", "open-webui", "jan", "llama.cpp", "vllm"]),
               default=None,
               help="Provider (auto-detected if omitted)")
 @click.option("--model", "-m", required=True,
@@ -587,8 +619,11 @@ def workload_list_projects():
               help="Show detailed progress and scores")
 @click.option("--json", "json_output", is_flag=True,
               help="Output results as JSON")
+@click.option("--sse-port", type=int, default=0,
+              help="Start SSE event bridge on this port for real-time dashboard updates. "
+                   "0 = auto-select (prints SSE_PORT:N to stdout on start).")
 def run(api_base, api_key, provider, model, project_name, project_source,
-        tasks, output_dir, verbose, json_output):
+        tasks, output_dir, verbose, json_output, sse_port):
     """Run workload evaluation against a model.
 
     \\b
@@ -603,8 +638,9 @@ def run(api_base, api_key, provider, model, project_name, project_source,
         api_base = api_base or detected_base
         api_key = api_key or detected_key
     else:
-        api_base = api_base or ("http://localhost:1234/v1" if provider == "lm-studio" else "http://localhost:11434")
-        api_key = api_key or ("lm-studio" if provider == "lm-studio" else "ollama")
+        cfg = PROVIDER_CONFIG.get(provider, PROVIDER_CONFIG["lm-studio"])
+        api_base = api_base or cfg["url"]
+        api_key = api_key or cfg["key"]
     
     # Validate connection
     import requests
@@ -629,6 +665,32 @@ def run(api_base, api_key, provider, model, project_name, project_source,
     _echo(f"   Tasks to generate: {tasks}", "dim")
     _echo("")
     
+    # ── SSE Bridge ──────────────────────────────────────────────
+    sse_server = None
+    if sse_port is not None and sse_port > 0:
+        try:
+            from events.sse import EventBusSSEServer
+            sse_server = EventBusSSEServer(port=sse_port)
+            actual_port = sse_server.start()
+            print(f"SSE_PORT:{actual_port}", flush=True)
+        except ImportError:
+            _echo("⚠ events.sse not available — SSE bridge disabled", "yellow")
+        except Exception as e:
+            _echo(f"⚠ SSE server failed to start: {e}", "yellow")
+
+    # ── Replay Writer ──────────────────────────────────────────
+    replay_writer = None
+    try:
+        from events.replay import EventBusReplayWriter
+        replay_writer = EventBusReplayWriter(
+            output_dir=str(Path(output_dir) / "replays"),
+        )
+        replay_writer.start()
+    except ImportError:
+        pass  # events.replay not available — replay disabled
+    except Exception as e:
+        _echo(f"⚠ Replay writer failed to start: {e}", "yellow")
+
     # Import workload packages
     from core.workload import ProjectLoader, TaskGenerator, WorkloadRunner, WorkloadScorer
     
@@ -664,105 +726,114 @@ def run(api_base, api_key, provider, model, project_name, project_source,
         scorer=scorer,
     )
     
-    results = runner.run_batch(workload_tasks, verbose=verbose)
+    # Wrap execution in try/finally to ensure SSE server is stopped
+    try:
+        results = runner.run_batch(workload_tasks, verbose=verbose)
     
-    # 4. Show results
-    _echo(f"\n{'='*60}", "dim")
-    _echo("📊 Workload Evaluation Results", "bold blue")
-    _echo(f"{'='*60}", "dim")
-    
-    scores_by_type: dict = {}
-    for r in results:
-        scores_by_type.setdefault(r.task_type, []).append(r.score)
-    
-    if RICH_AVAILABLE:
-        table = Table(title=f"{model} — {project.name}")
-        table.add_column("Task Type", style="cyan")
-        table.add_column("Score", style="green", justify="right")
-        table.add_column("Correctness", style="magenta", justify="right")
-        table.add_column("Completeness", style="yellow", justify="right")
-        table.add_column("Quality", style="blue", justify="right")
-        table.add_column("Style", style="purple", justify="right")
-        table.add_column("Time", style="dim", justify="right")
+        # 4. Show results
+        _echo(f"\n{'='*60}", "dim")
+        _echo("📊 Workload Evaluation Results", "bold blue")
+        _echo(f"{'='*60}", "dim")
         
+        scores_by_type: dict = {}
         for r in results:
+            scores_by_type.setdefault(r.task_type, []).append(r.score)
+        
+        if RICH_AVAILABLE:
+            table = Table(title=f"{model} — {project.name}")
+            table.add_column("Task Type", style="cyan")
+            table.add_column("Score", style="green", justify="right")
+            table.add_column("Correctness", style="magenta", justify="right")
+            table.add_column("Completeness", style="yellow", justify="right")
+            table.add_column("Quality", style="blue", justify="right")
+            table.add_column("Style", style="purple", justify="right")
+            table.add_column("Time", style="dim", justify="right")
+            
+            for r in results:
+                table.add_row(
+                    r.task_type.replace("_", " "),
+                    f"{r.score:.3f}",
+                    f"{r.score_components.get('correctness', 0):.2f}",
+                    f"{r.score_components.get('completeness', 0):.2f}",
+                    f"{r.score_components.get('code_quality', 0):.2f}",
+                    f"{r.score_components.get('style_match', 0):.2f}",
+                    f"{r.response_time_ms:.0f}ms" if r.response_time_ms else "—",
+                )
+            
+            # Overall row
+            overall = sum(r.score for r in results) / len(results) if results else 0
             table.add_row(
-                r.task_type.replace("_", " "),
-                f"{r.score:.3f}",
-                f"{r.score_components.get('correctness', 0):.2f}",
-                f"{r.score_components.get('completeness', 0):.2f}",
-                f"{r.score_components.get('code_quality', 0):.2f}",
-                f"{r.score_components.get('style_match', 0):.2f}",
-                f"{r.response_time_ms:.0f}ms" if r.response_time_ms else "—",
+                "[bold]OVERALL[/bold]",
+                f"[bold]{overall:.3f}[/bold]",
+                "", "", "", "", "",
             )
+            
+            console.print("")
+            console.print(table)
+            console.print("")
+        else:
+            for r in results:
+                _echo(f"   {r.task_type:<25} {r.score:.3f}  ({r.response_time_ms:.0f}ms)")
+            overall = sum(r.score for r in results) / len(results) if results else 0
+            _echo(f"   {'OVERALL':<25} {overall:.3f}", "bold")
         
-        # Overall row
-        overall = sum(r.score for r in results) / len(results) if results else 0
-        table.add_row(
-            "[bold]OVERALL[/bold]",
-            f"[bold]{overall:.3f}[/bold]",
-            "", "", "", "", "",
-        )
-        
-        console.print("")
-        console.print(table)
-        console.print("")
-    else:
+        # Collect failures
+        all_failures = []
         for r in results:
-            _echo(f"   {r.task_type:<25} {r.score:.3f}  ({r.response_time_ms:.0f}ms)")
-        overall = sum(r.score for r in results) / len(results) if results else 0
-        _echo(f"   {'OVERALL':<25} {overall:.3f}", "bold")
-    
-    # Collect failures
-    all_failures = []
-    for r in results:
-        all_failures.extend(r.failures)
-    if all_failures:
-        _echo(f"\n⚠ Common failure patterns:", "yellow")
-        from collections import Counter
-        for failure, count in Counter(all_failures).most_common(5):
-            _echo(f"   {failure}: {count}", "dim")
-    
-    # 5. Save results
-    output_path = Path(output_dir)
-    output_path.mkdir(parents=True, exist_ok=True)
-    
-    # Save JSON
-    results_data = {
-        "model": model,
-        "provider": provider,
-        "project": project.name,
-        "language": project.language,
-        "framework": project.framework,
-        "timestamp": datetime.now().isoformat(),
-        "total_tasks": len(results),
-        "overall_score": overall,
-        "results": [
-            {
-                "task_id": r.task_id,
-                "task_type": r.task_type,
-                "title": r.title,
-                "score": r.score,
-                "score_components": r.score_components,
-                "failures": r.failures,
-                "strengths": r.strengths,
-                "response_time_ms": r.response_time_ms,
-                "tokens_used": r.tokens_used,
-                "difficulty": r.difficulty,
-                "target_file": r.target_file,
-            }
-            for r in results
-        ],
-    }
-    
-    json_file = output_path / f"{project.name}.json"
-    with open(json_file, "w") as f:
-        json.dump(results_data, f, indent=2, default=str)
-    
-    _echo(f"\n📁 Results saved to {json_file}", "bold green")
-    
-    if json_output:
-        click.echo(json.dumps(results_data, indent=2, default=str))
+            all_failures.extend(r.failures)
+        if all_failures:
+            _echo(f"\n⚠ Common failure patterns:", "yellow")
+            from collections import Counter
+            for failure, count in Counter(all_failures).most_common(5):
+                _echo(f"   {failure}: {count}", "dim")
+        
+        # 5. Save results
+        output_path = Path(output_dir)
+        output_path.mkdir(parents=True, exist_ok=True)
+        
+        # Save JSON
+        results_data = {
+            "model": model,
+            "provider": provider,
+            "project": project.name,
+            "language": project.language,
+            "framework": project.framework,
+            "timestamp": datetime.now().isoformat(),
+            "total_tasks": len(results),
+            "overall_score": overall,
+            "results": [
+                {
+                    "task_id": r.task_id,
+                    "task_type": r.task_type,
+                    "title": r.title,
+                    "score": r.score,
+                    "score_components": r.score_components,
+                    "failures": r.failures,
+                    "strengths": r.strengths,
+                    "response_time_ms": r.response_time_ms,
+                    "tokens_used": r.tokens_used,
+                    "difficulty": r.difficulty,
+                    "target_file": r.target_file,
+                }
+                for r in results
+            ],
+        }
+        
+        json_file = output_path / f"{project.name}.json"
+        with open(json_file, "w") as f:
+            json.dump(results_data, f, indent=2, default=str)
+        
+        _echo(f"\n📁 Results saved to {json_file}", "bold green")
+        
+        if json_output:
+            click.echo(json.dumps(results_data, indent=2, default=str))
+    finally:
+        # Stop the SSE server when the workload finishes
+        if sse_server is not None:
+            sse_server.stop()
+        # Stop and flush the replay writer
+        if replay_writer is not None:
+            replay_writer.stop()
 
 
 # ── Info command ──────────────────────────────────────────────────────
@@ -811,7 +882,7 @@ def info():
               help="Provider base URL (auto-detected for known providers)")
 @click.option("--api-key", default=None, show_default=False)
 @click.option("--provider", "-p",
-              type=click.Choice(["lm-studio", "ollama"]),
+              type=click.Choice(["lm-studio", "ollama", "open-webui", "jan", "llama.cpp", "vllm"]),
               default=None,
               help="Provider to query (auto-detected if omitted)")
 @click.option("--json", "json_output", is_flag=True,
@@ -831,8 +902,9 @@ def models(api_base, api_key, provider, json_output):
         api_base = api_base or detected_base
         api_key = api_key or detected_key
     else:
-        api_base = api_base or ("http://localhost:1234/v1" if provider == "lm-studio" else "http://localhost:11434")
-        api_key = api_key or ("lm-studio" if provider == "lm-studio" else "ollama")
+        cfg = PROVIDER_CONFIG.get(provider, PROVIDER_CONFIG["lm-studio"])
+        api_base = api_base or cfg["url"]
+        api_key = api_key or cfg["key"]
 
     # Validate connection
     try:

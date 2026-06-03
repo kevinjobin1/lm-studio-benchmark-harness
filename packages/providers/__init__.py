@@ -2,11 +2,31 @@
 
 from .base import ProviderAdapter, Model, RunRequest, RunResult, ProviderMetrics, APICallMetrics
 
-# Lazy-load OllamaClient — fails gracefully if deps are missing
+# Lazy-load provider clients — fails gracefully if deps are missing
 try:
     from .ollama import OllamaClient
 except (ImportError, ModuleNotFoundError):
     OllamaClient = None  # type: ignore
+
+try:
+    from .openwebui import OpenWebUIClient
+except (ImportError, ModuleNotFoundError):
+    OpenWebUIClient = None  # type: ignore
+
+try:
+    from .jan import JanClient
+except (ImportError, ModuleNotFoundError):
+    JanClient = None  # type: ignore
+
+try:
+    from .llamacpp import LlamaCppClient
+except (ImportError, ModuleNotFoundError):
+    LlamaCppClient = None  # type: ignore
+
+try:
+    from .vllm import VLLMClient
+except (ImportError, ModuleNotFoundError):
+    VLLMClient = None  # type: ignore
 
 # Shared task mappings (no dependencies needed)
 LM_EVAL_TASK_MAPPING = {
@@ -45,6 +65,10 @@ __all__ = [
     "RunResult",
     "ProviderMetrics",
     "OllamaClient",
+    "OpenWebUIClient",
+    "JanClient",
+    "LlamaCppClient",
+    "VLLMClient",
     "run_lm_eval_benchmarks",
     "LM_EVAL_TASK_MAPPING",
     "run_openbench_benchmarks",

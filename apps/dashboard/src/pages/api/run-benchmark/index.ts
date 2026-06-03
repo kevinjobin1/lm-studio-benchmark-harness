@@ -22,6 +22,10 @@ export const POST: APIRoute = async ({ request }) => {
     ? ["bench_apple_silicon_v2.py", "--quick"]
     : ["bench_apple_silicon_v2.py"];
 
+  // Enable SSE event bridge for real-time dashboard updates
+  const SSE_PORT = parseInt(process.env.MODELLENS_SSE_PORT || "9090", 10);
+  args.push("--sse-port", String(SSE_PORT));
+
   const child = spawn("python3", args, {
     cwd: projectRoot,
     stdio: ["ignore", "pipe", "pipe"],
@@ -48,7 +52,14 @@ export const POST: APIRoute = async ({ request }) => {
 
   // Collect stdout/stderr
   child.stdout?.on("data", (chunk: Buffer) => {
-    appendStdout(child.pid!, chunk.toString());
+    const text = chunk.toString();
+    appendStdout(child.pid!, text);
+
+    // Parse SSE_PORT from stdout — the Python process prints SSE_PORT:XXXX on start
+    const match = text.match(/SSE_PORT:(\d+)/);
+    if (match && entry) {
+      entry.ssePort = parseInt(match[1], 10);
+    }
   });
   child.stderr?.on("data", (chunk: Buffer) => {
     appendStderr(child.pid!, chunk.toString());
@@ -64,6 +75,7 @@ export const POST: APIRoute = async ({ request }) => {
     JSON.stringify({
       success: true,
       pid: child.pid,
+      ssePort: SSE_PORT,
       message: `Benchmark started (PID ${child.pid}, quick=${quick})`,
     }),
     {

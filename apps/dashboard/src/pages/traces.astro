@@ -1,10 +1,9 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
-import TraceTimeline from "../components/TraceTimeline";
+import TracesTabs from "../components/TracesTabs";
 import type { TraceRun } from "../lib/traceTypes";
 import { loadResults } from "../lib/loadResults";
 import { loadTraceManifest, loadTrace, mapTraceToRun } from "../lib/loadTraces";
-import { loadSnapshotManifest } from "../lib/loadSnapshots";
 import type { BenchmarkResult } from "../lib/loadResults";
 
 // Read ?trace_id= from URL to pre-select a specific trace
@@ -34,20 +33,6 @@ try {
 }
 
 const totalTraceCount = realTraces.length > 0 ? realTraces.length : results.length;
-
-// ── Load saved snapshots (V2) ────────────────────────────────────
-let savedSnapshots: Array<{ snapshot_id: string; model: string; prompt: string; totalTimeMs: number }> = [];
-try {
-  const snapManifest = await loadSnapshotManifest();
-  savedSnapshots = snapManifest.snapshots.slice(0, 10).map(e => ({
-    snapshot_id: e.snapshot_id,
-    model: e.model,
-    prompt: e.prompt,
-    totalTimeMs: e.totalTimeMs,
-  }));
-} catch {
-  // Snapshots not available
-}
 ---
 
 <BaseLayout
@@ -67,71 +52,94 @@ try {
                 }
             </p>
         </div>
-        <div class="dashboard-actions">
-            <button class="btn-outline">
-                <span class="material-symbols-outlined" style="font-size:18px"
-                    >filter_list</span
-                >
-                <span>Filter</span>
-            </button>
-            <button class="btn-outline">
-                <span class="material-symbols-outlined" style="font-size:18px"
-                    >refresh</span
-                >
-                <span>Refresh</span>
-            </button>
-        </div>
     </div>
 
-    <TraceTimeline
+    <TracesTabs
         client:load
         traces={realTraces.length > 0 ? realTraces : undefined}
         results={results.length > 0 ? results : undefined}
         initialTraceId={preSelectTraceId}
     />
-
-    <!-- ═══ Saved Snapshots ════════════════════════════════════════ -->
-    {
-      savedSnapshots.length > 0 && (
-        <section class="snapshots-section animate-entrance" style="animation-delay:0.3s">
-          <div class="section-header">
-            <h2>Saved Snapshots</h2>
-            <p>{savedSnapshots.length} snapshot{savedSnapshots.length !== 1 ? "s" : ""} available — shareable, immutable execution state captures.</p>
-          </div>
-          <div class="snapshots-grid">
-            {savedSnapshots.map((s) => (
-              <a
-                href={`/runs/${encodeURIComponent(s.snapshot_id)}`}
-                class="card snapshot-card"
-                key={s.snapshot_id}
-              >
-                <div class="snapshot-card-header">
-                  <span class="material-symbols-outlined snapshot-card-icon">camera</span>
-                  <code class="snapshot-card-id">{s.snapshot_id}</code>
-                </div>
-                <div class="snapshot-card-model mono-data">{s.model}</div>
-                <p class="snapshot-card-prompt">
-                  {s.prompt.length > 80 ? s.prompt.slice(0, 80) + "…" : s.prompt}
-                </p>
-                <div class="snapshot-card-footer">
-                  <span class="snapshot-card-meta">
-                    <span class="material-symbols-outlined">schedule</span>
-                    {s.totalTimeMs}ms
-                  </span>
-                  <span class="snapshot-card-link">
-                    Open snapshot
-                    <span class="material-symbols-outlined">arrow_forward</span>
-                  </span>
-                </div>
-              </a>
-            ))}
-          </div>
-        </section>
-      )
-    }
 </BaseLayout>
 
 <style is:global>
+  /* ═══════════════════════════════════════════════════════════════
+     TRACES PAGE — Tab Bar
+     ═══════════════════════════════════════════════════════════════ */
+
+  .traces-tabs-layout {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .traces-tabs-bar {
+    display: flex;
+    gap: 0.5rem;
+    background: var(--bg-container);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+    padding: 0.375rem;
+  }
+
+  .traces-tab-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    padding: 0.625rem 1rem;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: var(--radius-md);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    text-align: left;
+    font-family: var(--font-ui);
+  }
+  .traces-tab-btn:hover {
+    background: var(--bg-container-high);
+    color: var(--text-primary);
+  }
+  .traces-tab-active {
+    background: var(--bg-container-highest) !important;
+    border-color: var(--border-default);
+    color: var(--text-primary);
+  }
+  .traces-tab-active .traces-tab-label {
+    color: var(--brand-primary);
+    font-weight: 600;
+  }
+
+  .traces-tab-icon {
+    font-size: 20px !important;
+    flex-shrink: 0;
+  }
+
+  .traces-tab-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+    min-width: 0;
+  }
+  .traces-tab-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-primary);
+    transition: color 0.15s;
+  }
+  .traces-tab-desc {
+    font-size: 11px;
+    color: var(--text-tertiary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .traces-tab-content {
+    flex: 1;
+  }
+
   /* ── Snapshot Cards (Traces page) ────────────────────────────── */
   .snapshots-section {
     margin-top: 2rem;

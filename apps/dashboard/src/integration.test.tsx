@@ -8,7 +8,8 @@
  * Also tests data-processing utilities with real data shapes.
  */
 import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, act } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import {
   buildLeaderboard,
   groupByModel,
@@ -22,12 +23,26 @@ import {
   loadTraceList,
   mapTraceToRun,
 } from "./lib/loadTraces";
+import {
+  loadReplayManifest,
+  loadReplay,
+  loadReplayList,
+} from "./lib/loadReplays";
 import type {
   TraceManifest,
   TraceData,
   TraceIndexEntry,
 } from "./lib/loadTraces";
+import type {
+  ReplayManifest,
+  ReplayData,
+  ReplayIndexEntry,
+} from "./lib/loadReplays";
 import TraceTimeline from "./components/TraceTimeline";
+import ReplayViewer from "./components/ReplayViewer";
+import ReplayToast from "./components/ReplayToast";
+import ReplaySidebarBadge from "./components/ReplaySidebarBadge";
+import RunBenchmarkButton from "./components/RunBenchmarkButton";
 import ModelTable from "./components/ModelTable";
 import LeaderboardTable from "./components/LeaderboardTable";
 import ModelCard from "./components/ModelCard";
@@ -1264,3 +1279,1108 @@ describe("Traces E2E — manifest → API → component render", () => {
     expect(trace).toBeNull();
   });
 });
+
+// ═══════════════════════════════════════════════════════════════════
+// REPLAYS FIXTURES
+// ═══════════════════════════════════════════════════════════════════
+
+const replayIndexFixtures: ReplayIndexEntry[] = [
+  {
+    run_id: "run-abc-123",
+    model: "qwen3.5-9b-coder",
+    workload: "nestjs-api",
+    provider: "lm-studio",
+    started_at: "2026-06-02T10:30:00Z",
+    event_count: 5,
+    file: "run-abc-123.json",
+  },
+  {
+    run_id: "run-def-456",
+    model: "llama3.2-3b",
+    workload: "",
+    provider: "ollama",
+    started_at: "2026-06-02T09:00:00Z",
+    event_count: 3,
+    file: "run-def-456.json",
+  },
+];
+
+const replayDataFixtures: Record<string, ReplayData> = {
+  "run-abc-123": {
+    version: "1.0.0",
+    generated_at: "2026-06-02T10:30:05Z",
+    run_id: "run-abc-123",
+    model: "qwen3.5-9b-coder",
+    workload: "nestjs-api",
+    provider: "lm-studio",
+    started_at: "2026-06-02T10:30:00Z",
+    event_count: 5,
+    events: [
+      {
+        _event_type: "RunLifecycleEvent",
+        status: "started",
+        model: "qwen3.5-9b-coder",
+        run_id: "run-abc-123",
+        timestamp: "2026-06-02T10:30:00Z",
+      },
+      {
+        _event_type: "TokenGeneratedEvent",
+        token: "Hello",
+        index: 0,
+        timing_ms: 12.5,
+        model: "qwen3.5-9b-coder",
+        run_id: "run-abc-123",
+        timestamp: "2026-06-02T10:30:01Z",
+      },
+      {
+        _event_type: "TokenGeneratedEvent",
+        token: " world",
+        index: 1,
+        timing_ms: 15.2,
+        model: "qwen3.5-9b-coder",
+        run_id: "run-abc-123",
+        timestamp: "2026-06-02T10:30:01.1Z",
+      },
+      {
+        _event_type: "MetricEvent",
+        name: "score",
+        value: 0.92,
+        model: "qwen3.5-9b-coder",
+        run_id: "run-abc-123",
+        timestamp: "2026-06-02T10:30:02Z",
+      },
+      {
+        _event_type: "RunLifecycleEvent",
+        status: "completed",
+        model: "qwen3.5-9b-coder",
+        run_id: "run-abc-123",
+        duration_ms: 5000,
+        timestamp: "2026-06-02T10:30:05Z",
+      },
+    ],
+  },
+  "run-def-456": {
+    version: "1.0.0",
+    generated_at: "2026-06-02T09:00:02Z",
+    run_id: "run-def-456",
+    model: "llama3.2-3b",
+    workload: "",
+    provider: "ollama",
+    started_at: "2026-06-02T09:00:00Z",
+    event_count: 3,
+    events: [
+      {
+        _event_type: "RunLifecycleEvent",
+        status: "started",
+        model: "llama3.2-3b",
+        run_id: "run-def-456",
+        timestamp: "2026-06-02T09:00:00Z",
+      },
+      {
+        _event_type: "TokenGeneratedEvent",
+        token: "Hi",
+        index: 0,
+        timing_ms: 8.1,
+        model: "llama3.2-3b",
+        run_id: "run-def-456",
+        timestamp: "2026-06-02T09:00:01Z",
+      },
+      {
+        _event_type: "RunLifecycleEvent",
+        status: "completed",
+        model: "llama3.2-3b",
+        run_id: "run-def-456",
+        duration_ms: 2000,
+        timestamp: "2026-06-02T09:00:02Z",
+      },
+    ],
+  },
+};
+
+// ═══════════════════════════════════════════════════════════════════
+// REPLAYS END-TO-END PIPELINE TESTS
+// ═══════════════════════════════════════════════════════════════════
+
+describe("Replays E2E — mocked fetch → loadReplayManifest → loadReplay → ReplayViewer", () => {
+  beforeEach(() => {
+    // jsdom doesn't implement scrollIntoView
+    Element.prototype.scrollIntoView = vi.fn();
+
+    // Mock fetch for browser-mode replay loading.
+    // loadReplayManifest → GET /api/replays
+    // loadReplay → GET /api/replays/{run_id}
+    // loadReplayList → GET /api/replays?model=...
+    global.fetch = vi.fn().mockImplementation((url: string) => {
+      const urlStr = String(url);
+
+      // Replay manifest (list): GET /api/replays
+      if (urlStr === "/api/replays") {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve(replayIndexFixtures),
+        });
+      }
+
+      // Single replay: GET /api/replays/{run_id}
+      const singleMatch = urlStr.match(/^\/api\/replays\/(.+)$/);
+      if (singleMatch) {
+        const runId = decodeURIComponent(singleMatch[1]);
+        const data = replayDataFixtures[runId];
+        if (data) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve(data),
+          });
+        }
+        return Promise.resolve({
+          ok: false,
+          status: 404,
+          json: () => Promise.resolve({ error: "not found" }),
+        });
+      }
+
+      // Replay list with query params: /api/replays?model=...
+      if (urlStr.startsWith("/api/replays?")) {
+        const params = new URL(urlStr, "http://localhost").searchParams;
+        let filtered = [...replayIndexFixtures];
+        const model = params.get("model");
+        const limit = parseInt(params.get("limit") || "", 10) || undefined;
+        const offset = parseInt(params.get("offset") || "", 10) || 0;
+        if (model) {
+          filtered = filtered.filter((r) =>
+            r.model.toLowerCase().includes(model.toLowerCase()),
+          );
+        }
+        // Sort by started_at descending (matches filterManifest behavior)
+        filtered.sort(
+          (a, b) =>
+            new Date(b.started_at).getTime() - new Date(a.started_at).getTime(),
+        );
+        const sliced =
+          limit !== undefined
+            ? filtered.slice(offset, offset + limit)
+            : filtered.slice(offset);
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve(sliced),
+        });
+      }
+
+      return Promise.reject(new Error(`Unmocked URL: ${urlStr}`));
+    });
+  });
+
+  // ── Manifest loading ──────────────────────────────────────
+
+  it("loadReplayManifest fetches from /api/replays and returns manifest", async () => {
+    const manifest = await loadReplayManifest();
+    expect(manifest.total_replays).toBe(2);
+    expect(manifest.replays.length).toBe(2);
+    expect(global.fetch).toHaveBeenCalledWith("/api/replays");
+  });
+
+  it("loadReplayManifest entries have correct fields", async () => {
+    const manifest = await loadReplayManifest();
+    const entry = manifest.replays[0];
+    expect(entry.run_id).toBe("run-abc-123");
+    expect(entry.model).toBe("qwen3.5-9b-coder");
+    expect(entry.workload).toBe("nestjs-api");
+    expect(entry.event_count).toBe(5);
+  });
+
+  // ── Single replay loading ─────────────────────────────────
+
+  it("loadReplay returns a single replay by run_id", async () => {
+    const replay = await loadReplay("run-abc-123");
+    expect(replay).not.toBeNull();
+    expect(replay!.run_id).toBe("run-abc-123");
+    expect(replay!.model).toBe("qwen3.5-9b-coder");
+    expect(replay!.events.length).toBe(5);
+  });
+
+  it("loadReplay returns full event data with types and timing", async () => {
+    const replay = await loadReplay("run-abc-123");
+    expect(replay).not.toBeNull();
+    const events = replay!.events;
+
+    expect(events[0]._event_type).toBe("RunLifecycleEvent");
+    expect(events[0].status).toBe("started");
+
+    expect(events[1]._event_type).toBe("TokenGeneratedEvent");
+    expect(events[1].token).toBe("Hello");
+    expect(events[1].timing_ms).toBe(12.5);
+
+    expect(events[2]._event_type).toBe("TokenGeneratedEvent");
+    expect(events[2].token).toBe(" world");
+
+    expect(events[3]._event_type).toBe("MetricEvent");
+    expect(events[3].name).toBe("score");
+    expect(events[3].value).toBe(0.92);
+
+    expect(events[4]._event_type).toBe("RunLifecycleEvent");
+    expect(events[4].status).toBe("completed");
+    expect(events[4].duration_ms).toBe(5000);
+  });
+
+  it("loadReplay returns null for non-existent run_id", async () => {
+    const replay = await loadReplay("nonexistent-run");
+    expect(replay).toBeNull();
+  });
+
+  it("loadReplay returns second replay with different data", async () => {
+    const replay = await loadReplay("run-def-456");
+    expect(replay).not.toBeNull();
+    expect(replay!.model).toBe("llama3.2-3b");
+    expect(replay!.events.length).toBe(3);
+    expect(replay!.events[1]._event_type).toBe("TokenGeneratedEvent");
+    expect(replay!.events[1].token).toBe("Hi");
+  });
+
+  // ── Replay list filtering ─────────────────────────────────
+
+  it("loadReplayList returns all entries when no filters", async () => {
+    const entries = await loadReplayList();
+    expect(entries.length).toBe(2);
+  });
+
+  it("loadReplayList filters by model (case-insensitive partial)", async () => {
+    const entries = await loadReplayList({ model: "qwen" });
+    expect(entries.length).toBe(1);
+    expect(entries[0].run_id).toBe("run-abc-123");
+    expect(entries[0].model).toBe("qwen3.5-9b-coder");
+  });
+
+  it("loadReplayList returns empty array when no model match", async () => {
+    const entries = await loadReplayList({ model: "nonexistent" });
+    expect(entries.length).toBe(0);
+  });
+
+  it("loadReplayList with limit and offset", async () => {
+    const entries = await loadReplayList({ limit: 1, offset: 1 });
+    expect(entries.length).toBe(1);
+    expect(entries[0].run_id).toBe("run-def-456");
+  });
+
+  // ── ReplayViewer renders from fetched data ─────────────────
+
+  it("ReplayViewer renders sidebar from manifest fetched via network", async () => {
+    render(<ReplayViewer />);
+
+    await vi.waitFor(() => {
+      expect(screen.getByText("qwen3.5-9b-coder")).toBeInTheDocument();
+      expect(screen.getByText("llama3.2-3b")).toBeInTheDocument();
+      expect(screen.getByText("nestjs-api")).toBeInTheDocument();
+    });
+
+    expect(global.fetch).toHaveBeenCalledWith("/api/replays");
+  });
+
+  it("ReplayViewer loads and displays replay detail on selection", async () => {
+    render(<ReplayViewer />);
+
+    // Wait for sidebar to render
+    await vi.waitFor(() => {
+      expect(screen.getByText("qwen3.5-9b-coder")).toBeInTheDocument();
+    });
+
+    // Click the first replay entry to load detail
+    await userEvent.click(screen.getAllByText("qwen3.5-9b-coder")[0]);
+
+    // Wait for the detail to load — event type chips appear in the timeline
+    await vi.waitFor(() => {
+      expect(screen.getByText("Hello")).toBeInTheDocument();
+    });
+
+    // Verify fetch was called for the detail endpoint
+    expect(global.fetch).toHaveBeenCalledWith(
+      "/api/replays/" + encodeURIComponent("run-abc-123"),
+    );
+
+    // Verify event types appear in the rendered timeline
+    expect(screen.getAllByText("Run Lifecycle").length).toBeGreaterThanOrEqual(2);
+    expect(screen.getAllByText("Token Generated").length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByText("Metric")).toBeInTheDocument();
+  });
+
+  it("ReplayViewer shows header metadata after loading replay data", async () => {
+    render(<ReplayViewer />);
+
+    await vi.waitFor(() => {
+      expect(screen.getByText("qwen3.5-9b-coder")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getAllByText("qwen3.5-9b-coder")[0]);
+
+    await vi.waitFor(() => {
+      // Header shows model name (also in sidebar, hence getAllByText)
+      expect(screen.getAllByText("qwen3.5-9b-coder").length).toBeGreaterThanOrEqual(2);
+      // Workload chip in header
+      expect(screen.getAllByText("nestjs-api").length).toBeGreaterThanOrEqual(2);
+      // run_id in header
+      expect(screen.getByText("run-abc-123")).toBeInTheDocument();
+    });
+  });
+
+  it("ReplayViewer renders playback controls after pipeline load", async () => {
+    render(<ReplayViewer />);
+
+    await vi.waitFor(() => {
+      expect(screen.getByText("qwen3.5-9b-coder")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getAllByText("qwen3.5-9b-coder")[0]);
+
+    await vi.waitFor(() => {
+      expect(screen.getByLabelText("Previous event")).toBeInTheDocument();
+      expect(screen.getByLabelText("Play")).toBeInTheDocument();
+      expect(screen.getByLabelText("Next event")).toBeInTheDocument();
+      expect(screen.getByText("1 / 5 events")).toBeInTheDocument();
+    });
+  });
+
+  it("ReplayViewer shows active sidebar highlighting after selection", async () => {
+    render(<ReplayViewer />);
+
+    await vi.waitFor(() => {
+      expect(screen.getByText("qwen3.5-9b-coder")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getAllByText("qwen3.5-9b-coder")[0]);
+
+    await vi.waitFor(() => {
+      const sidebarItems = document.querySelectorAll(".rpv-sidebar-item");
+      expect(sidebarItems.length).toBe(2);
+      expect(sidebarItems[0].classList.contains("rpv-sidebar-active")).toBe(true);
+      expect(sidebarItems[1].classList.contains("rpv-sidebar-active")).toBe(false);
+    });
+  });
+
+  // ── Pipeline: error handling ──────────────────────────────
+
+  it("loadReplayManifest returns empty manifest on fetch failure", async () => {
+    global.fetch = vi.fn().mockRejectedValue(new Error("Network down"));
+
+    const manifest = await loadReplayManifest();
+    expect(manifest.total_replays).toBe(0);
+    expect(manifest.replays.length).toBe(0);
+  });
+
+  it("loadReplay returns null on fetch failure", async () => {
+    global.fetch = vi.fn().mockRejectedValue(new Error("Network down"));
+
+    const replay = await loadReplay("any-id");
+    expect(replay).toBeNull();
+  });
+
+  it("loadReplayList returns empty array on fetch failure", async () => {
+    global.fetch = vi.fn().mockRejectedValue(new Error("Network down"));
+
+    const entries = await loadReplayList();
+    expect(entries).toEqual([]);
+  });
+
+  it("loadReplayManifest returns empty manifest on non-ok response", async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 500,
+      json: () => Promise.resolve({ error: "server error" }),
+    });
+
+    const manifest = await loadReplayManifest();
+    expect(manifest.total_replays).toBe(0);
+  });
+
+  it("loadReplay handles 404 response", async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 404,
+      json: () => Promise.resolve({ error: "not found" }),
+    });
+
+    const replay = await loadReplay("missing");
+    expect(replay).toBeNull();
+  });
+
+  it("ReplayViewer shows empty state when manifest fetch fails (graceful degradation)", async () => {
+    global.fetch = vi.fn().mockRejectedValue(new Error("Network down"));
+
+    render(<ReplayViewer />);
+
+    await vi.waitFor(() => {
+      expect(screen.getByText("No replay sessions found.")).toBeInTheDocument();
+      expect(screen.queryByText("Loading replays…")).not.toBeInTheDocument();
+    });
+  });
+
+  it("ReplayViewer shows error when detail fetch fails", async () => {
+    // First call (manifest) succeeds, second call (detail) fails
+    let callCount = 0;
+    global.fetch = vi.fn().mockImplementation(() => {
+      callCount++;
+      if (callCount === 1) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve(replayIndexFixtures),
+        });
+      }
+      return Promise.reject(new Error("Server error"));
+    });
+
+    render(<ReplayViewer />);
+
+    // Wait for sidebar to appear
+    await vi.waitFor(() => {
+      expect(screen.getByText("qwen3.5-9b-coder")).toBeInTheDocument();
+    });
+
+    // Click to trigger detail load (which will fail)
+    await userEvent.click(screen.getAllByText("qwen3.5-9b-coder")[0]);
+
+    await vi.waitFor(() => {
+      expect(screen.getByText(/Replay.*not found/)).toBeInTheDocument();
+    });
+  });
+
+  it("ReplayViewer shows not-found error when detail returns 404", async () => {
+    global.fetch = vi.fn().mockImplementation((url: string) => {
+      const urlStr = String(url);
+      if (urlStr === "/api/replays") {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve(replayIndexFixtures),
+        });
+      }
+      // Return 404 for any detail request
+      return Promise.resolve({
+        ok: false,
+        status: 404,
+        json: () => Promise.resolve({ error: "not found" }),
+      });
+    });
+
+    render(<ReplayViewer />);
+
+    await vi.waitFor(() => {
+      expect(screen.getByText("qwen3.5-9b-coder")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getAllByText("qwen3.5-9b-coder")[0]);
+
+    await vi.waitFor(() => {
+      expect(screen.getByText(/Replay.*not found/)).toBeInTheDocument();
+    });
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// BENCHMARK LIFECYCLE VIA SSE — RunBenchmarkButton → ReplayToast
+// ═══════════════════════════════════════════════════════════════════
+
+describe("Benchmark lifecycle via SSE — start → lifecycle event → ReplayToast", () => {
+  // ── Mock EventSource ──────────────────────────────────────────
+  let mockEventSourceRegistry: {
+    onmessage: ((event: MessageEvent) => void) | null;
+    onerror: (() => void) | null;
+    close: ReturnType<typeof vi.fn>;
+  } | null = null;
+
+  class MockEventSource {
+    static CONNECTING = 0;
+    static OPEN = 1;
+    static CLOSED = 2;
+    CONNECTING = 0;
+    OPEN = 1;
+    CLOSED = 2;
+    readyState = 1;
+    url = "";
+    withCredentials = false;
+    onopen: (() => void) | null = null;
+    close = vi.fn();
+    addEventListener = vi.fn();
+    removeEventListener = vi.fn();
+    dispatchEvent = vi.fn();
+
+    constructor(url: string) {
+      this.url = url;
+      const reg = {
+        onmessage: null as ((event: MessageEvent) => void) | null,
+        onerror: null as (() => void) | null,
+        close: this.close,
+      };
+      mockEventSourceRegistry = reg;
+
+      Object.defineProperty(this, "onmessage", {
+        get: () => reg.onmessage,
+        set: (fn) => {
+          reg.onmessage = fn;
+        },
+        configurable: true,
+      });
+
+      Object.defineProperty(this, "onerror", {
+        get: () => reg.onerror,
+        set: (fn) => {
+          reg.onerror = fn;
+        },
+        configurable: true,
+      });
+    }
+  }
+
+  function sendSSEEvent(data: Record<string, unknown>) {
+    if (mockEventSourceRegistry?.onmessage) {
+      mockEventSourceRegistry.onmessage({
+        data: JSON.stringify(data),
+      } as MessageEvent);
+    }
+  }
+
+  beforeEach(() => {
+    Element.prototype.scrollIntoView = vi.fn();
+    vi.stubGlobal("EventSource", MockEventSource);
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+
+    // Mock fetch for the full benchmark lifecycle:
+    // 1. GET /api/status → connected (open modal)
+    // 2. POST /api/run-benchmark → starts benchmark
+    global.fetch = vi.fn().mockImplementation((url: string, options?: RequestInit) => {
+      const urlStr = String(url);
+
+      if (urlStr === "/api/status") {
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({ connected: true, models: ["qwen3.5-9b-coder"] }),
+        });
+      }
+
+      if (urlStr === "/api/run-benchmark" && options?.method === "POST") {
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({ success: true, pid: 99999, message: "Benchmark started" }),
+        });
+      }
+
+      // POST /api/run-benchmark/logs?pid=99999 (polled by component)
+      if (urlStr.startsWith("/api/run-benchmark/logs")) {
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({ pid: 99999, status: "running", stdout: "SSE_PORT:9090\n", stderr: "" }),
+        });
+      }
+
+      return Promise.reject(new Error(`Unmocked URL: ${urlStr}`));
+    });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+    mockEventSourceRegistry = null;
+  });
+
+  it("shows ReplayToast after starting a benchmark and receiving a completed lifecycle event", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <>
+        <RunBenchmarkButton />
+        <ReplayToast />
+      </>,
+    );
+
+    // ── Step 1: Open the benchmark dialog ─────────────────────
+    await user.click(screen.getByText("Run new benchmark"));
+
+    await vi.waitFor(() => {
+      expect(screen.getByText("Run New Benchmark")).toBeInTheDocument();
+    });
+
+    // ── Step 2: Wait for connection status ───────────────────
+    await vi.waitFor(() => {
+      expect(screen.getByText(/Connected/)).toBeInTheDocument();
+    });
+
+    // ── Step 3: Click "Run Benchmark" to start ───────────────
+    await user.click(screen.getByText("Run Benchmark"));
+
+    await vi.waitFor(() => {
+      expect(screen.getByText("Benchmark started")).toBeInTheDocument();
+      expect(screen.getByText(/PID 99999/)).toBeInTheDocument();
+    });
+
+    // ── Step 4: Send a completed lifecycle event via SSE ─────
+    sendSSEEvent({
+      _event_type: "RunLifecycleEvent",
+      status: "completed",
+      model: "qwen3.5-9b-coder",
+      run_id: "run-bench-integration-1",
+      duration_ms: 5000,
+    });
+
+    // ── Step 5: Verify ReplayToast appears ───────────────────
+    // Model name appears in both the modal's model list (<code>) and the
+    // toast (<strong>), so use getAllByText and check at least 2 matches.
+    await vi.waitFor(() => {
+      expect(screen.getByText("Replay recorded")).toBeInTheDocument();
+      const modelMatches = screen.getAllByText(/qwen3.5-9b-coder/);
+      expect(modelMatches.length).toBeGreaterThanOrEqual(2);
+    });
+
+    // ── Step 6: Verify the toast links to the replay ─────────
+    const link = screen.getByRole("status").closest("a");
+    expect(link?.getAttribute("href")).toBe(
+      "/replays?run_id=run-bench-integration-1",
+    );
+
+    // ── Step 7: Verify toast auto-dismisses after 6s ─────────
+    act(() => {
+      vi.advanceTimersByTime(6000);
+    });
+
+    await vi.waitFor(() => {
+      expect(screen.queryByText("Replay recorded")).not.toBeInTheDocument();
+    });
+  });
+
+  it("shows ReplayToast with 'failed' status when benchmark fails", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <>
+        <RunBenchmarkButton />
+        <ReplayToast />
+      </>,
+    );
+
+    await user.click(screen.getByText("Run new benchmark"));
+    await vi.waitFor(() => {
+      expect(screen.getByText(/Connected/)).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByText("Run Benchmark"));
+    await vi.waitFor(() => {
+      expect(screen.getByText("Benchmark started")).toBeInTheDocument();
+    });
+
+    // Send a failed lifecycle event
+    sendSSEEvent({
+      _event_type: "RunLifecycleEvent",
+      status: "failed",
+      model: "qwen3.5-9b-coder",
+      run_id: "run-bench-fail-1",
+    });
+
+    await vi.waitFor(() => {
+      expect(screen.getByText("Replay failed")).toBeInTheDocument();
+      // The toast description includes the status text "failed"
+      expect(screen.getByText(/— failed$/)).toBeInTheDocument();
+    });
+  });
+
+  it("does not show ReplayToast when benchmark is still running (no completed event)", async () => {
+    const user = userEvent.setup();
+    const { container } = render(
+      <>
+        <RunBenchmarkButton />
+        <ReplayToast />
+      </>,
+    );
+
+    await user.click(screen.getByText("Run new benchmark"));
+    await vi.waitFor(() => {
+      expect(screen.getByText(/Connected/)).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByText("Run Benchmark"));
+    await vi.waitFor(() => {
+      expect(screen.getByText("Benchmark started")).toBeInTheDocument();
+    });
+
+    // Send only a "started" lifecycle event (not completed/failed)
+    sendSSEEvent({
+      _event_type: "RunLifecycleEvent",
+      status: "started",
+      model: "qwen3.5-9b-coder",
+      run_id: "run-bench-started-1",
+    });
+
+    // ReplayToast should NOT appear for started events
+    await vi.waitFor(() => {
+      expect(screen.queryByText("Replay recorded")).not.toBeInTheDocument();
+      expect(screen.queryByText("Replay failed")).not.toBeInTheDocument();
+    });
+  });
+
+  it("supports multiple benchmarks: second completion shows separate toast", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <>
+        <RunBenchmarkButton />
+        <ReplayToast />
+      </>,
+    );
+
+    // Start and complete first benchmark
+    await user.click(screen.getByText("Run new benchmark"));
+
+    // Close the dialog after first benchmark completes
+    // First we need to interact with the modal
+
+    await vi.waitFor(() => {
+      expect(screen.getByText(/Connected/)).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByText("Run Benchmark"));
+    await vi.waitFor(() => {
+      expect(screen.getByText("Benchmark started")).toBeInTheDocument();
+    });
+
+    // Send completion for first benchmark
+    sendSSEEvent({
+      _event_type: "RunLifecycleEvent",
+      status: "completed",
+      model: "model-a",
+      run_id: "run-multi-a",
+    });
+
+    await vi.waitFor(() => {
+      expect(screen.getByText("Replay recorded")).toBeInTheDocument();
+      expect(screen.getByText(/model-a/)).toBeInTheDocument();
+    });
+
+    // Dismiss toast by advancing past auto-dismiss
+    act(() => {
+      vi.advanceTimersByTime(6000);
+    });
+
+    await vi.waitFor(() => {
+      expect(screen.queryByText("Replay recorded")).not.toBeInTheDocument();
+    });
+
+    // Send completion for second benchmark (different run_id)
+    sendSSEEvent({
+      _event_type: "RunLifecycleEvent",
+      status: "completed",
+      model: "model-b",
+      run_id: "run-multi-b",
+    });
+
+    await vi.waitFor(() => {
+      expect(screen.getByText("Replay recorded")).toBeInTheDocument();
+      expect(screen.getByText(/model-b/)).toBeInTheDocument();
+    });
+  });
+
+  it("shows ReplayToast after SSE connection drops and reconnects mid-benchmark", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <>
+        <RunBenchmarkButton />
+        <ReplayToast />
+      </>,
+    );
+
+    // ── Step 1: Open dialog, connect, start benchmark ──────────
+    await user.click(screen.getByText("Run new benchmark"));
+
+    await vi.waitFor(() => {
+      expect(screen.getByText(/Connected/)).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByText("Run Benchmark"));
+    await vi.waitFor(() => {
+      expect(screen.getByText("Benchmark started")).toBeInTheDocument();
+    });
+
+    // No toast before any lifecycle event
+    expect(screen.queryByText("Replay recorded")).not.toBeInTheDocument();
+
+    // ── Step 2: Simulate SSE connection drop ─────────────────
+    // The native EventSource auto-reconnects internally;
+    // onerror fires but the onmessage handler stays registered.
+    act(() => {
+      mockEventSourceRegistry?.onerror?.();
+    });
+
+    // Still no toast (no completion event yet)
+    expect(screen.queryByText("Replay recorded")).not.toBeInTheDocument();
+
+    // ── Step 3: Simulate events arriving after reconnection ───
+    sendSSEEvent({
+      _event_type: "RunLifecycleEvent",
+      status: "completed",
+      model: "qwen3.5-9b-coder",
+      run_id: "recon-test-1",
+      duration_ms: 5000,
+    });
+
+    // ── Step 4: Toast should still fire after reconnect ───────
+    await vi.waitFor(() => {
+      expect(screen.getByText("Replay recorded")).toBeInTheDocument();
+      const modelMatches = screen.getAllByText(/qwen3.5-9b-coder/);
+      expect(modelMatches.length).toBeGreaterThanOrEqual(2);
+    });
+
+    // Verify the toast links to the replay and contains the run_id
+    const toastEl = screen.getByRole("status");
+    const link = toastEl.closest("a");
+    expect(link?.getAttribute("href")).toBe(
+      "/replays?run_id=recon-test-1",
+    );
+    expect(toastEl.textContent).toContain("recon-test-1");
+  });
+
+  it("keeps ReplayToast visible after SSE connection drops post-completion", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <>
+        <RunBenchmarkButton />
+        <ReplayToast />
+      </>,
+    );
+
+    // ── Step 1: Open dialog, connect, start benchmark ──────────
+    await user.click(screen.getByText("Run new benchmark"));
+    await vi.waitFor(() => {
+      expect(screen.getByText(/Connected/)).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByText("Run Benchmark"));
+    await vi.waitFor(() => {
+      expect(screen.getByText("Benchmark started")).toBeInTheDocument();
+    });
+
+    // ── Step 2: Send completion event → toast appears ─────────
+    sendSSEEvent({
+      _event_type: "RunLifecycleEvent",
+      status: "completed",
+      model: "qwen3.5-9b-coder",
+      run_id: "run-survive-1",
+      duration_ms: 5000,
+    });
+
+    await vi.waitFor(() => {
+      expect(screen.getByText("Replay recorded")).toBeInTheDocument();
+    });
+
+    // Grab the toast element reference now so we can check it survives
+    const toastEl = screen.getByRole("status");
+    expect(toastEl.textContent).toContain("qwen3.5-9b-coder");
+    expect(toastEl.textContent).toContain("run-survive");
+
+    const link = toastEl.closest("a");
+    expect(link?.getAttribute("href")).toBe("/replays?run_id=run-survive-1");
+
+    // ── Step 3: Drop SSE connection ─────────────────────────
+    act(() => {
+      mockEventSourceRegistry?.onerror?.();
+    });
+
+    // ── Step 4: Toasts still visible after disconnect ────────
+    expect(screen.getByText("Replay recorded")).toBeInTheDocument();
+    expect(toastEl.textContent).toContain("qwen3.5-9b-coder");
+    expect(toastEl.textContent).toContain("run-survive");
+
+    // Link href is unchanged
+    expect(link?.getAttribute("href")).toBe("/replays?run_id=run-survive-1");
+
+    // The toast is still interactive (has the arrow icon)
+    expect(toastEl.textContent).toContain("arrow_forward");
+  });
+
+  it("does not duplicate toasts during multiple rapid SSE reconnections", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <>
+        <RunBenchmarkButton />
+        <ReplayToast />
+      </>,
+    );
+
+    // ── Step 1: Open dialog, connect, start benchmark ──────────
+    await user.click(screen.getByText("Run new benchmark"));
+    await vi.waitFor(() => {
+      expect(screen.getByText(/Connected/)).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByText("Run Benchmark"));
+    await vi.waitFor(() => {
+      expect(screen.getByText("Benchmark started")).toBeInTheDocument();
+    });
+
+    // ── Step 2: Send completed event → toast appears once ──────
+    sendSSEEvent({
+      _event_type: "RunLifecycleEvent",
+      status: "completed",
+      model: "qwen3.5-9b-coder",
+      run_id: "run-rapid-1",
+      duration_ms: 5000,
+    });
+
+    await vi.waitFor(() => {
+      expect(screen.getByText("Replay recorded")).toBeInTheDocument();
+    });
+
+    // Exactly one toast in the DOM
+    expect(screen.getAllByRole("status").length).toBe(1);
+
+    // ── Step 3: Rapid reconnect cycle × 3 ─────────────────────
+    // Each cycle: drop connection → same completed event re-arrives
+    // The notifiedRunIds ref should prevent duplicate toasts.
+    for (let i = 0; i < 3; i++) {
+      act(() => {
+        mockEventSourceRegistry?.onerror?.();
+      });
+
+      // Same run_id arrives again on the reconnected stream
+      sendSSEEvent({
+        _event_type: "RunLifecycleEvent",
+        status: "completed",
+        model: "qwen3.5-9b-coder",
+        run_id: "run-rapid-1",
+        duration_ms: 5000,
+      });
+
+      // Still exactly one toast (deduplication worked)
+      await vi.waitFor(() => {
+        expect(screen.getAllByRole("status").length).toBe(1);
+      });
+    }
+
+    // ── Step 4: Verify the original toast content is intact ───
+    const toastEl = screen.getByRole("status");
+    expect(toastEl.textContent).toContain("Replay recorded");
+    expect(toastEl.textContent).toContain("qwen3.5-9b-coder");
+    expect(toastEl.textContent).toContain("run-rapid-1");
+    expect(toastEl.textContent).toContain("arrow_forward");
+
+    const link = toastEl.closest("a");
+    expect(link?.getAttribute("href")).toBe("/replays?run_id=run-rapid-1");
+
+    // ── Step 5: New run_id after all reconnections still works ─
+    sendSSEEvent({
+      _event_type: "RunLifecycleEvent",
+      status: "completed",
+      model: "qwen3.5-9b-coder",
+      run_id: "run-rapid-2",
+      duration_ms: 4000,
+    });
+
+    await vi.waitFor(() => {
+      expect(screen.getAllByRole("status").length).toBe(1);
+      expect(screen.getByRole("status").textContent).toContain("run-rapid-2");
+    });
+  });
+
+  it("updates ReplaySidebarBadge count after lifecycle events in the integration flow", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <>
+        <RunBenchmarkButton />
+        <ReplayToast />
+        <ReplaySidebarBadge />
+      </>,
+    );
+
+    // ── Step 1: Open the benchmark dialog ─────────────────────
+    await user.click(screen.getByText("Run new benchmark"));
+
+    await vi.waitFor(() => {
+      expect(screen.getByText("Run New Benchmark")).toBeInTheDocument();
+    });
+
+    // ── Step 2: Wait for connection status ───────────────────
+    await vi.waitFor(() => {
+      expect(screen.getByText(/Connected/)).toBeInTheDocument();
+    });
+
+    // ── Step 3: Click "Run Benchmark" to start ───────────────
+    await user.click(screen.getByText("Run Benchmark"));
+    await vi.waitFor(() => {
+      expect(screen.getByText("Benchmark started")).toBeInTheDocument();
+    });
+
+    // ── Step 4: Badge should be hidden initially (0 count) ───
+    expect(screen.queryByText("1")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("1 new replays")).not.toBeInTheDocument();
+
+    // ── Step 5: Send a completed lifecycle event via SSE ─────
+    sendSSEEvent({
+      _event_type: "RunLifecycleEvent",
+      status: "completed",
+      model: "qwen3.5-9b-coder",
+      run_id: "run-badge-test-1",
+      duration_ms: 5000,
+    });
+
+    // ── Step 6: Verify badge shows count 1 ───────────────────
+    await vi.waitFor(() => {
+      expect(screen.getByText("1")).toBeInTheDocument();
+      expect(screen.getByLabelText("1 new replays")).toBeInTheDocument();
+    });
+
+    // ── Step 7: Send a second completed event (different run_id) ──
+    sendSSEEvent({
+      _event_type: "RunLifecycleEvent",
+      status: "completed",
+      model: "qwen3.5-9b-coder",
+      run_id: "run-badge-test-2",
+      duration_ms: 4000,
+    });
+
+    await vi.waitFor(() => {
+      expect(screen.getByText("2")).toBeInTheDocument();
+      expect(screen.getByLabelText("2 new replays")).toBeInTheDocument();
+    });
+
+    // ── Step 8: Send a duplicate run_id — count should NOT change ──
+    sendSSEEvent({
+      _event_type: "RunLifecycleEvent",
+      status: "completed",
+      model: "qwen3.5-9b-coder",
+      run_id: "run-badge-test-2",
+      duration_ms: 4000,
+    });
+
+    await vi.waitFor(() => {
+      expect(screen.getByText("2")).toBeInTheDocument();
+      expect(screen.getByLabelText("2 new replays")).toBeInTheDocument();
+    });
+
+    // ── Step 9: Send a failed event — should also increment ──
+    sendSSEEvent({
+      _event_type: "RunLifecycleEvent",
+      status: "failed",
+      model: "qwen3.5-9b-coder",
+      run_id: "run-badge-fail-1",
+    });
+
+    await vi.waitFor(() => {
+      expect(screen.getByText("3")).toBeInTheDocument();
+      expect(screen.getByLabelText("3 new replays")).toBeInTheDocument();
+    });
+
+    // ── Step 10: Send a started event — should NOT increment ──
+    sendSSEEvent({
+      _event_type: "RunLifecycleEvent",
+      status: "started",
+      model: "qwen3.5-9b-coder",
+      run_id: "run-badge-started-1",
+    });
+
+    await vi.waitFor(() => {
+      expect(screen.getByText("3")).toBeInTheDocument();
+      expect(screen.getByLabelText("3 new replays")).toBeInTheDocument();
+    });
+  });
+});
+

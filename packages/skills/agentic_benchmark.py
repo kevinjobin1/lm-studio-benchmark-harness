@@ -120,7 +120,7 @@ class AgenticBenchmark:
         self,
         registry: SkillRegistry,
         client=None,  # LMStudioClient
-        lockfile_path: str = "skill-lock.json",
+        lockfile_path: str = "modellens.lock",
     ):
         self.registry = registry
         self.client = client
@@ -273,7 +273,7 @@ def run_agentic_benchmark_sync(
     model_name: str,
     num_prompts: int = 5,
     runs_per_prompt: int = 3,
-    lockfile_path: str = "skill-lock.json",
+    lockfile_path: str = "modellens.lock",
     verbose: bool = True,
 ) -> AgenticBenchmarkSummary:
     """Synchronous wrapper for running agentic benchmarks."""

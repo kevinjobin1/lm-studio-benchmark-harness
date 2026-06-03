@@ -1,29 +1,44 @@
 # 🔬 Model Lens
 
-> Observability for local AI models. Benchmark, compare, replay, and understand how models actually perform on your hardware.
+> Observability for local AI models. Not just benchmarks — full execution traces, replay, workload evaluation, and side-by-side comparison.
 
 [![CI](https://github.com/kevinjobin1/model-lens/actions/workflows/ci.yml/badge.svg)](https://github.com/kevinjobin1/model-lens/actions/workflows/ci.yml)
 
 ---
 
+## Screenshots
+
+> *Screenshots coming soon. In the meantime, run the dashboard locally:*
+> ```bash
+> cd apps/dashboard && bun install && bun run dev
+> ```
+
+<!-- TODO: Add screenshot of dashboard overview page -->
+<!-- TODO: Add screenshot of trace timeline replay -->
+<!-- TODO: Add GIF of side-by-side model comparison -->
+
+---
+
 ## Why Model Lens?
 
-Most LLM benchmarks give you a single score. Model Lens gives you the full picture — execution traces, latency metrics, memory profiles, and side-by-side comparisons — so you can answer:
+Most LLM tools give you a single benchmark score. Model Lens gives you the full picture — execution traces, latency profiles, memory footprints, and real-world workload evaluations — so you can answer:
 
-- Why did this model fail?
-- Why is this model slower on my hardware?
-- Which model performs best on my actual workload?
+- **Why** did this model fail?
+- **Why** is this model slower on my hardware?
+- **Which** model performs best on my **actual** codebase?
 
 ---
 
 ## Features
 
-- 🔬 **Benchmarking** — MMLU-Pro, GSM8K, HumanEval, speed/latency, DevBench, and more
-- 📊 **Observability** — TTFT, tokens/sec, memory, run variance
-- 🔁 **Replay** — Capture and replay model execution traces
-- 📦 **Prompt Packs** — Versioned, community-extensible benchmark collections
-- 🖥️ **Dashboard** — Astro + React, Cloudflare Pages deployable
-- 🤖 **Multi-provider** — LM Studio + Ollama support
+- 🔁 **Trace Replay** — Capture and replay model execution with token-level timing, play/pause, speed controls, and keyboard shortcuts
+- 📊 **Observability** — TTFT, tokens/sec, memory pressure, run variance, failure breakdowns
+- 🔬 **Workload Evaluation** — Evaluate models against real project codebases (NestJS, React, Rust, Python) with realistic coding tasks
+- 🤝 **Side-by-Side Comparison** — 2-way and 3-way model comparison with per-step timing deltas
+- 📦 **Prompt Packs** — Versioned, community-extensible benchmark collections (React, NestJS, debugging, agentic)
+- 🖥️ **Dashboard** — Astro + React, Cloudflare Pages deployable, live API endpoints
+- 🎯 **Skill System** — Versioned, sandboxed, lockfile-verified skill runtime for deterministic evaluation
+- 🤖 **Multi-Provider** — LM Studio, Ollama, Open WebUI, Jan, llama.cpp, vLLM
 
 ---
 
@@ -32,6 +47,9 @@ Most LLM benchmarks give you a single score. Model Lens gives you the full pictu
 ```bash
 # Install
 pip install -r requirements.txt
+
+# Run workload evaluation (auto-detects models)
+python apps/cli/modellens.py workload run --model qwen3.5-9b
 
 # Run benchmarks (auto-detects models)
 python apps/cli/modellens.py run --quick
@@ -49,14 +67,15 @@ python apps/cli/modellens.py run --provider ollama --models llama3.2
 
 ```
 apps/
-  cli/          ← Unified modellens CLI
-  dashboard/    ← Astro + React dashboard
+  cli/          ← Unified modellens CLI (Click)
+  dashboard/    ← Astro + React observability dashboard
 packages/
-  core/         ← Benchmark framework
+  events/       ← Event bus — decoupled observability events
+  core/         ← Benchmark framework, trace capture, workload evaluation
   benchmarks/   ← 10+ benchmark implementations
-  providers/    ← LM Studio, Ollama adapters
-  skills/       ← Extensible skill system
-  prompt_packs/ ← Community benchmark packs
+  providers/    ← 6 provider adapters (LM Studio, Ollama, Open WebUI, Jan, llama.cpp, vLLM)
+  skills/       ← Versioned, lockfile-verified skill system
+  prompt_packs/ ← Community benchmark packs (React, NestJS, debugging, agentic)
 ```
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for details.
@@ -65,7 +84,7 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for details.
 
 ## Dashboard
 
-The project includes an [Astro](https://astro.build) + React dashboard at `apps/dashboard/` for visualizing benchmark results, managing runs, and monitoring LM Studio connections.
+The project includes an [Astro](https://astro.build) + React dashboard at `apps/dashboard/` for visualizing benchmark results, replaying execution traces, managing runs, and comparing models.
 
 ### Quick Start
 
@@ -77,26 +96,22 @@ bun run dev          # → http://localhost:4321
 
 ### API Endpoints
 
-The dashboard runs in server mode (`output: "server"`) with live API endpoints for the benchmark runner UI:
-
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/api/health` | GET | Health check — uptime, started_at, version |
-| `/api/status` | GET | LM Studio connection status, loaded models, hardware info |
-| `/api/run-benchmark` | POST | Start a benchmark process (`{ quick: boolean }`) |
+| `/api/status` | GET | Provider connection status, loaded models, hardware info |
+| `/api/traces` | GET | List and query execution traces |
+| `/api/traces/[id]` | GET | Individual trace data |
+| `/api/run-benchmark` | POST | Start a benchmark process |
 | `/api/run-benchmark/active` | GET | Currently running benchmark processes |
-| `/api/run-benchmark/logs?pid=X` | GET | Live stdout/stderr for a process |
-| `/api/run-benchmark/kill?pid=X` | POST | Kill a running process |
 
-### LM Studio URL
+### Provider URL
 
 By default the dashboard checks LM Studio at `http://127.0.0.1:1234/v1`. Override with:
 
 ```bash
 LM_STUDIO_URL=http://192.168.1.50:1234/v1 bun run dev
 ```
-
-See [apps/dashboard/README.md](apps/dashboard/README.md) for full documentation.
 
 ---
 
@@ -108,6 +123,7 @@ See [apps/dashboard/README.md](apps/dashboard/README.md) for full documentation.
 - [CONTRIBUTING.md](CONTRIBUTING.md) — Contributor guide
 - [DESIGN.md](DESIGN.md) — Design system
 - [CHANGELOG.md](CHANGELOG.md) — Release history
+- [Run Schema](docs/specs/run-schema.md) — Canonical data model
 
 ---
 

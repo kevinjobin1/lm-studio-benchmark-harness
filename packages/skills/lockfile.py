@@ -3,7 +3,7 @@
 Skill Lock File System
 
 CRITICAL for reproducibility:
-- skill-lock.json locks skill versions
+- modellens.lock locks skill versions
 - Benchmark MUST fail if lock mismatch
 - No silent version drift allowed
 - Ensures reproducibility across machines
@@ -26,7 +26,7 @@ class LockEntry:
 
 @dataclass
 class SkillLockFile:
-    """Represents a skill-lock.json file.
+    """Represents a modellens.lock file.
 
     The lockfile ensures deterministic evaluation by pinning exact
     skill versions. Any mismatch causes the benchmark to fail.
@@ -42,7 +42,7 @@ class SkillLockFile:
     _checksums: Dict[str, str] = field(default_factory=dict)
 
     @classmethod
-    def load(cls, path: str = "skill-lock.json") -> "SkillLockFile":
+    def load(cls, path: str = "modellens.lock") -> "SkillLockFile":
         """Load a skill lockfile from disk."""
         lock_path = Path(path)
         if not lock_path.exists():
@@ -72,7 +72,7 @@ class SkillLockFile:
             mode=data.get("mode", "strict"),
         )
 
-    def save(self, path: str = "skill-lock.json"):
+    def save(self, path: str = "modellens.lock"):
         """Save the lockfile to disk."""
         data = {
             "skills": {
@@ -180,13 +180,13 @@ if __name__ == "__main__":
 
     if "--generate" in sys.argv or "-g" in sys.argv:
         lockfile = SkillLockFile.generate_default()
-        lockfile.save("skill-lock.json")
-        print("Generated skill-lock.json with built-in skills:")
+        lockfile.save("modellens.lock")
+        print("Generated modellens.lock with built-in skills:")
         for name in lockfile.list_skills():
             print(f"  {name} v{lockfile.skills[name].version}")
     elif "--verify" in sys.argv:
         try:
-            lockfile = SkillLockFile.load("skill-lock.json")
+            lockfile = SkillLockFile.load("modellens.lock")
             print(f"Lockfile loaded: {len(lockfile.skills)} skills, mode={lockfile.mode}")
             for name, entry in sorted(lockfile.skills.items()):
                 print(f"  {name} v{entry.version} (checksum: {entry.checksum or 'none'})")

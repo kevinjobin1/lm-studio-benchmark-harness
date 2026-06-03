@@ -10,8 +10,10 @@ Model Lens supports multiple local LLM providers through a unified `ProviderAdap
 |----------|--------|-------------|-------------|
 | **LM Studio** | ✅ Stable | `http://localhost:1234/v1` | 0.3.x+ |
 | **Ollama** | ✅ Stable | `http://localhost:11434/v1` | 0.1.28+ |
-
-> Future: Open WebUI, Jan, llama.cpp, vLLM
+| **Open WebUI** | ✅ Stable | `http://localhost:3000/api/v1` | 0.5.x+ |
+| **Jan** | ✅ Stable | `http://localhost:1337/v1` | 0.5.x+ |
+| **llama.cpp** | ✅ Stable | `http://localhost:8080/v1` | b4200+ |
+| **vLLM** | ✅ Stable | `http://localhost:8000/v1` | 0.6.x+ |
 
 ---
 
@@ -137,6 +139,154 @@ curl http://localhost:11434/v1/models
 
 # Native endpoint (all versions)
 curl http://localhost:11434/api/tags
+```
+
+---
+
+## Open WebUI
+
+### Setup
+
+1. Install [Open WebUI](https://openwebui.com/) (e.g., via Docker or pip)
+2. Open WebUI serves an OpenAI-compatible API at `http://localhost:3000/api/v1`
+
+### Usage with Model Lens
+
+```bash
+# Auto-detect
+python apps/cli/modellens.py run --provider open-webui --quick
+
+# Use a specific model
+python apps/cli/modellens.py run --provider open-webui --models my-model
+```
+
+### Usage in Python
+
+```python
+from providers.openwebui import OpenWebUIClient
+
+client = OpenWebUIClient(
+    base_url="http://localhost:3000",
+    api_key="open-webui",
+    model_name="my-model",
+)
+
+if client.health_check():
+    print("Open WebUI is running!")
+```
+
+---
+
+## Jan
+
+### Setup
+
+1. Download [Jan](https://jan.ai/)
+2. Load a model
+3. Jan serves an OpenAI-compatible API at `http://localhost:1337/v1`
+
+### Usage with Model Lens
+
+```bash
+# Auto-detect
+python apps/cli/modellens.py run --provider jan --quick
+
+# Use a specific model
+python apps/cli/modellens.py run --provider jan --models my-model
+```
+
+### Usage in Python
+
+```python
+from providers.jan import JanClient
+
+client = JanClient(
+    base_url="http://localhost:1337",
+    api_key="jan",
+    model_name="my-model",
+)
+
+if client.health_check():
+    print("Jan is running!")
+```
+
+---
+
+## llama.cpp
+
+### Setup
+
+1. Build or download [llama.cpp](https://github.com/ggerganov/llama.cpp)
+2. Run the server:
+   ```bash
+   ./server -m models/my-model.gguf --host 0.0.0.0 --port 8080
+   ```
+3. llama.cpp serves an OpenAI-compatible API at `http://localhost:8080/v1`
+
+### Usage with Model Lens
+
+```bash
+# Auto-detect
+python apps/cli/modellens.py run --provider llama.cpp --quick
+
+# Use with specific model
+python apps/cli/modellens.py run --provider llama.cpp --models llama-3.2-7b
+```
+
+### Usage in Python
+
+```python
+from providers.llamacpp import LlamaCppClient
+
+client = LlamaCppClient(
+    base_url="http://localhost:8080",
+    api_key="llamacpp",
+    model_name="default",
+)
+
+if client.health_check():
+    print("llama.cpp server is running!")
+```
+
+---
+
+## vLLM
+
+### Setup
+
+1. Install [vLLM](https://github.com/vllm-project/vllm):
+   ```bash
+   pip install vllm
+   ```
+2. Start the server:
+   ```bash
+   python -m vllm.entrypoints.openai.api_server --model path/to/model --port 8000
+   ```
+3. vLLM serves an OpenAI-compatible API at `http://localhost:8000/v1`
+
+### Usage with Model Lens
+
+```bash
+# Auto-detect
+python apps/cli/modellens.py run --provider vllm --quick
+
+# Use a specific model
+python apps/cli/modellens.py run --provider vllm --models my-model
+```
+
+### Usage in Python
+
+```python
+from providers.vllm import VLLMClient
+
+client = VLLMClient(
+    base_url="http://localhost:8000",
+    api_key="vllm",
+    model_name="my-model",
+)
+
+if client.health_check():
+    print("vLLM is running!")
 ```
 
 ---

@@ -36,6 +36,7 @@
     "@types/node": "^25.9.1",
     "@types/react": "^18.3.5",
     "@types/react-dom": "^18.3.0",
+    "eventsource": "^4.1.0",
     "jsdom": "^29.1.1",
     "typescript": "^5.5.4",
     "vitest": "^4.1.8"

@@ -41,6 +41,34 @@ except ImportError:
     import sys
     print("[devbench] Trace capture not available — traces disabled.", file=sys.stderr)
 
+# ── Event Bus ───────────────────────────────────────────────────
+try:
+    from events import (
+        EventBus, default_bus, TokenGeneratedEvent, CompletionEvent,
+        RunLifecycleEvent, MetricEvent, ErrorEvent,
+    )
+except ImportError:
+    # Fallback: no-op event types so the rest of the code still works
+    EventBus = None
+    default_bus = None
+    TokenGeneratedEvent = None
+    CompletionEvent = None
+    RunLifecycleEvent = None
+    MetricEvent = None
+    ErrorEvent = None
+
+# ── SSE Bridge ───────────────────────────────────────────────────
+try:
+    from events.sse import EventBusSSEServer
+except ImportError:
+    EventBusSSEServer = None  # type: ignore
+
+# ── Replay Writer ───────────────────────────────────────────────
+try:
+    from events.replay import EventBusReplayWriter
+except ImportError:
+    EventBusReplayWriter = None  # type: ignore
+
 
 # ── Simple metrics shim for trace capture (module-level, not per-call) ─
 class _TraceMetricsShim:
@@ -121,7 +149,8 @@ class AppleSiliconBenchmarkV2:
                  api_key: str = "lm-studio",
                  num_runs: int = 5,
                  traces_dir: str = "",
-                 no_traces: bool = False):
+                 no_traces: bool = False,
+                 event_bus: Optional[object] = None):
         self.client = OpenAI(base_url=api_base, api_key=api_key)
         self.prompt_generator = PromptGenerator()
         self.evaluator = ComprehensiveEvaluator(num_runs=num_runs)
@@ -133,6 +162,9 @@ class AppleSiliconBenchmarkV2:
         self.traces_dir = Path(traces_dir) if traces_dir else Path("results/traces")
         if not no_traces:
             self.traces_dir.mkdir(parents=True, exist_ok=True)
+        self.event_bus = event_bus or default_bus
+        # event bus is available if import succeeded AND a bus instance is provided
+        self._events_available = self.event_bus is not None and EventBus is not None
     
     def run_single_completion(self, model_name: str, prompt: str, capture_trace: bool = True) -> tuple:
         """Run a single completion and return (response, token_times, ttft, total_time, trace).
@@ -144,6 +176,8 @@ class AppleSiliconBenchmarkV2:
         response_text = ""
         token_times = []
         trace = None
+        source = f"devbench.{model_name}"
+        run_id = f"devbench_{model_name}_{int(start_time)}"
         
         # Set up trace capture if available
         capture = None
@@ -177,28 +211,83 @@ class AppleSiliconBenchmarkV2:
                     text = chunk.choices[0].delta.content
                     response_text += text
                     
+                    # Emit token event
+                    if self._events_available:
+                        timing_ms = (current_time - start_time) * 1000
+                        self.event_bus.emit_sync(TokenGeneratedEvent(
+                            model=model_name,
+                            token=text,
+                            index=token_index,
+                            timing_ms=timing_ms,
+                            provider="lm-studio",
+                            run_id=run_id,
+                            source=source,
+                        ))
+                    
                     # Record token in trace
                     if capture is not None:
                         capture.record_token(text, token_index)
-                        token_index += 1
+                    token_index += 1
             
             total_time = time.time() - start_time
             ttft = first_token_time - start_time if first_token_time else total_time
+            ttft_ms = ttft * 1000
+            est_tokens = len(response_text) // 4
+            gen_time = total_time - ttft
+            tps = est_tokens / gen_time if gen_time > 0 else 0
             
             # Finish trace capture
             if capture is not None:
-                est_tokens = len(response_text) // 4
-                gen_time = total_time - ttft
-                tps = est_tokens / gen_time if gen_time > 0 else 0
                 trace = capture.finish(
                     response_text,
                     _TraceMetricsShim(tps, est_tokens, len(prompt) // 4, est_tokens),
                 )
             
+            # Emit completion event
+            if self._events_available:
+                self.event_bus.emit_sync(CompletionEvent(
+                    model=model_name,
+                    response=response_text,
+                    tokens_used=est_tokens,
+                    latency_ms=total_time * 1000,
+                    ttft_ms=ttft_ms,
+                    tokens_per_second=tps,
+                    provider="lm-studio",
+                    run_id=run_id,
+                    source=source,
+                    success=True,
+                ))
+            
             return response_text, token_times, ttft, total_time, trace
             
         except Exception as e:
+            total_time = time.time() - start_time
             print(f"Error in completion: {e}")
+            
+            # Emit error + failed completion events
+            if self._events_available:
+                self.event_bus.emit_sync(ErrorEvent(
+                    message=f"DevBench completion failed: {e}",
+                    exception=type(e).__name__,
+                    component="devbench_runner",
+                    run_id=run_id,
+                    source=source,
+                    severity="error",
+                ))
+                self.event_bus.emit_sync(CompletionEvent(
+                    model=model_name,
+                    response="",
+                    tokens_used=0,
+                    latency_ms=total_time * 1000,
+                    ttft_ms=0,
+                    tokens_per_second=0,
+                    provider="lm-studio",
+                    run_id=run_id,
+                    source=source,
+                    success=False,
+                    error=str(e),
+                ))
+            
             if capture is not None:
                 capture.record_error(str(e))
                 capture.finish("", None)
@@ -211,6 +300,18 @@ class AppleSiliconBenchmarkV2:
         """Run benchmark with multiple runs for statistical variance."""
         prompt = prompt_data.prompt
         category = prompt_data.category.value
+        source = f"devbench.{model_name}.{category}"
+        run_id = f"devbench_{model_name}_{category}_{int(time.time())}"
+        
+        # Emit lifecycle: benchmark started
+        if self._events_available:
+            self.event_bus.emit_sync(RunLifecycleEvent(
+                status="started",
+                model=model_name,
+                workload=f"devbench/{category}",
+                run_id=run_id,
+                source=source,
+            ))
         
         # Start memory monitoring
         process = psutil.Process()
@@ -300,6 +401,79 @@ class AppleSiliconBenchmarkV2:
             verbosity_penalty
         )
         
+        # Emit metric events for scores
+        if self._events_available:
+            self.event_bus.emit_sync(MetricEvent(
+                name="devbench.overall_score",
+                value=evaluation.overall_score,
+                tags={
+                    "model": model_name,
+                    "category": category,
+                    "num_runs": str(self.num_runs),
+                },
+                model=model_name,
+                run_id=run_id,
+                source=source,
+            ))
+            self.event_bus.emit_sync(MetricEvent(
+                name="devbench.developer_score",
+                value=developer_score,
+                tags={"model": model_name, "category": category},
+                model=model_name,
+                run_id=run_id,
+                source=source,
+            ))
+            self.event_bus.emit_sync(MetricEvent(
+                name="devbench.ttft_ms",
+                value=ttft_mean * 1000,
+                tags={"model": model_name, "category": category},
+                model=model_name,
+                run_id=run_id,
+                source=source,
+            ))
+            self.event_bus.emit_sync(MetricEvent(
+                name="devbench.tokens_per_second",
+                value=tokens_per_second_mean,
+                tags={"model": model_name, "category": category},
+                model=model_name,
+                run_id=run_id,
+                source=source,
+            ))
+            # Emit score components as individual metrics
+            for component_name in ("correctness", "instruction_compliance", "reasoning_quality",
+                                   "code_executability", "type_safety"):
+                value = getattr(evaluation.score_components, component_name, 0.0)
+                self.event_bus.emit_sync(MetricEvent(
+                    name=f"devbench.{component_name}",
+                    value=value,
+                    tags={"model": model_name, "category": category},
+                    model=model_name,
+                    run_id=run_id,
+                    source=source,
+                ))
+            
+            # Emit failure count
+            self.event_bus.emit_sync(MetricEvent(
+                name="devbench.failure_count",
+                value=float(len(evaluation.failures)),
+                tags={"model": model_name, "category": category},
+                model=model_name,
+                run_id=run_id,
+                source=source,
+            ))
+        
+        # Emit lifecycle: benchmark completed
+        if self._events_available:
+            total_duration = sum(total_times) * 1000
+            self.event_bus.emit_sync(RunLifecycleEvent(
+                status="completed",
+                model=model_name,
+                workload=f"devbench/{category}",
+                run_id=run_id,
+                source=source,
+                duration_ms=total_duration,
+            ))
+        
         return BenchmarkResult(
             model=model_name,
             category=category,
@@ -330,6 +504,21 @@ class AppleSiliconBenchmarkV2:
         """Benchmark a single model against all prompts."""
         if prompts is None:
             prompts = self.prompt_generator.generate_default_batch(total_prompts=20)
+        
+        source = f"devbench.{model_name}"
+        run_id = f"devbench_{model_name}_full_{int(time.time())}"
+        
+        # Emit lifecycle: model benchmark started
+        if self._events_available:
+            self.event_bus.emit_sync(RunLifecycleEvent(
+                status="started",
+                model=model_name,
+                workload="devbench/full",
+                run_id=run_id,
+                source=source,
+            ))
+        
+        start_time = time.time()
         
         print(f"\n🚀 Benchmarking {model_name}")
         print(f"   Running {len(prompts)} benchmarks with {self.num_runs} iterations each...")
@@ -366,6 +555,61 @@ class AppleSiliconBenchmarkV2:
                 print(f"      Failures: {[f.value for f in result.evaluation.failures]}")
         
         self.results.extend(model_results)
+        
+        # Emit lifecycle: model benchmark completed
+        total_duration = (time.time() - start_time) * 1000
+        if self._events_available:
+            status = "completed" if model_results else "failed"
+            self.event_bus.emit_sync(RunLifecycleEvent(
+                status=status,
+                model=model_name,
+                workload="devbench/full",
+                run_id=run_id,
+                source=source,
+                duration_ms=total_duration,
+                error="No results produced" if not model_results else None,
+            ))
+        
+        # Emit aggregate metrics for the model (only if results exist)
+        if self._events_available and model_results:
+            avg_dev_score = statistics.mean([r.developer_score for r in model_results])
+            avg_tps = statistics.mean([r.tokens_per_second_mean for r in model_results])
+            avg_ttft = statistics.mean([r.ttft_mean for r in model_results]) * 1000
+            total_failures = sum(len(r.evaluation.failures) for r in model_results)
+            
+            self.event_bus.emit_sync(MetricEvent(
+                name="devbench.model.avg_developer_score",
+                value=avg_dev_score,
+                tags={"model": model_name, "num_prompts": str(len(prompts))},
+                model=model_name,
+                run_id=run_id,
+                source=source,
+            ))
+            self.event_bus.emit_sync(MetricEvent(
+                name="devbench.model.avg_tokens_per_second",
+                value=avg_tps,
+                tags={"model": model_name},
+                model=model_name,
+                run_id=run_id,
+                source=source,
+            ))
+            self.event_bus.emit_sync(MetricEvent(
+                name="devbench.model.avg_ttft_ms",
+                value=avg_ttft,
+                tags={"model": model_name},
+                model=model_name,
+                run_id=run_id,
+                source=source,
+            ))
+            self.event_bus.emit_sync(MetricEvent(
+                name="devbench.model.total_failures",
+                value=float(total_failures),
+                tags={"model": model_name},
+                model=model_name,
+                run_id=run_id,
+                source=source,
+            ))
+        
         return model_results
 
     def save_traces(self, traces: List) -> List[str]:
@@ -682,78 +926,110 @@ def main():
     parser.add_argument("--num-prompts", type=int, default=20, help="Total number of prompts")
     parser.add_argument("--parallel", action="store_true", default=True, help="Enable parallel execution")
     parser.add_argument("--sequential", action="store_true", help="Disable parallel execution")
+    parser.add_argument("--sse-port", type=int, default=None,
+                        help="Start SSE event bridge on this port for real-time dashboard updates. "
+                             "0 = auto-select (prints SSE_PORT:N to stdout on start).")
     
     args = parser.parse_args()
     
-    # Detect models if not specified
-    model_metadata = {}
-    if not args.models:
-        print("🔍 Detecting LM Studio models...")
-        detector = LMStudioModelDetector()
-        models = detector.detect_models()
-        if not models:
-            print("No models detected. Please specify models manually with --models")
-            return
-        args.models = [m["name"] for m in models]
-        # Store metadata
-        for m in models:
-            model_metadata[m["name"]] = {
-                "size": m.get("size", "unknown"),
-                "quantization": m.get("quantization", "unknown"),
-                "parameters": m.get("parameters", "unknown"),
-                "path": m.get("path", "unknown")
-            }
-        print(f"Found {len(args.models)} models: {', '.join(args.models)}")
-    else:
-        # Create placeholder metadata for manually specified models
+    # ── SSE Bridge ──────────────────────────────────────────────
+    sse_server = None
+    if args.sse_port is not None and args.sse_port > 0 and EventBusSSEServer is not None:
+        try:
+            sse_server = EventBusSSEServer(port=args.sse_port)
+            actual_port = sse_server.start()
+            print(f"SSE_PORT:{actual_port}", flush=True)
+        except Exception as e:
+            print(f"⚠ SSE server failed to start: {e}", flush=True)
+    
+    # ── Replay Writer ────────────────────────────────────────
+    replay_writer = None
+    if EventBusReplayWriter is not None:
+        try:
+            replay_writer = EventBusReplayWriter(
+                output_dir=str(Path(args.output_dir) / "replays"),
+            )
+            replay_writer.start()
+        except Exception as e:
+            print(f"⚠ Replay writer failed to start: {e}", flush=True)
+    
+    try:
+        # Detect models if not specified
+        model_metadata = {}
+        if not args.models:
+            print("🔍 Detecting LM Studio models...")
+            detector = LMStudioModelDetector()
+            models = detector.detect_models()
+            if not models:
+                print("No models detected. Please specify models manually with --models")
+                return
+            args.models = [m["name"] for m in models]
+            # Store metadata
+            for m in models:
+                model_metadata[m["name"]] = {
+                    "size": m.get("size", "unknown"),
+                    "quantization": m.get("quantization", "unknown"),
+                    "parameters": m.get("parameters", "unknown"),
+                    "path": m.get("path", "unknown")
+                }
+            print(f"Found {len(args.models)} models: {', '.join(args.models)}")
+        else:
+            # Create placeholder metadata for manually specified models
+            for model in args.models:
+                model_metadata[model] = {
+                    "size": "unknown",
+                    "quantization": "unknown",
+                    "parameters": "unknown",
+                    "path": "manual"
+                }
+        
+        # Initialize benchmark
+        benchmark = AppleSiliconBenchmarkV2(
+            api_base=args.api_base,
+            num_runs=args.num_runs
+        )
+        
+        # Generate prompts
+        print(f"\n📝 Generating {args.num_prompts} diverse prompts...")
+        prompts = benchmark.prompt_generator.generate_default_batch(total_prompts=args.num_prompts)
+        print(f"Generated {len(prompts)} prompts across categories:")
+        from collections import Counter
+        cat_counts = Counter([p.category.value for p in prompts])
+        for cat, count in cat_counts.items():
+            print(f"  {cat}: {count}")
+        
+        # Run benchmarks for each model
+        parallel = args.parallel and not args.sequential
         for model in args.models:
-            model_metadata[model] = {
-                "size": "unknown",
-                "quantization": "unknown",
-                "parameters": "unknown",
-                "path": "manual"
-            }
-    
-    # Initialize benchmark
-    benchmark = AppleSiliconBenchmarkV2(
-        api_base=args.api_base,
-        num_runs=args.num_runs
-    )
-    
-    # Generate prompts
-    print(f"\n📝 Generating {args.num_prompts} diverse prompts...")
-    prompts = benchmark.prompt_generator.generate_default_batch(total_prompts=args.num_prompts)
-    print(f"Generated {len(prompts)} prompts across categories:")
-    from collections import Counter
-    cat_counts = Counter([p.category.value for p in prompts])
-    for cat, count in cat_counts.items():
-        print(f"  {cat}: {count}")
-    
-    # Run benchmarks for each model
-    parallel = args.parallel and not args.sequential
-    for model in args.models:
-        benchmark.benchmark_model(model, prompts, parallel=parallel)
-    
-    # Generate reports
-    print("\n📊 Generating reports...")
-    report_gen = ReportGeneratorV2(args.output_dir)
-    
-    md_file = report_gen.generate_markdown_report(benchmark.results)
-    print(f"✓ Markdown report: {md_file}")
-    
-    csv_file = report_gen.generate_csv(benchmark.results)
-    print(f"✓ CSV data: {csv_file}")
-    
-    json_file = report_gen.generate_json(benchmark.results, model_metadata)
-    print(f"✓ JSON data: {json_file}")
-    
-    chart_file = report_gen.generate_radar_chart(benchmark.results)
-    print(f"✓ Radar chart: {chart_file}")
-    
-    print(f"\n✅ Benchmark complete! Results saved to {args.output_dir}/")
-    print(f"📝 Post {md_file} on X with the radar chart!")
-    print(f"🔬 Statistical rigor: {args.num_runs} runs per prompt, variance reported")
-    print(f"📊 Model metadata tracked: {len(model_metadata)} models")
+            benchmark.benchmark_model(model, prompts, parallel=parallel)
+        
+        # Generate reports
+        print("\n📊 Generating reports...")
+        report_gen = ReportGeneratorV2(args.output_dir)
+        
+        md_file = report_gen.generate_markdown_report(benchmark.results)
+        print(f"✓ Markdown report: {md_file}")
+        
+        csv_file = report_gen.generate_csv(benchmark.results)
+        print(f"✓ CSV data: {csv_file}")
+        
+        json_file = report_gen.generate_json(benchmark.results, model_metadata)
+        print(f"✓ JSON data: {json_file}")
+        
+        chart_file = report_gen.generate_radar_chart(benchmark.results)
+        print(f"✓ Radar chart: {chart_file}")
+        
+        print(f"\n✅ Benchmark complete! Results saved to {args.output_dir}/")
+        print(f"📝 Post {md_file} on X with the radar chart!")
+        print(f"🔬 Statistical rigor: {args.num_runs} runs per prompt, variance reported")
+        print(f"📊 Model metadata tracked: {len(model_metadata)} models")
+    finally:
+        # Stop the SSE server when the benchmark finishes
+        if sse_server is not None:
+            sse_server.stop()
+        # Stop and flush the replay writer
+        if replay_writer is not None:
+            replay_writer.stop()
 
 
 if __name__ == "__main__":

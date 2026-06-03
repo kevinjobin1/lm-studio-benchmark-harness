@@ -18,7 +18,7 @@ class SkillRegistry:
 
     - Skills are registered once and never modified at runtime
     - Initialized from builtins + optional community packs
-    - Validated against skill-lock.json on initialization
+    - Validated against modellens.lock on initialization
     """
 
     def __init__(self, lockfile: Optional[SkillLockFile] = None):
@@ -159,13 +159,13 @@ class SkillRegistry:
 
 
 def create_registry(
-    lockfile_path: str = "skill-lock.json",
+    lockfile_path: str = "modellens.lock",
     load_builtins: bool = True,
 ) -> SkillRegistry:
     """Factory function to create and initialize a skill registry.
 
     Args:
-        lockfile_path: Path to skill-lock.json
+        lockfile_path: Path to modellens.lock
         load_builtins: Whether to auto-load built-in skills
 
     Returns:

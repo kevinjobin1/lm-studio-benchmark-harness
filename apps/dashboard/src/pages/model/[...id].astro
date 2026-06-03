@@ -2,6 +2,7 @@
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import ModelDetail from "../../components/ModelDetail";
 import { loadTraceManifest, loadTrace, mapTraceToRun } from "../../lib/loadTraces";
+import { loadReplayManifest } from "../../lib/loadReplays";
 import { loadSnapshotManifest } from "../../lib/loadSnapshots";
 import type { TraceRun } from "../../lib/traceTypes";
 import fs from "fs";
@@ -58,6 +59,30 @@ try {
   // Traces not available — just show benchmark data
 }
 
+// ── Load replay sessions for this model ────────────────────────
+interface ModelReplayEntry {
+  run_id: string;
+  workload: string;
+  event_count: number;
+  started_at: string;
+}
+let modelReplays: ModelReplayEntry[] = [];
+try {
+  const replayManifest = await loadReplayManifest();
+  modelReplays = replayManifest.replays
+    .filter((r) => r.model === decodedId)
+    .sort((a, b) => new Date(b.started_at).getTime() - new Date(a.started_at).getTime())
+    .slice(0, 5)
+    .map((r) => ({
+      run_id: r.run_id,
+      workload: r.workload,
+      event_count: r.event_count,
+      started_at: r.started_at,
+    }));
+} catch {
+  // Replays not available
+}
+
 // ── Load saved snapshots for this model ────────────────────────
 let modelSnapshotEntries: Array<{ snapshot_id: string; prompt: string; totalTimeMs: number }> = [];
 try {
@@ -87,7 +112,7 @@ try {
         >
         Back to Dashboard
     </a>
-    <ModelDetail client:load modelId={decodedId} traces={modelTraces} />
+    <ModelDetail client:load modelId={decodedId} traces={modelTraces} replays={modelReplays} />
 
     <!-- ═══ Saved Snapshots ════════════════════════════════════════ -->
     {

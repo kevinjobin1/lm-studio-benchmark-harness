@@ -30,7 +30,7 @@ Four built-in skills ship with Model Lens (see `packages/skills/builtins/`):
 
 ## Lockfile system
 
-The `skill-lock.json` file ensures reproducibility across machines:
+The `modellens.lock` file ensures reproducibility across machines:
 
 ```json
 {
@@ -137,7 +137,7 @@ The `SkillRegistry` manages all registered skills:
 from skills.registry import create_registry
 
 # Auto-loads built-ins and validates against lockfile
-registry = create_registry(lockfile_path="skill-lock.json")
+registry = create_registry(lockfile_path="modellens.lock")
 
 # List registered skills
 print(registry.list_names())  # ['diff', 'json_parse', 'read_file', 'write_file']

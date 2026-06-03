@@ -16,6 +16,8 @@ export interface ProcessEntry {
   exitCode: number | null;
   stdout: string;
   stderr: string;
+  /** Port of the SSE event bridge (if the process started one). */
+  ssePort?: number;
   _child?: ChildProcess;
   _killTimer?: ReturnType<typeof setTimeout>;
   _cleanupTimer?: ReturnType<typeof setTimeout>;
