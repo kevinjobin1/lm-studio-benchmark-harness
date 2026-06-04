@@ -58,7 +58,9 @@ export interface EventStreamState {
 
 const MAX_BUFFERED_EVENTS = 5000;
 
-export function useEventStream(url: string = "/api/events"): EventStreamState {
+const SSE_WORKER_URL = import.meta.env.PUBLIC_SSE_WORKER_URL || "/api/events";
+
+export function useEventStream(url: string = SSE_WORKER_URL): EventStreamState {
   const [connected, setConnected] = useState(false);
   const [events, setEvents] = useState<SSEEvent[]>([]);
   const eventSourceRef = useRef<EventSource | null>(null);

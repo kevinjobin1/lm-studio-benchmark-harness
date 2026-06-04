@@ -22,17 +22,21 @@ Usage (standalone):
 """
 
 import json
+import os
 import socket
 import sys
 import threading
 import time
+import urllib.parse
+import urllib.request
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import fields as dataclass_fields
 from enum import Enum
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from typing import Any, Dict, Optional, Set, List
 
 from events import EventBus, default_bus
-from packages.logging import get_logger
+from packages.modellens_logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -154,6 +158,9 @@ class EventBusSSEServer:
     benchmark process.  Subscribes to *all* events on the given EventBus
     (via subscribe_all) and broadcasts them to every connected SSE client.
 
+    Also forwards events to the Cloudflare Worker SSE Bridge (if configured)
+    for production dashboard access over the public internet.
+
     Example::
 
         server = EventBusSSEServer(port=9090)
@@ -167,13 +174,22 @@ class EventBusSSEServer:
         bus: Optional[EventBus] = None,
         port: int = 9090,
         host: str = "127.0.0.1",
+        worker_url: Optional[str] = None,
     ):
         self.bus = bus or default_bus
         self.port = port
         self.host = host
+        self.worker_url = worker_url or os.environ.get("MODELLENS_SSE_WORKER_URL")
         self._server: Optional[HTTPServer] = None
         self._thread: Optional[threading.Thread] = None
         self._connections: Set[SSEHandler] = set()
+        self._worker_forwarder: Optional[ThreadPoolExecutor] = None
+
+        if self.worker_url:
+            self._worker_forwarder = ThreadPoolExecutor(
+                max_workers=2,
+                thread_name_prefix="sse-fwd",
+            )
 
     # ── Lifecycle ──────────────────────────────────────────────────
 
@@ -202,6 +218,11 @@ class EventBusSSEServer:
     def stop(self) -> None:
         """Stop the SSE server and unsubscribe from events."""
         self.bus.unsubscribe_all(self._on_event)
+
+        # Shut down worker forwarder thread pool
+        if self._worker_forwarder:
+            self._worker_forwarder.shutdown(wait=False)
+            self._worker_forwarder = None
 
         # Join all SSE connections
         for conn in list(self._connections):
@@ -233,6 +254,7 @@ class EventBusSSEServer:
         """Called by the EventBus for every emitted event.
 
         Serializes the event and broadcasts it to all connected SSE clients.
+        Also forwards to the Cloudflare Worker SSE Bridge if configured.
         Disconnected clients are automatically cleaned up.
         """
         event_type = type(event_obj).__name__
@@ -247,6 +269,52 @@ class EventBusSSEServer:
                 conn._sse_send(data)
             except (BrokenPipeError, ConnectionResetError):
                 self._connections.discard(conn)
+
+        # Forward to Cloudflare Worker SSE Bridge for remote dashboard access
+        if self.worker_url:
+            self._forward_to_worker(data)
+
+    # ── Worker forwarding ───────────────────────────────────────
+
+    def _forward_to_worker(self, data: Dict[str, Any]) -> None:
+        """POST the serialized event to the Cloudflare Worker SSE Bridge.
+
+        Runs on the shared thread pool so benchmark performance is not
+        impacted by network latency.  Failures are silently ignored
+        (the local SSE server still serves localhost clients).
+
+        Uses a ThreadPoolExecutor (created once at init) instead of
+        spawning a new OS thread per event — critical during token-by-token
+        streaming where events fire at > 10 Hz.
+        """
+        if not self._worker_forwarder:
+            return
+
+        # Build the POST URL from worker_url, stripping query params and
+        # fragments (urlparse) and trailing slashes (rstrip) so that
+        # https://bridge.example.com?token=abc  →  /events
+        # https://bridge.example.com/           →  /events
+        parsed = urllib.parse.urlparse(self.worker_url)
+        base = parsed._replace(query="", fragment="").geturl()
+        url = base.rstrip("/") + "/events"
+        payload = json.dumps(data).encode("utf-8")
+
+        def _post() -> None:
+            try:
+                req = urllib.request.Request(
+                    url,
+                    data=payload,
+                    headers={
+                        "Content-Type": "application/json",
+                        "User-Agent": "modellens/0.1",
+                    },
+                    method="POST",
+                )
+                urllib.request.urlopen(req, timeout=5)
+            except Exception:
+                pass  # Worker unreachable — local SSE still works
+
+        self._worker_forwarder.submit(_post)
 
     # ── Serialization ──────────────────────────────────────────────
 

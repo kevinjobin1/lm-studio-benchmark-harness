@@ -1,0 +1,172 @@
+---
+title: CLI Commands
+description: Complete reference for the modellens CLI — all commands, options, and examples.
+---
+
+The `modellens` CLI is the primary entry point for Model Lens. It's built with [Click](https://click.palletsprojects.com/) and delegates to the appropriate benchmark framework.
+
+## Global options
+
+```
+modellens --help
+modellens --version
+```
+
+## `run` — Run benchmarks
+
+```bash
+modellens run [OPTIONS]
+```
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `--provider`, `-p` | choice | auto-detect | `lm-studio`, `ollama`, `open-webui`, `jan`, `llama.cpp`, `vllm` |
+| `--models`, `-m` | multiple | auto-detect | Models to benchmark (repeatable) |
+| `--model-name` | string | — | Single model name (alias for `--models`) |
+| `--framework`, `-f` | choice | `devbench` | `devbench`, `general`, `compare` |
+| `--output-dir`, `-o` | string | `results` | Output directory |
+| `--num-runs`, `-n` | int | 5 | Runs per prompt (devbench) |
+| `--num-prompts` | int | 20 | Prompt count |
+| `--samples` | int | — | Samples per benchmark (general) |
+| `--quick` | flag | — | Quick mode: fewer prompts and runs |
+| `--config`, `-c` | string | — | Config file path |
+| `--parallel/--sequential` | flag | `--parallel` | Parallel execution |
+| `--seed` | int | — | Random seed |
+| `--verbose`, `-v` | flag | — | Show raw model responses |
+| `--ci` | flag | — | CI-safe headless mode |
+| `--traces-dir` | string | `results/traces` | Trace capture directory |
+| `--no-traces` | flag | — | Disable trace capture |
+| `--sse-port` | int | — | Enable SSE streaming on port N |
+| `--json-output` | flag | — | Output results as JSON to stdout |
+
+### Examples
+
+```bash
+# Auto-detect provider and models, quick mode
+modellens run --quick
+
+# Ollama with specific models
+modellens run --provider ollama --models llama3.2
+
+# General benchmark framework
+modellens run --framework general --model-name my-model --samples 50
+
+# Model comparison (both frameworks)
+modellens run --framework compare --models qwen3.5 gemma-4
+
+# SSE streaming for dashboard
+modellens run --sse-port 9090
+
+# CI mode with JSON output
+modellens run --ci --json-output > results.json
+```
+
+---
+
+## `workload` — Workload evaluation
+
+```bash
+modellens workload run [OPTIONS]
+```
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `--model`, `-m` | string | (required) | Model to evaluate |
+| `--project`, `-p` | string | auto-detect | Project path to evaluate |
+| `--output-dir`, `-o` | string | `results/workload` | Output directory |
+
+### Example
+
+```bash
+modellens workload run --model qwen3.5-9b
+modellens workload run --model qwen3.5-9b --project /path/to/react-app
+```
+
+---
+
+## `info` — System information
+
+```bash
+modellens info
+```
+
+Displays:
+- Hardware details (CPU, GPU, RAM, OS, architecture)
+- Python version
+- Connected providers and their status
+- Available models on each provider
+
+---
+
+## `models` — List available models
+
+```bash
+modellens models [OPTIONS]
+```
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `--provider`, `-p` | choice | auto-detect | Filter by provider |
+
+### Example
+
+```bash
+modellens models
+modellens models --provider ollama
+```
+
+---
+
+## `leaderboard` — View benchmark results
+
+```bash
+modellens leaderboard [OPTIONS] [RESULTS_DIR]
+```
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `--format` | choice | `table` | `table`, `json`, `csv` |
+| `--sort-by` | string | `overall_score` | Sort column |
+| `--limit` | int | 20 | Max results |
+
+### Example
+
+```bash
+modellens leaderboard results/
+modellens leaderboard --format json --sort-by tokens_per_sec
+```
+
+---
+
+## `health` — Provider health check
+
+```bash
+modellens health [OPTIONS]
+```
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `--provider`, `-p` | choice | auto-detect | Provider to check |
+
+### Example
+
+```bash
+modellens health
+modellens health --provider ollama
+```
+
+---
+
+## `compare` — Model comparison
+
+```bash
+modellens compare [OPTIONS] MODEL_A MODEL_B
+```
+
+Runs both models against the same benchmarks and produces side-by-side results.
+
+### Example
+
+```bash
+modellens compare qwen3.5-9b gemma-4-9b
+```

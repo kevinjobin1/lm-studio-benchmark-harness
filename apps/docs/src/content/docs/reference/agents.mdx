@@ -1,0 +1,131 @@
+---
+title: AGENTS.md
+description: Canonical execution truth for Model Lens — architecture invariants, project map, and key commands that every contributor must know.
+---
+
+> **Canonical execution truth for Model Lens.**
+> This is the single source of truth for Codebuff when operating on this codebase.
+> It overrides any conflicting instructions in other docs.
+
+## What we are building
+
+Model Lens is an **observability-first platform for local AI models**, with benchmarking as a secondary feature. The core asset is the **trace stream** — every action emits typed events through a thread-safe `EventBus`.
+
+**Mental model**: A distributed event-sourced execution tracer for local LLM runs. Think Chrome DevTools + Datadog for local AI, not "another benchmark harness."
+
+Benchmarking is supported and well-developed, but observability (traces, replay, real-time streaming, diffing) is the product direction.
+
+## Architecture invariants (DO NOT VIOLATE)
+
+### 1. Dual-authority benchmark systems — intentionally preserved
+
+Two benchmark systems coexist and are **both first-class, equally authoritative**:
+
+| System | File | Config | Purpose |
+|--------|------|--------|---------|
+| General suite | `apps/cli/benchmark.py` | `config.yaml` (YAML) | MMLU-Pro, GSM8K, HumanEval, etc. |
+| DevBench v2 | `apps/cli/bench_apple_silicon_v2.py` | `config.json` (JSON, deprecated) | TypeScript/NestJS/React, Apple Silicon |
+
+These are **not migration phases** — one is not replacing the other. They share scoring/evaluation modules but differ in execution pipeline and config format. **Never try to merge them.**
+
+### 2. Package boundaries
+
+| Package | Depends on | Do NOT create dependency in opposite direction |
+|---------|-----------|----------------------------------------------|
+| `events/` | (self-contained) | Never add imports from core, providers, or benchmarks |
+| `providers/` | `events/`, `base.py` | Never import from `core/` |
+| `core/` | `providers/` | Never import from `benchmarks/` |
+| `benchmarks/` | `core/` | OK to import from core |
+| `skills/` | (self-contained) | Never import from core or providers |
+
+### 3. URL handling
+
+Use `urllib.parse.urljoin()` and the helpers in `packages/providers/base.py`. **Banned patterns**: `.rstrip("/")`, `.removesuffix("/v1")`, `f"{base}/{path}"` string concatenation.
+
+```python
+from providers.base import normalize_base_url, get_root_url, url_join
+```
+
+### 4. Logging
+
+Use `from packages.logging import get_logger`. No `print()` for observability data — only for CLI user-facing output.
+
+### 5. Event emission
+
+Every provider completion emits `TokenGeneratedEvent` per streaming token and `CompletionEvent` after finishing. Every benchmark run emits `RunLifecycleEvent` (started/completed/failed) and `MetricEvent` per result. Use the `EventBus` (thread-safe via `threading.Lock`).
+
+### 6. Exception handling
+
+Never use bare `except:` or `except Exception:`. Catch specific types (`requests.ConnectionError`, `requests.Timeout`, `ValueError`, `TypeError`, `OSError`, `AttributeError`).
+
+### 7. Code quality gates (enforced on every push)
+
+- `ruff check packages/ apps/cli/ tests/`
+- `ruff format --check --diff packages/ apps/cli/ tests/`
+- `MYPYPATH=packages mypy packages/ apps/cli/`
+- `pytest tests/ -v` (strict — fails on any test failure)
+
+Pre-commit hooks run the same checks locally. See `.pre-commit-config.yaml`.
+
+## Project map
+
+```
+apps/
+  cli/                     ← Unified `modellens` CLI (Click)
+    commands/              ←   run, info, models, health, leaderboard, workload, publish
+  dashboard/               ← Astro + React observability dashboard
+packages/
+  logging.py              ← Structured logging (Note: shadows stdlib; import via `from packages.logging import get_logger`)
+  events/                 ← Event bus — typed, thread-safe, self-contained
+    sse.py                ←   SSE bridge for real-time dashboard streaming
+    replay.py             ←   Event replay writer (disk persistence)
+  core/                   ← Benchmark framework, trace capture, workload evaluation
+    benchmark.py           ←   BenchmarkSuite, Benchmark (LMStudioClient deprecated)
+    trace_capture.py       ←   Token-level execution tracing
+    trace_schema.py        ←   Trace dataclasses
+    hardware.py            ←   Hardware detection
+    workload/              ←   Real-project workload evaluation
+  benchmarks/              ← 11 benchmark implementations
+  providers/               ← 6 provider adapters (all OpenAI-compatible /v1)
+    base.py                ←   ProviderAdapter ABC + URL utilities
+    openai_compatible.py   ←   OpenAICompatibleProvider with event bus integration
+  skills/                  ← Extensible, lockfile-verified skill system
+  prompt_packs/            ← Versioned benchmark collections
+```
+
+## Key commands
+
+```bash
+# Quick benchmark
+python apps/cli/modellens.py run --quick
+
+# Workload evaluation
+python apps/cli/modellens.py workload run --model qwen3.5-9b
+
+# Model comparison
+python apps/cli/modellens.py run --framework compare --models qwen3.5 gemma-4
+
+# Ollama provider
+python apps/cli/modellens.py run --provider ollama --models llama3.2
+
+# Dashboard
+cd apps/dashboard && bun install && bun run dev
+
+# Tests
+pytest tests/ -v
+
+# Quality checks
+ruff check packages/ apps/cli/ tests/
+ruff format --check --diff packages/ apps/cli/ tests/
+MYPYPATH=packages mypy packages/ apps/cli/
+```
+
+## Related docs
+
+- [Architecture](/architecture/) — System design, data flow, event architecture
+- [Vision](/vision/) — Philosophy and design direction
+- [Roadmap](/roadmap/) — Future evolution
+- [Contributing](/contributing/) — Contributor guide
+- [Event Schema](/reference/event-schema/) — Event bus contract
+- [Provider Contract](/reference/provider-contract/) — Provider adapter contract
+- [Run Schema](/reference/run-schema/) — Canonical data model

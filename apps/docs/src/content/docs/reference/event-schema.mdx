@@ -1,0 +1,153 @@
+---
+title: Event Schema
+description: Canonical contract for the Model Lens event bus — every event emitted in the system conforms to one of these types.
+---
+
+> Canonical contract for the Model Lens event bus. Every event emitted in the system conforms to one of these types.
+
+## Architecture
+
+```
+Provider calls → EventBus.emit_sync() → Consumers
+                                       ├── SSE bridge (dashboard)
+                                       ├── Replay writer (disk)
+                                       ├── Trace capture
+                                       └── Future: alerts, MCP, metrics engine
+```
+
+The event bus is **thread-safe** (`threading.Lock` on subscription/mutation, handler snapshots under lock). Events are delivered synchronously via `emit_sync()`.
+
+---
+
+## `TokenGeneratedEvent`
+
+Emitted for **every streaming token** from a provider response.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `model` | `str` | ✓ | Model identifier (e.g. `"qwen3.5-9b"`) |
+| `token` | `str` | ✓ | Raw token text |
+| `index` | `int` | ✓ | 0-based token index within this completion |
+| `timing_ms` | `float` | ✓ | Milliseconds since start of completion |
+| `provider` | `str` | | Provider name |
+| `run_id` | `str` | | Correlated benchmark run ID |
+| `source` | `str` | | Originating component |
+| `id` | `str` | | Auto-generated event ID |
+
+**Source**: `OpenAICompatibleProvider.chat_completion()` streaming path.  
+**Consumers**: TraceCapture, EventBusSSEServer, EventBusReplayWriter.
+
+## `CompletionEvent`
+
+Emitted after a **full provider response** (success or failure).
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `model` | `str` | ✓ | Model identifier |
+| `response` | `str` | ✓ | Full response text (empty on failure) |
+| `tokens_used` | `int` | ✓ | Total tokens (prompt + completion) |
+| `latency_ms` | `float` | ✓ | Total generation time |
+| `ttft_ms` | `float` | ✓ | Time to first token |
+| `tokens_per_second` | `float` | ✓ | Generation throughput |
+| `success` | `bool` | | Whether completion succeeded |
+| `error` | `str` | | Error message on failure |
+| `run_id` | `str` | | Correlated benchmark run ID |
+
+**Source**: `OpenAICompatibleProvider.chat_completion()` after success/failure.  
+**Consumers**: ResultsCollector, MetricsEngine, EventBusReplayWriter.
+
+## `MetricEvent`
+
+Emitted for any **numeric measurement**.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `name` | `str` | ✓ | Metric name (e.g. `"general.mmlu_pro.overall_accuracy"`) |
+| `value` | `float` | ✓ | Numeric value |
+| `unit` | `str` | | Unit (`"ms"`, `"tokens/s"`) |
+| `tags` | `Dict[str, str]` | | Key-value metadata |
+| `model` | `str` | | Model identifier |
+| `run_id` | `str` | | Correlated benchmark run ID |
+
+**Source**: `BenchmarkSuite.run_benchmark()`, `AppleSiliconBenchmarkV2`.  
+**Consumers**: Dashboard, EventBusReplayWriter, ResultsCollector.
+
+## `RunLifecycleEvent`
+
+Emitted at **run start, completion, or failure**.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `status` | `str` | ✓ | `"started"`, `"completed"`, or `"failed"` |
+| `model` | `str` | | Model identifier |
+| `provider` | `str` | | Provider name |
+| `workload` | `str` | | Workload identifier |
+| `run_id` | `str` | | Run identifier (correlates all events) |
+| `duration_ms` | `float` | | Execution duration (completed/failed) |
+| `error` | `str` | | Error message (on failed) |
+
+**Source**: `BenchmarkSuite.run_all()`, `AppleSiliconBenchmarkV2`.  
+**Consumers**: EventBusReplayWriter, Dashboard, ResultsCollector.
+
+## `ErrorEvent`
+
+Emitted for **unexpected errors** anywhere in the system.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `message` | `str` | ✓ | Human-readable error description |
+| `exception` | `str` | | Exception type name |
+| `stack_trace` | `str` | | Full stack trace |
+| `component` | `str` | | Failing component name |
+| `severity` | `str` | | `"debug"`, `"info"`, `"warning"`, `"error"`, `"critical"` |
+
+## `ToolCallEvent`
+
+Emitted when a **skill/tool is invoked** during agentic evaluation.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `tool_name` | `str` | ✓ | Name of the invoked tool/skill |
+| `input_args` | `Dict[str, Any]` | ✓ | Arguments passed to the tool |
+| `model` | `str` | | Model identifier |
+| `run_id` | `str` | | Correlated benchmark run ID |
+
+## Event lifecycle
+
+```
+RunLifecycleEvent(status="started")          ← benchmark begins
+    ├── TokenGeneratedEvent × N              ← streaming tokens
+    ├── ToolCallEvent × M                    ← tool/skill invocations
+    ├── CompletionEvent                      ← response complete
+    ├── MetricEvent × K                      ← scores and measurements
+    └── RunLifecycleEvent(status="completed") ← benchmark ends
+```
+
+## Subscribing
+
+```python
+from events import EventBus, TokenGeneratedEvent
+
+bus = EventBus()
+
+def on_token(event: TokenGeneratedEvent):
+    print(f"{event.model} → '{event.token}' at {event.timing_ms:.1f}ms")
+
+bus.subscribe(TokenGeneratedEvent, on_token)
+
+# Wildcard subscription:
+def on_any(event):
+    print(f"[{type(event).__name__}] from {event.source}")
+
+bus.subscribe_all(on_any)
+```
+
+## Related implementations
+
+| Implementation | File |
+|----------------|------|
+| Event type definitions | `packages/events/__init__.py` |
+| SSE server | `packages/events/sse.py` |
+| Replay writer | `packages/events/replay.py` |
+| Provider event emission | `packages/providers/openai_compatible.py` |
+| Suite lifecycle emission | `packages/core/benchmark.py` |

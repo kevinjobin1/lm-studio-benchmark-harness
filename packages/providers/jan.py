@@ -14,7 +14,7 @@ from typing import List
 
 import requests
 
-from packages.logging import get_logger
+from packages.modellens_logging import get_logger
 from .openai_compatible import OpenAICompatibleProvider
 from .base import Model
 

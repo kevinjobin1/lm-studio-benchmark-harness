@@ -1228,6 +1228,5 @@ class TestDefaultBus(unittest.TestCase):
         bus.emit_sync(TokenGeneratedEvent(model="m", token="t", index=0, timing_ms=1.0))
         self.assertEqual(len(received), 1)
 
-
 if __name__ == "__main__":
     unittest.main()

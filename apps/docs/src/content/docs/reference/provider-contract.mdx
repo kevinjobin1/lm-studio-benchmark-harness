@@ -1,0 +1,169 @@
+---
+title: Provider Contract
+description: Canonical contract for provider adapters — every provider in Model Lens implements this interface.
+---
+
+> Canonical contract for provider adapters. Every provider in Model Lens implements this interface.
+
+## Interface: `ProviderAdapter`
+
+Defined in `packages/providers/base.py`.
+
+### Class attributes
+
+| Attribute | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `name` | `str` | ✓ | Canonical provider name (e.g. `"ollama"`, `"vllm"`) |
+| `default_port` | `int` | ✓ | Default port for the provider's API |
+
+### Methods
+
+#### `health_check() -> bool`
+
+Check if the provider is reachable and healthy.
+
+- Must not raise exceptions — all failures return `False`
+- Should time out quickly (≤5 seconds)
+- Catch `requests.ConnectionError` and `requests.Timeout` specifically
+
+#### `list_models() -> List[Model]`
+
+Return all models available on this provider.
+
+- Returns empty list on failure (never raises)
+- Model metadata: `id`, `name`, `provider`, `parameters`, `quantization`, `size_bytes`
+
+#### `run_prompt(request: RunRequest) -> RunResult`
+
+Run a single prompt and return structured results.
+
+#### `chat_completion(messages, temperature, max_tokens, top_p, stream) -> Tuple[str, APICallMetrics]`
+
+OpenAI-compatible chat completion. The core execution method.
+
+#### `collect_metrics() -> ProviderMetrics`
+
+Collect hardware/performance metrics from the provider process.
+
+- Has a default implementation in the ABC (psutil-based)
+- Override for provider-specific metrics (GPU, etc.)
+
+---
+
+## Data types
+
+### `Model`
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | `str` | Unique model identifier |
+| `name` | `str` | Human-readable name |
+| `provider` | `str` | Provider serving this model |
+| `parameters` | `str` | Parameter count / tag (e.g. `"7B"`, `"latest"`) |
+| `quantization` | `str` | Quantization level (e.g. `"Q4_K_M"`) |
+| `size_bytes` | `int` | Model file size in bytes |
+
+### `RunRequest`
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `prompt` | `str` | (required) | The user prompt |
+| `model` | `str` | (required) | Model to use |
+| `temperature` | `float` | `0.0` | Sampling temperature |
+| `max_tokens` | `int` | `4096` | Max completion tokens |
+| `top_p` | `float` | `1.0` | Nucleus sampling |
+| `system_prompt` | `str` | `None` | System prompt |
+| `stream` | `bool` | `False` | Enable streaming |
+
+### `RunResult`
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `response` | `str` | Full response text |
+| `model` | `str` | Model used |
+| `provider` | `str` | Provider used |
+| `ttft_ms` | `float` | Time to first token (ms) |
+| `total_time_ms` | `float` | Total execution time (ms) |
+| `tokens_per_second` | `float` | Generation throughput |
+| `prompt_tokens` | `int` | Prompt token count |
+| `completion_tokens` | `int` | Completion token count |
+| `total_tokens` | `int` | Total tokens used |
+
+### `APICallMetrics`
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `ttft` | `float` | Time to first token (seconds) |
+| `total_time` | `float` | Total generation time (seconds) |
+| `tokens_per_second` | `float` | Throughput |
+| `total_tokens` | `int` | Total tokens |
+| `prompt_tokens` | `int` | Prompt tokens |
+| `completion_tokens` | `int` | Completion tokens |
+
+### `ProviderMetrics`
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `cpu_percent` | `float` | CPU usage percentage |
+| `ram_used_mb` | `float` | RAM used (MB) |
+| `ram_total_mb` | `float` | Total system RAM (MB) |
+| `gpu_available` | `bool` | Whether GPU is detected |
+| `gpu_used_mb` | `float` | GPU memory used (MB) |
+| `swap_used_mb` | `float` | Swap used (MB) |
+
+---
+
+## Implementation checklist
+
+To add a new provider:
+
+1. Create `packages/providers/<your_provider>.py`
+2. Implement `ProviderAdapter`:
+   ```python
+   from .base import ProviderAdapter, Model, RunRequest, RunResult, APICallMetrics
+
+   class YourProvider(ProviderAdapter):
+       name = "your-provider"
+       default_port = 8080
+
+       def health_check(self) -> bool: ...
+       def list_models(self) -> List[Model]: ...
+       def run_prompt(self, request: RunRequest) -> RunResult: ...
+       def chat_completion(self, messages, ...) -> tuple[str, APICallMetrics]: ...
+   ```
+3. Register in `packages/providers/__init__.py`
+4. Add provider entry in `apps/cli/commands/utils.py` (`PROVIDER_CONFIG`)
+5. Add `--provider` choice in `apps/cli/commands/run.py`
+6. Add auto-detection probe in `_resolve_provider()`
+7. Add tests in `tests/test_provider_clients.py`
+
+---
+
+## URL utility contract
+
+All providers MUST use these helpers from `packages/providers/base.py`:
+
+| Function | Purpose | Example |
+|----------|---------|---------|
+| `normalize_base_url(url)` | Strip trailing `/` for storage | `"http://host:8000/v1/"` → `"http://host:8000/v1"` |
+| `get_root_url(url)` | Extract `scheme://netloc` | `"http://host:8000/v1"` → `"http://host:8000"` |
+| `url_join(base, path)` | Safe URL path joining | `url_join("http://host:8000/", "health")` → `"http://host:8000/health"` |
+
+**Banned patterns**: `.rstrip("/")`, `.removesuffix("/v1")`, `f"{base}/{path}"` string concatenation.
+
+---
+
+## Event bus integration
+
+Providers that extend `OpenAICompatibleProvider` automatically emit:
+- `TokenGeneratedEvent` per streaming token
+- `CompletionEvent` after success/failure
+- `ErrorEvent` on failure
+
+Providers must accept `event_bus` and `event_source` in their constructor (via `OpenAICompatibleProvider.__init__`).
+
+## Related
+
+- [Event Schema](/reference/event-schema/) — event bus contract
+- [Architecture — Providers](/architecture/#provider-architecture) — how providers fit in
+- [Providers Guide](/guides/providers/) — setup guides for each provider

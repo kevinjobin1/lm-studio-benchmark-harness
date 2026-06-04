@@ -34,7 +34,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Set
 
 from events import EventBus, default_bus
-from packages.logging import get_logger
+from packages.modellens_logging import get_logger
 
 logger = get_logger(__name__)
 

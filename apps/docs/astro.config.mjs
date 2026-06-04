@@ -2,8 +2,8 @@ import { defineConfig } from "astro/config";
 import starlight from "@astrojs/starlight";
 
 export default defineConfig({
-  site: "https://modellens.pages.dev",
-  base: "/docs",
+  site: "https://modellens-docs.pages.dev",
+  base: "/",
   integrations: [
     starlight({
       title: "Model Lens",
@@ -11,13 +11,13 @@ export default defineConfig({
       logo: {
         src: "./src/assets/logo.svg",
       },
-      social: {
-        github: "https://github.com/kevinjobin1/model-lens",
-      },
+      social: [
+        { icon: "github", label: "GitHub", href: "https://github.com/kevinjobin1/model-lens" },
+      ],
       head: [
         {
           tag: "link",
-          attrs: { rel: "icon", href: "/docs/favicon.svg", type: "image/svg+xml" },
+          attrs: { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" },
         },
       ],
       customCss: ["./src/styles/custom.css"],
@@ -25,7 +25,7 @@ export default defineConfig({
         {
           label: "Getting Started",
           items: [
-            { label: "Introduction", slug: "" },
+            { label: "Introduction", link: "/" },
             { label: "Quick Start", slug: "getting-started" },
             { label: "Vision", slug: "vision" },
             { label: "Architecture", slug: "architecture" },
@@ -52,6 +52,7 @@ export default defineConfig({
             { label: "Event Schema", slug: "reference/event-schema" },
             { label: "Provider Contract", slug: "reference/provider-contract" },
             { label: "Design System", slug: "design" },
+            { label: "AGENTS.md", slug: "reference/agents" },
           ],
         },
         {
@@ -59,6 +60,7 @@ export default defineConfig({
           items: [
             { label: "Contributor Guide", slug: "contributing" },
             { label: "Changelog", slug: "changelog" },
+            { label: "← Dashboard", link: "https://modellens-dashboard.kevin-jobin-1.workers.dev" },
           ],
         },
       ],
@@ -66,7 +68,7 @@ export default defineConfig({
         baseUrl: "https://github.com/kevinjobin1/model-lens/edit/main/apps/docs/",
       },
       lastUpdated: true,
-      favicon: "/docs/favicon.svg",
+      favicon: "/favicon.svg",
     }),
   ],
 });

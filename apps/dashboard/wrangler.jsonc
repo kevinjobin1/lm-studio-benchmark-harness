@@ -1,0 +1,13 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "modellens-dashboard",
+  "compatibility_date": "2026-06-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "pages_build_output_dir": "dist",
+  "assets": {
+    "binding": "STATIC_CONTENT"
+  },
+  "vars": {
+    "PUBLIC_SSE_WORKER_URL": "https://modellens-sse-bridge.kevin-jobin-1.workers.dev"
+  }
+}

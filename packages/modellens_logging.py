@@ -8,7 +8,7 @@ Replaces raw print() calls with configurable, leveled logging that supports:
   - Log level control via MODELLENS_LOG_LEVEL env var
 
 Usage:
-    from packages.logging import get_logger
+    from packages.modellens_logging import get_logger
     logger = get_logger(__name__)
     logger.info("Starting benchmark", model="qwen", provider="lm-studio")
     logger.warning("Provider unreachable", url=base_url)
@@ -128,7 +128,7 @@ def get_logger(name: str) -> logging.Logger:
     """Return a logger instance for the given module name.
 
     Usage:
-        from packages.logging import get_logger
+        from packages.modellens_logging import get_logger
         logger = get_logger(__name__)
         logger.info("Hello")
     """

@@ -17,7 +17,7 @@ import uuid
 from typing import Dict, List, Optional, Generator, Any
 from contextlib import contextmanager
 
-from packages.logging import get_logger
+from packages.modellens_logging import get_logger
 from .trace_schema import (
     Trace,
     TraceEvent,

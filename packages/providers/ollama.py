@@ -13,7 +13,7 @@ from typing import Dict, List, Optional, Tuple
 
 from openai import OpenAI
 
-from packages.logging import get_logger
+from packages.modellens_logging import get_logger
 from .base import (
     ProviderAdapter,
     Model,

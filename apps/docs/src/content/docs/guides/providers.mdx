@@ -1,0 +1,251 @@
+---
+title: Providers
+description: Setup guides for all 6 supported local LLM providers — LM Studio, Ollama, Open WebUI, Jan, llama.cpp, and vLLM.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Model Lens supports 6 local LLM providers through a unified `ProviderAdapter` interface. All providers communicate via OpenAI-compatible `/v1/chat/completions` endpoints.
+
+## Supported providers
+
+| Provider | Status | Default URL | Min version |
+|----------|--------|-------------|-------------|
+| **LM Studio** | ✅ Stable | `http://localhost:1234/v1` | 0.3.x+ |
+| **Ollama** | ✅ Stable | `http://localhost:11434/v1` | 0.1.28+ |
+| **Open WebUI** | ✅ Stable | `http://localhost:3000/api/v1` | 0.5.x+ |
+| **Jan** | ✅ Stable | `http://localhost:1337/v1` | 0.5.x+ |
+| **llama.cpp** | ✅ Stable | `http://localhost:8080/v1` | b4200+ |
+| **vLLM** | ✅ Stable | `http://localhost:8000/v1` | 0.6.x+ |
+
+## LM Studio
+
+### Setup
+
+1. Download [LM Studio](https://lmstudio.ai/)
+2. Load a model (e.g., Qwen 3.5, Gemma 4)
+3. Go to **Developer** tab → enable **Local API Server**
+4. Start the server (default: `http://localhost:1234`)
+
+### Usage
+
+```bash
+# Auto-detect LM Studio models
+python apps/cli/modellens.py run --quick
+
+# Explicit model
+python apps/cli/modellens.py run --provider lm-studio --models qwen3.5-9b-coder
+```
+
+### Python API
+
+```python
+from providers.openai_compatible import OpenAICompatibleProvider
+
+client = OpenAICompatibleProvider(
+    base_url="http://localhost:1234/v1",
+    api_key="lm-studio",
+    model_name="qwen3.5-9b-coder",
+    timeout=120,
+    max_retries=3,
+)
+
+response, metrics = client.chat_completion([
+    {"role": "user", "content": "Explain TypeScript generics."}
+])
+# metrics.ttft, metrics.tokens_per_second, etc.
+```
+
+### Health check
+
+```bash
+curl http://localhost:1234/v1/models
+```
+
+---
+
+## Ollama
+
+### Setup
+
+1. Install [Ollama](https://ollama.com/)
+2. Pull a model:
+   ```bash
+   ollama pull llama3.2
+   # or
+   ollama pull qwen2.5-coder:7b
+   ```
+3. Ollama serves automatically at `http://localhost:11434`
+
+### Usage
+
+```bash
+# Auto-detect Ollama models
+python apps/cli/modellens.py run --provider ollama --quick
+
+# Specific Ollama model
+python apps/cli/modellens.py run --provider ollama --models llama3.2:latest
+```
+
+### Model naming
+
+Ollama models include tags: `llama3.2:latest`, `qwen2.5-coder:7b`. When passing model names via CLI, include the tag: `--models llama3.2:latest`
+
+### Python API
+
+```python
+from providers.ollama import OllamaClient
+from providers.base import RunRequest
+
+ollama = OllamaClient(
+    base_url="http://localhost:11434",
+    api_key="ollama",
+    model_name="llama3.2:latest",
+)
+
+# Health check (tries /v1/models, falls back to /api/tags)
+if ollama.health_check():
+    print("Ollama is running!")
+
+# Run a prompt
+result = ollama.run_prompt(RunRequest(
+    prompt="Explain Kubernetes in one sentence.",
+    model="llama3.2:latest",
+))
+print(f"TTFT: {result.ttft_ms:.0f}ms, Tokens/sec: {result.tokens_per_second:.1f}")
+```
+
+---
+
+## Open WebUI
+
+### Setup
+
+1. Install [Open WebUI](https://openwebui.com/) (e.g., via Docker or pip)
+2. Open WebUI serves an OpenAI-compatible API at `http://localhost:3000/api/v1`
+
+### Usage
+
+```bash
+python apps/cli/modellens.py run --provider open-webui --quick
+python apps/cli/modellens.py run --provider open-webui --models my-model
+```
+
+### Python API
+
+```python
+from providers.openwebui import OpenWebUIClient
+
+client = OpenWebUIClient(
+    base_url="http://localhost:3000",
+    api_key="open-webui",
+    model_name="my-model",
+)
+```
+
+---
+
+## Jan
+
+### Setup
+
+1. Download [Jan](https://jan.ai/)
+2. Load a model
+3. Jan serves an OpenAI-compatible API at `http://localhost:1337/v1`
+
+### Usage
+
+```bash
+python apps/cli/modellens.py run --provider jan --quick
+python apps/cli/modellens.py run --provider jan --models my-model
+```
+
+### Python API
+
+```python
+from providers.jan import JanClient
+
+client = JanClient(
+    base_url="http://localhost:1337",
+    api_key="jan",
+    model_name="my-model",
+)
+```
+
+---
+
+## llama.cpp
+
+### Setup
+
+1. Build or download [llama.cpp](https://github.com/ggerganov/llama.cpp)
+2. Run the server:
+   ```bash
+   ./server -m models/my-model.gguf --host 0.0.0.0 --port 8080
+   ```
+
+### Usage
+
+```bash
+python apps/cli/modellens.py run --provider llama.cpp --quick
+python apps/cli/modellens.py run --provider llama.cpp --models llama-3.2-7b
+```
+
+---
+
+## vLLM
+
+### Setup
+
+1. Install [vLLM](https://github.com/vllm-project/vllm):
+   ```bash
+   pip install vllm
+   ```
+2. Start the server:
+   ```bash
+   python -m vllm.entrypoints.openai.api_server --model path/to/model --port 8000
+   ```
+
+### Usage
+
+```bash
+python apps/cli/modellens.py run --provider vllm --quick
+python apps/cli/modellens.py run --provider vllm --models my-model
+```
+
+---
+
+## ProviderAdapter interface
+
+All providers implement this interface (see `packages/providers/base.py`):
+
+```python
+class ProviderAdapter(ABC):
+    name: str
+    default_port: int
+
+    def list_models(self) -> List[Model]: ...
+    def health_check(self) -> bool: ...
+    def run_prompt(self, request: RunRequest) -> RunResult: ...
+    def chat_completion(self, messages, temperature, max_tokens, top_p, stream) -> tuple[str, object]: ...
+    def collect_metrics(self) -> ProviderMetrics: ...
+```
+
+### Shared data types
+
+| Type | Fields |
+|------|--------|
+| `Model` | `id`, `name`, `provider`, `parameters`, `quantization`, `size_bytes` |
+| `RunRequest` | `prompt`, `model`, `temperature`, `max_tokens`, `top_p`, `system_prompt`, `stream` |
+| `RunResult` | `response`, `model`, `provider`, `ttft_ms`, `total_time_ms`, `tokens_per_second`, tokens |
+| `APICallMetrics` | `ttft`, `total_time`, `tokens_per_second`, `total_tokens`, `prompt_tokens`, `completion_tokens` |
+| `ProviderMetrics` | `cpu_percent`, `ram_used_mb`, `ram_total_mb`, `gpu_available`, `gpu_used_mb`, `swap_used_mb` |
+
+## Adding a new provider
+
+See the [Provider Contract](/reference/provider-contract/) for the full implementation checklist.
+
+## See also
+
+- [Provider Contract](/reference/provider-contract/) — formal interface specification
+- [Architecture](/architecture/#provider-architecture) — how providers fit into the system

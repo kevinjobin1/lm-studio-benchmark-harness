@@ -1,0 +1,102 @@
+---
+title: Trace Replay
+description: Record and replay model execution sessions with playback controls — the core observability feature of Model Lens.
+---
+
+Trace replay lets you record and replay model execution sessions with playback controls. This is the core observability feature of Model Lens.
+
+## What it captures
+
+Each trace records the full execution timeline:
+
+```
+Run
+├── Trace
+│   ├── Events        ← Ordered timeline events
+│   ├── Metrics       ← Latency, tokens/sec, memory at each step
+│   └── Artifacts     ← Response text, logs, errors
+```
+
+### Event timeline example
+
+| Timestamp | Event |
+|-----------|-------|
+| 00:00 | Prompt sent to model |
+| 00:10 | First token received (TTFT) |
+| 00:30 | Reasoning complete (if chain-of-thought) |
+| 00:50 | Response complete |
+
+### Metrics per event
+
+- **TTFT** — Time to first token (ms)
+- **Tokens/sec** — Generation throughput at each step
+- **Memory** — RAM usage snapshot (MB)
+- **Latency** — Cumulative execution time
+
+## Playback controls
+
+| Control | Description |
+|---------|-------------|
+| **Play** | Run the trace from start to finish |
+| **Pause** | Freeze at current event |
+| **Speed** | 0.5×, 1×, 2×, 4× playback speed |
+| **Step** | Advance one event at a time |
+
+## SSE streaming
+
+The CLI can stream events live to the dashboard:
+
+```bash
+python apps/cli/modellens.py run --sse-port 9090
+# Dashboard connects at http://localhost:9090/events
+```
+
+Behind the scenes, `EventBusSSEServer` subscribes to the event bus and streams all events as Server-Sent Events.
+
+## Replay writer
+
+Events are persisted to disk by `EventBusReplayWriter`:
+
+```python
+from events.replay import EventBusReplayWriter
+
+writer = EventBusReplayWriter(output_dir="results/replays")
+writer.start()  # subscribes to default_bus, persists events
+# ... benchmarks run ...
+writer.stop()
+```
+
+Replay files are saved as `results/replays/<run_id>.json`.
+
+## Side-by-side comparison
+
+Compare two model traces side by side:
+
+- **Token stream** — How did each model generate text?
+- **Latency diff** — Where did one model spend more time?
+- **Memory diff** — Which model used more RAM?
+- **Output diff** — How did responses diverge?
+
+## Snapshot system
+
+Save execution state as a shareable URL:
+
+```json
+{
+  "prompt": "...",
+  "model": "qwen3.5-9b-coder",
+  "provider": "lm-studio",
+  "metrics": {
+    "ttft_ms": 210,
+    "tokens_per_second": 72.3,
+    "total_tokens": 145
+  },
+  "response": "...",
+  "trace": { "events": [...] }
+}
+```
+
+## See also
+
+- [Event Schema](/reference/event-schema/) — event bus type contract
+- [Architecture](/architecture/#event-driven-architecture) — how the event bus fits in

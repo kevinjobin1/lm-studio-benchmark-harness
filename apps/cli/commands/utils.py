@@ -5,7 +5,7 @@ from typing import List, Optional
 
 import click
 
-from packages.logging import get_logger
+from packages.modellens_logging import get_logger
 from providers.base import get_root_url
 
 logger = get_logger(__name__)

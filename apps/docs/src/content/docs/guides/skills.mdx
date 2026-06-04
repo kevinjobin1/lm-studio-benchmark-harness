@@ -1,0 +1,128 @@
+---
+title: Skills
+description: Model Lens skill system — extensible, lockfile-verified, pure function tools for benchmark evaluation.
+---
+
+Skills are **pure function tools** that benchmark logic can invoke. They are versioned, sandboxed, and validated against a lockfile for deterministic, reproducible evaluation.
+
+## Philosophy
+
+Benchmark logic should be extensible without bloating core. Skills provide:
+
+- **Determinism** — Same input always produces same output
+- **Sandboxing** — No filesystem/network access without explicit permission
+- **Versioning** — Changes require version bumps + lockfile updates
+- **Immutability** — Cannot be modified at runtime once registered
+
+## Built-in skills
+
+Four built-in skills ship with Model Lens (see `packages/skills/builtins/`):
+
+| Skill | Description | Input | Output |
+|-------|-------------|-------|--------|
+| `read_file` | Read file contents within sandbox | `path` | File text or error |
+| `write_file` | Write content to file within sandbox | `path`, `content` | Success/error |
+| `json_parse` | Parse and validate JSON | `content`, `schema` | Parsed data or validation errors |
+| `diff` | Compute text diff between two strings | `original`, `modified` | Unified diff output |
+
+---
+
+## Lockfile system
+
+The `modellens.lock` file ensures reproducibility across machines:
+
+```json
+{
+  "skills": {
+    "read_file": { "version": "1.0.0", "checksum": "a1b2c3d4e5f6..." },
+    "write_file": { "version": "1.0.0", "checksum": "b2c3d4e5f6a1..." }
+  },
+  "mode": "strict"
+}
+```
+
+### Lock modes
+
+| Mode | Behavior |
+|------|----------|
+| `strict` | **Fail** on any version mismatch (required for benchmarks) |
+| `warn` | Log warning but continue (dev only) |
+| `ignore` | Skip lock checking entirely (NOT for benchmarks) |
+
+---
+
+## Skill interface
+
+Every skill extends the `Skill` abstract base class:
+
+```python
+from skills.types import Skill, SkillManifest, SkillInput, SkillOutput, SkillContext
+
+class MySkill(Skill):
+    def _create_manifest(self) -> SkillManifest:
+        return SkillManifest(
+            name="my_skill",
+            version="1.0.0",
+            description="What this skill does",
+            input_schema={
+                "type": "object",
+                "required": ["input_field"],
+                "properties": {
+                    "input_field": {"type": "string"},
+                },
+            },
+            tags=["utility"],
+        )
+
+    async def run(self, input_data: SkillInput, ctx: SkillContext) -> SkillOutput:
+        value = input_data.get("input_field")
+        return SkillOutput(success=True, data={"result": value.upper()})
+```
+
+### Key types
+
+| Type | Purpose |
+|------|---------|
+| `SkillManifest` | Static metadata: name, version, schemas, tags |
+| `SkillInput` | Validated input with JSON schema checking |
+| `SkillOutput` | Success/failure with data or error |
+| `SkillContext` | Sandboxed environment (working directory, run ID) |
+| `Action` | A single tool invocation in agentic sequences |
+| `AgenticResponse` | Ordered list of actions for agentic benchmarks |
+| `AgenticScore` | Multi-dimensional agentic evaluation score |
+
+---
+
+## Agentic scoring
+
+For agentic/tool-use benchmarks, models are scored on:
+
+| Dimension | Weight | Description |
+|-----------|--------|-------------|
+| **Validity** | 25% | Well-formed JSON? Schema-compliant? Real skills? |
+| **Planning** | 25% | Tool sequence correct and minimal? |
+| **Skill correctness** | 30% | Correct tool chosen? Correct parameters? |
+| **Constraint adherence** | 20% | Respects skill allowlist? No hallucinations? |
+
+## Registry
+
+```python
+from skills.registry import create_registry
+
+# Auto-loads built-ins and validates against lockfile
+registry = create_registry(lockfile_path="modellens.lock")
+
+# List registered skills
+print(registry.list_names())  # ['diff', 'json_parse', 'read_file', 'write_file']
+
+# Get a skill
+skill = registry.get("json_parse")
+
+# Skills CANNOT be registered after finalize()
+registry.finalize()
+```
+
+## See also
+
+- [Provider Contract](/reference/provider-contract/) — formal interface specification
+- [Contributing](/contributing/) — how to add new skills

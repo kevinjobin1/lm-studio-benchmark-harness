@@ -1,0 +1,15 @@
+# Model Lens Docs — Cloudflare Pages deployment
+# Deploy: bash deploy.sh
+#
+# Primary URL: https://docs.modellens.dev (custom domain)
+# Fallback:   https://modellens-docs.pages.dev
+#
+# Custom domain setup (Cloudflare Dashboard):
+#   1. Deploy the site first: bash deploy.sh
+#   2. Go to Cloudflare Dashboard → Workers & Pages → modellens-docs
+#   3. Custom Domains → Add "docs.modellens.dev"
+#   4. Update DNS: CNAME docs → modellens-docs.pages.dev
+#   5. Cloudflare provisions the SSL certificate automatically
+name = "modellens-docs"
+pages_build_output_dir = "dist"
+compatibility_date = "2025-06-01"

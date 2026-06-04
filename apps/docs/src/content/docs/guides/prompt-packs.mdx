@@ -1,0 +1,112 @@
+---
+title: Prompt Packs
+description: Versioned, community-extensible benchmark prompt collections for Model Lens.
+---
+
+Prompt packs are versioned, community-extensible benchmark collections. Each pack contains a set of prompts targeting a specific technology or workflow.
+
+## Pack format
+
+```yaml
+# pack.json
+name: react-native
+version: 1.0.0
+category: coding
+description: React Native debugging and refactoring challenges
+
+prompts:
+  - prompts/debug-navigation.md
+  - prompts/refactor-component.md
+  - prompts/state-management.md
+```
+
+### Field reference
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `name` | Yes | Unique pack identifier (kebab-case) |
+| `version` | Yes | Semver (e.g., `1.0.0`) |
+| `category` | Yes | `coding`, `reasoning`, `math`, `instruction`, `debugging`, `agentic` |
+| `description` | No | One-line summary |
+| `prompts` | Yes | Array of relative paths to prompt files |
+
+---
+
+## Prompt file format
+
+```json
+{
+  "id": "debug-navigation-1",
+  "prompt": "Fix the navigation bug in this React Native app:...",
+  "category": "debugging",
+  "expected_keywords": ["useNavigation", "reset"],
+  "constraints": {
+    "json_only": false,
+    "no_markdown": false,
+    "max_length": 2000
+  },
+  "expected_answer": null,
+  "difficulty": "medium"
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `id` | Unique identifier within the pack |
+| `prompt` | The full prompt text (may include markdown, code blocks) |
+| `category` | `code`, `frontend`, `reasoning`, `math`, `instruction` |
+| `expected_keywords` | Key concepts the response should include |
+| `constraints` | `json_only`, `no_markdown`, `max_length`, `bullet_count` |
+| `expected_answer` | For math prompts: the numerical answer (±tolerance) |
+| `difficulty` | `easy`, `medium`, `hard` |
+
+---
+
+## Built-in packs
+
+Model Lens ships with 4 prompt packs:
+
+| Pack | Category | Prompt count | Focus |
+|------|----------|-------------|-------|
+| **React** | Coding | 4 | Hooks, state, components, animations |
+| **NestJS** | Coding | 4 | DI, services, gateways, auth |
+| **Debugging** | Debugging | 5 | Type errors, race conditions, DI bugs, Prisma, stale closures |
+| **NestJS Agentic** | Agentic | 5 | Kafka, pipes, Prisma, cache, auth (tool-use format) |
+
+## Prompt generation
+
+Model Lens can generate prompt variants automatically to reduce overfitting:
+
+```python
+from prompt_generator import PromptGenerator
+
+pg = PromptGenerator()
+prompts = pg.generate_default_batch(
+    total_prompts=20,
+    categories=["code", "frontend", "reasoning", "math", "instruction"],
+)
+
+for p in prompts:
+    print(f"[{p.category.value}] {p.prompt[:80]}...")
+```
+
+### Mutation techniques
+
+- **Paraphrasing** — Reword while preserving intent
+- **Variable substitution** — Replace function names, types, identifiers
+- **Contextual mutation** — Change context (e.g., swap React for Vue)
+- **Word-boundary protection** — Uses `re.sub()` with `\b` to prevent framework token corruption
+
+## Creating a custom pack
+
+1. Create a directory in `packages/prompt_packs/`
+2. Add `pack.json` with metadata
+3. Create `prompts/` subdirectory with JSON prompt files
+4. Reference in benchmark config: `"prompt_sets": ["my-custom-pack"]`
+
+### Guidelines
+
+- Prompts should reflect **real developer workflows** — not synthetic puzzles
+- Include `expected_keywords` for automated scoring
+- Add `constraints` for instruction-following evaluation
+- Keep packs focused on a single technology or problem domain

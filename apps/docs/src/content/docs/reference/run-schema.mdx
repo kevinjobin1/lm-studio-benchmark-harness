@@ -1,0 +1,190 @@
+---
+title: Run Schema
+description: Canonical data model for a single model evaluation run — the central entity in Model Lens.
+---
+
+> The canonical data model for a single model evaluation run. Every benchmark run, trace capture, workload evaluation, and comparison is a **Run**. This is the central entity in Model Lens — everything else is derived from it.
+
+## Object model
+
+```
+Run
+ ├── id
+ ├── model
+ ├── provider
+ ├── workload       ← What was evaluated (benchmark, prompt pack, project)
+ ├── trace          ← Execution timeline (token-level events)
+ ├── metrics        ← Numeric measurements (latency, throughput, scores)
+ ├── artifacts      ← Raw outputs (response text, logs, errors)
+ └── config         ← Snapshot of evaluation parameters
+```
+
+## JSON Schema
+
+```json
+{
+  "run": {
+    "id": "run_20240601_123456_qwen-3.5-9b",
+    "version": "1.0.0",
+
+    "model": {
+      "id": "qwen-3.5-9b-coder",
+      "provider": "lm-studio",
+      "parameters": "9b",
+      "quantization": "Q4_K_M",
+      "size_bytes": 5830000000
+    },
+
+    "provider": {
+      "name": "lm-studio",
+      "endpoint": "http://localhost:1234/v1",
+      "version": "0.3.10"
+    },
+
+    "workload": {
+      "type": "benchmark",
+      "name": "mmlu_pro",
+      "category": "reasoning",
+      "version": "1.0.0"
+    },
+
+    "trace": {
+      "trace_id": "trace_abc123def456",
+      "started_at": "2024-06-01T12:34:56.000Z",
+      "completed_at": "2024-06-01T12:35:02.000Z",
+      "events": [
+        {
+          "id": "e1",
+          "type": "prompt",
+          "label": "Prompt Sent",
+          "detail": "What is the capital of France?",
+          "timing_ms": 0,
+          "status": "success"
+        },
+        {
+          "id": "e2",
+          "type": "token",
+          "label": "Token 1",
+          "detail": "Paris",
+          "timing_ms": 150,
+          "status": "success"
+        }
+      ],
+      "metrics": {
+        "ttft_ms": 150,
+        "tokens_per_second": 45.2,
+        "total_tokens": 15,
+        "prompt_tokens": 8,
+        "completion_tokens": 7,
+        "total_latency_ms": 320
+      },
+      "artifacts": {
+        "response": "Paris is the capital of France.",
+        "logs": [],
+        "errors": []
+      }
+    },
+
+    "metrics": {
+      "scores": {
+        "correctness": 0.95,
+        "completeness": 1.0,
+        "code_quality": 0.85,
+        "style_match": 0.90,
+        "efficiency": 0.75
+      },
+      "performance": {
+        "tokens_per_sec": 45.2,
+        "ttft_ms": 150,
+        "total_latency_ms": 320
+      },
+      "stats": {
+        "mean": 0.89,
+        "std": 0.06,
+        "min": 0.78,
+        "max": 0.95,
+        "runs": 5,
+        "confidence_95": [0.85, 0.93]
+      }
+    },
+
+    "config": {
+      "prompt_version": "v1",
+      "seed": 42,
+      "num_runs": 5,
+      "hardware": {
+        "platform": "macOS-14.5-arm64",
+        "processor": "arm",
+        "memory_gb": 18
+      }
+    },
+
+    "timestamp": "2024-06-01T12:34:56.000Z",
+    "git_sha": "a1b2c3d"
+  }
+}
+```
+
+## Core entities
+
+### `Run`
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `id` | string | ✓ | Globally unique run identifier |
+| `version` | string | ✓ | Schema version (semver) |
+| `model` | Model | ✓ | The model being evaluated |
+| `provider` | Provider | ✓ | The provider serving the model |
+| `workload` | Workload | ✓ | What was evaluated |
+| `trace` | Trace | | Execution timeline |
+| `metrics` | Metrics | ✓ | Evaluation scores and performance |
+| `artifacts` | Artifacts | | Raw outputs |
+| `config` | Config | ✓ | Evaluation parameters snapshot |
+| `timestamp` | string | ✓ | ISO 8601 timestamp |
+| `git_sha` | string | | Git commit SHA |
+
+### `TraceEvent`
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `id` | string | ✓ | Event identifier (unique within trace) |
+| `type` | enum | ✓ | `system`, `prompt`, `token`, `tool_call`, `reasoning`, `response`, `error` |
+| `label` | string | ✓ | Human-readable label |
+| `detail` | string | | Extended description |
+| `timing_ms` | number | ✓ | Duration of this step |
+| `status` | enum | ✓ | `success`, `failure`, `pending` |
+| `tool` | string | | Tool name (for tool_call events) |
+| `input` | string | | Tool input |
+| `output` | string | | Tool output |
+
+## Serialization
+
+Runs are serialized as JSON files:
+
+```
+results/
+  models/
+    qwen-3.5-9b/
+      20240601_123456_run.json
+  traces/
+    trace_abc123.json
+  runs_index.json
+```
+
+## Versioning
+
+The Run schema uses **semantic versioning**:
+
+- **Major**: Breaking changes to required fields or types
+- **Minor**: New optional fields, backward-compatible additions
+- **Patch**: Documentation fixes
+
+Current version: `1.0.0`
+
+## Related implementations
+
+| Implementation | File |
+|----------------|------|
+| Python `BenchmarkResult` | `apps/cli/results_schema.py` |
+| Python `Trace` | `packages/core/trace_schema.py` |
+| TypeScript `RunIndex` | `apps/dashboard/src/lib/loadResults.ts` |

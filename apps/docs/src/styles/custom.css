@@ -127,6 +127,15 @@ td {
   border-color: var(--sl-color-hairline);
 }
 
+.card-grid a {
+  text-decoration: none;
+  color: inherit;
+}
+
+.card-grid a:hover {
+  text-decoration: none;
+}
+
 .card h3 {
   margin-top: 0;
   font-size: var(--sl-text-lg);
@@ -145,6 +154,25 @@ td {
   text-transform: uppercase;
   letter-spacing: 0.05em;
   border-radius: 3px;
+}
+
+/* Dashboard back-link — visual separator from doc links */
+nav li:has(a[href="https://modellens-dashboard.kevin-jobin-1.workers.dev"]) {
+  border-top: 1px solid var(--sl-color-hairline-shade);
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+}
+
+a[href="https://modellens-dashboard.kevin-jobin-1.workers.dev"] {
+  color: var(--sl-color-text);
+  opacity: 0.6;
+  font-size: var(--sl-text-sm);
+  transition: opacity 0.15s ease;
+}
+
+a[href="https://modellens-dashboard.kevin-jobin-1.workers.dev"]:hover {
+  opacity: 1;
+  color: var(--sl-color-text-accent);
 }
 
 /* Status indicators */

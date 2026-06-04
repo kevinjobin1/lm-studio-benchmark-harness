@@ -22,7 +22,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Dict, Optional
 
-from packages.logging import get_logger
+from packages.modellens_logging import get_logger
 
 logger = get_logger(__name__)
 

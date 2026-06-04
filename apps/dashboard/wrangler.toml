@@ -1,5 +1,0 @@
-# Cloudflare Pages deployment config for Model Lens Dashboard
-# Deploy: bash deploy.sh
-pages_build_output_dir = "dist"
-compatibility_date = "2026-06-01"
-compatibility_flags = ["nodejs_compat"]
