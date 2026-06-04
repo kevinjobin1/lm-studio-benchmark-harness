@@ -1,10 +1,26 @@
 # 🔬 Model Lens
 
-> Observability for local AI models. Not just benchmarks — full execution traces, replay, workload evaluation, and side-by-side comparison.
+> **Observability-first platform for local AI.** Trace, replay, compare, and understand how models behave on your hardware. Benchmarks are a feature — observability is the product.
 
 [![CI](https://github.com/kevinjobin1/model-lens/actions/workflows/ci.yml/badge.svg)](https://github.com/kevinjobin1/model-lens/actions/workflows/ci.yml)
 
 ---
+
+> **Contributing**: Pre-commit hooks run ruff, ruff-format, and mypy on every commit. See [CONTRIBUTING.md](CONTRIBUTING.md) for setup.
+
+## Project Status
+
+Model Lens is currently in active development.
+
+Current focus areas:
+
+- Local AI observability
+- Trace capture and replay
+- Workload evaluation
+- Provider interoperability
+- Model comparison tooling
+
+Benchmarking remains supported, but observability is now the primary direction of the project.
 
 ## Screenshots
 
@@ -21,44 +37,78 @@
 
 ## Why Model Lens?
 
-Most LLM tools give you a single benchmark score. Model Lens gives you the full picture — execution traces, latency profiles, memory footprints, and real-world workload evaluations — so you can answer:
+Most local AI tooling focuses on one layer:
 
-- **Why** did this model fail?
-- **Why** is this model slower on my hardware?
+- Benchmarking
+- Chat interfaces
+- Model serving
+- Agent frameworks
+
+Very few tools help developers understand what a model is actually doing on their machine.
+
+Model Lens focuses on observability and gives you the full picture — execution traces, latency profiles, memory footprints, and real-world workload evaluations — so you can answer:
+
+- **What** happened?
+- **Which** model is better for my **workload**?
+- **How** did **performance** change?
+- **Why** did this model fail? **Why** did it happen?
+- **Why** is this model _slower_ on my **hardware**?
 - **Which** model performs best on my **actual** codebase?
 
 ---
 
-## Features
+## Current Features
 
-- 🔁 **Trace Replay** — Capture and replay model execution with token-level timing, play/pause, speed controls, and keyboard shortcuts
-- 📊 **Observability** — TTFT, tokens/sec, memory pressure, run variance, failure breakdowns
-- 🔬 **Workload Evaluation** — Evaluate models against real project codebases (NestJS, React, Rust, Python) with realistic coding tasks
-- 🤝 **Side-by-Side Comparison** — 2-way and 3-way model comparison with per-step timing deltas
-- 📦 **Prompt Packs** — Versioned, community-extensible benchmark collections (React, NestJS, debugging, agentic)
-- 🖥️ **Dashboard** — Astro + React, Cloudflare Pages deployable, live API endpoints
-- 🎯 **Skill System** — Versioned, sandboxed, lockfile-verified skill runtime for deterministic evaluation
-- 🤖 **Multi-Provider** — LM Studio, Ollama, Open WebUI, Jan, llama.cpp, vLLM
+### Observability (primary)
+
+- **Event bus** — `TokenGenerated`, `CompletionEvent`, `MetricEvent`, `ErrorEvent`, `RunLifecycleEvent` emitted throughout the pipeline
+- **Trace timeline viewer** — token-level execution replay with playback controls
+- **SSE streaming** — real-time event bridge for the dashboard (`--sse-port N`)
+- **Replay engine** — record and replay full execution sessions from disk
+- **Run history** — browse, search, and compare past benchmark runs
+- **Provider diagnostics** — health checks, model listing, connection status
+
+### Evaluation
+
+- **Workload evaluation** — test models on real projects (React, NestJS, Python, Rust)
+- **Prompt packs** — versioned, shareable benchmark prompt collections
+- **Statistical scoring** — multi-run variance, confidence intervals, failure analysis
+- **Model comparison** — side-by-side trace diffing and metric comparison
+
+### Benchmarking (secondary)
+
+- MMLU-Pro, GSM8K, AIME, HumanEval, SWE-Bench Lite, IF-Eval
+- Needle in a Haystack, BFCL, Speed/Latency, Memory, Creativity
+- DevBench v2 — TypeScript/NestJS/React with execution-grounded scoring
+
+### Infrastructure
+
+- 6 providers: LM Studio, Ollama, Open WebUI, Jan, llama.cpp, vLLM
+- All providers use OpenAI-compatible `/v1` endpoints
+- CI enforcement: ruff lint, ruff format, mypy, pytest
+- Pre-commit hooks
 
 ---
 
-## Quick Start
+## Quick Start 
+
+Using `uv` is recommended for dependency management and reproducibility.
 
 ```bash
-# Install
-pip install -r requirements.txt
+# Install (using uv)
+uv pip install -r requirements.txt
 
 # Run workload evaluation (auto-detects models)
-python apps/cli/modellens.py workload run --model qwen3.5-9b
+uv python apps/cli/modellens.py workload run --model qwen3.5-9b
 
 # Run benchmarks (auto-detects models)
-python apps/cli/modellens.py run --quick
+uv python apps/cli/modellens.py run --quick
 
 # Compare two models
-python apps/cli/modellens.py run --framework compare --models qwen3.5 gemma-4
+uv python apps/cli/modellens.py run --framework compare --models qwen3.5 gemma-4
 
 # Use Ollama
-python apps/cli/modellens.py run --provider ollama --models llama3.2
+uv python apps/cli/modellens.py run --provider ollama --models llama3.2
 ```
 
 ---

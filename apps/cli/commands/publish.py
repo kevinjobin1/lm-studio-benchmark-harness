@@ -14,10 +14,18 @@ from .utils import _echo
 
 @click.command()
 @click.argument("results_dir", type=click.Path(exists=True), default="results")
-@click.option("--output", "-o", default=None,
-              help="Output path for leaderboard.json (default: apps/dashboard/public/leaderboard.json)")
-@click.option("--merge", "merge_existing", is_flag=True,
-              help="Merge with existing published results instead of overwriting")
+@click.option(
+    "--output",
+    "-o",
+    default=None,
+    help="Output path for leaderboard.json (default: apps/dashboard/public/leaderboard.json)",
+)
+@click.option(
+    "--merge",
+    "merge_existing",
+    is_flag=True,
+    help="Merge with existing published results instead of overwriting",
+)
 def publish(results_dir, output, merge_existing):
     """Publish benchmark results as a community leaderboard JSON file.
 

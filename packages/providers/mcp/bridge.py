@@ -21,6 +21,7 @@ from skills.registry import SkillRegistry
 @dataclass
 class MCPToolDefinition:
     """Definition of a skill exposed as an MCP tool."""
+
     name: str
     description: str
     input_schema: Dict[str, Any]
@@ -53,6 +54,7 @@ class MCPBridge:
 
     def _make_handler(self, skill: Skill) -> Callable:
         """Create a handler closure bound to a specific skill instance."""
+
         async def handler(input_data: Dict[str, Any]) -> Dict[str, Any]:
             ctx = SkillContext(
                 working_directory=".",
@@ -61,17 +63,20 @@ class MCPBridge:
             inp = SkillInput(raw=input_data)
             result = await skill.run(inp, ctx)
             return result.to_dict()
+
         return handler
 
     def list_tools(self) -> List[Dict[str, Any]]:
         """List all available MCP tools."""
         tools = []
         for name, tool in self._tools.items():
-            tools.append({
-                "name": tool.name,
-                "description": tool.description,
-                "inputSchema": tool.input_schema,
-            })
+            tools.append(
+                {
+                    "name": tool.name,
+                    "description": tool.description,
+                    "inputSchema": tool.input_schema,
+                }
+            )
         return tools
 
     def get_tool(self, name: str) -> Optional[MCPToolDefinition]:
@@ -130,6 +135,7 @@ def create_mcp_playground(registry: SkillRegistry) -> MCPBridge:
 
 # ── Demo / Playground Mode ────────────────────────────────────────
 
+
 async def run_interactive_demo():
     """Run an interactive demo of the MCP bridge with built-in skills."""
     from skills.registry import create_registry
@@ -150,15 +156,15 @@ async def run_interactive_demo():
     for tool in tools:
         print(f"\n{tool['name']}")
         print(f"  {tool['description']}")
-        required = tool['inputSchema'].get('required', [])
+        required = tool["inputSchema"].get("required", [])
         if required:
             print(f"  Required inputs: {', '.join(required)}")
 
     # Demo: invoke json_parse
     print("\n--- Demo: json_parse ---")
-    result = await bridge.invoke_tool("json_parse", {
-        "json_string": '{"name": "benchmark", "version": 1}'
-    })
+    result = await bridge.invoke_tool(
+        "json_parse", {"json_string": '{"name": "benchmark", "version": 1}'}
+    )
     print(f"  Result: {json.dumps(result, indent=2)}")
 
     # Demo: invoke read_file
@@ -173,4 +179,5 @@ async def run_interactive_demo():
 if __name__ == "__main__":
     import asyncio
     import json
+
     asyncio.run(run_interactive_demo())

@@ -78,10 +78,7 @@ class SkillRegistry:
             return []
 
         # Build manifest for lock verification
-        manifest = {
-            name: skill.manifest.version
-            for name, skill in self._skills.items()
-        }
+        manifest = {name: skill.manifest.version for name, skill in self._skills.items()}
 
         return self._lockfile.verify(manifest)
 
@@ -115,9 +112,12 @@ class SkillRegistry:
         pack_json = pack_dir / "pack.json"
         if pack_json.exists():
             import json
+
             with open(pack_json) as f:
                 pack_data = json.load(f)
-            print(f"Loading pack: {pack_data.get('name', pack_dir.name)} v{pack_data.get('version', 'unknown')}")
+            print(
+                f"Loading pack: {pack_data.get('name', pack_dir.name)} v{pack_data.get('version', 'unknown')}"
+            )
 
         # Load skill modules from the pack directory
         for py_file in sorted(pack_dir.glob("*.py")):
@@ -126,6 +126,7 @@ class SkillRegistry:
 
             # Import the module and look for Skill subclasses
             import importlib.util
+
             spec = importlib.util.spec_from_file_location(
                 f"skills.community.{py_file.stem}", str(py_file)
             )
@@ -136,11 +137,7 @@ class SkillRegistry:
                 # Find all Skill subclasses
                 for attr_name in dir(module):
                     attr = getattr(module, attr_name)
-                    if (
-                        isinstance(attr, type)
-                        and issubclass(attr, Skill)
-                        and attr is not Skill
-                    ):
+                    if isinstance(attr, type) and issubclass(attr, Skill) and attr is not Skill:
                         try:
                             self.register(attr())
                             count += 1
@@ -189,9 +186,6 @@ def create_registry(
     # Verify against lockfile immediately
     lock_errors = registry.finalize()
     if lock_errors:
-        raise RuntimeError(
-            "Skill lockfile verification failed:\n  " +
-            "\n  ".join(lock_errors)
-        )
+        raise RuntimeError("Skill lockfile verification failed:\n  " + "\n  ".join(lock_errors))
 
     return registry

@@ -19,8 +19,12 @@ from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, field
 
 from skills.types import (
-    Action, AgenticResponse, AgenticScore, SkillContext,
-    SkillInput, SkillOutput,
+    Action,
+    AgenticResponse,
+    AgenticScore,
+    SkillContext,
+    SkillInput,
+    SkillOutput,
 )
 from skills.registry import SkillRegistry, create_registry
 from skills.agentic_prompts import AgenticPromptGenerator, AgenticPrompt
@@ -30,6 +34,7 @@ from core.evaluators.agentic import AgenticEvaluator, AgenticEvaluationResult
 @dataclass
 class AgenticBenchmarkResult:
     """Result from a single agentic benchmark prompt."""
+
     prompt: AgenticPrompt
     raw_response: str
     parsed_response: Optional[AgenticResponse]
@@ -42,6 +47,7 @@ class AgenticBenchmarkResult:
 @dataclass
 class AgenticBenchmarkSummary:
     """Aggregate summary of agentic benchmark results."""
+
     model_name: str
     total_prompts: int
     total_runs: int  # prompts × runs_per_prompt
@@ -61,32 +67,24 @@ class AgenticBenchmarkSummary:
 
         n = len(self.results)
 
-        self.overall_agentic_score = sum(
-            r.evaluation.score.overall_agentic_score for r in self.results
-        ) / n
-
-        self.mean_validity = sum(
-            r.evaluation.score.validity_score for r in self.results
-        ) / n
-
-        self.mean_planning = sum(
-            r.evaluation.score.planning_score for r in self.results
-        ) / n
-
-        self.mean_skill_correctness = sum(
-            r.evaluation.score.skill_correctness_score for r in self.results
-        ) / n
-
-        self.mean_constraint_adherence = sum(
-            r.evaluation.score.constraint_adherence_score for r in self.results
-        ) / n
-
-        total_hallucinated = sum(
-            r.evaluation.score.skills_outside_allowlist for r in self.results
+        self.overall_agentic_score = (
+            sum(r.evaluation.score.overall_agentic_score for r in self.results) / n
         )
-        total_choices = sum(
-            r.evaluation.score.total_tool_choices for r in self.results
+
+        self.mean_validity = sum(r.evaluation.score.validity_score for r in self.results) / n
+
+        self.mean_planning = sum(r.evaluation.score.planning_score for r in self.results) / n
+
+        self.mean_skill_correctness = (
+            sum(r.evaluation.score.skill_correctness_score for r in self.results) / n
         )
+
+        self.mean_constraint_adherence = (
+            sum(r.evaluation.score.constraint_adherence_score for r in self.results) / n
+        )
+
+        total_hallucinated = sum(r.evaluation.score.skills_outside_allowlist for r in self.results)
+        total_choices = sum(r.evaluation.score.total_tool_choices for r in self.results)
         self.hallucination_rate = total_hallucinated / total_choices if total_choices > 0 else 0.0
 
     def to_dict(self) -> Dict:
@@ -238,13 +236,15 @@ Input context: {prompt.input_context}
 
     def _mock_response(self) -> str:
         """Generate a mock response for testing without a real model."""
-        return json.dumps({
-            "actions": [
-                {"skill": "read_file", "input": {"path": "src/index.ts"}},
-                {"skill": "write_file", "input": {"path": "src/index.ts"}},
-                {"skill": "diff", "input": {"a": "original", "b": "modified"}},
-            ]
-        })
+        return json.dumps(
+            {
+                "actions": [
+                    {"skill": "read_file", "input": {"path": "src/index.ts"}},
+                    {"skill": "write_file", "input": {"path": "src/index.ts"}},
+                    {"skill": "diff", "input": {"a": "original", "b": "modified"}},
+                ]
+            }
+        )
 
     def _evaluate_response(
         self, raw_response: str, prompt: AgenticPrompt
@@ -268,6 +268,7 @@ Input context: {prompt.input_context}
 
 
 # ── Convenience Functions ─────────────────────────────────────────
+
 
 def run_agentic_benchmark_sync(
     model_name: str,

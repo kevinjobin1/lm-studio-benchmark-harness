@@ -19,7 +19,7 @@ import requests
 
 from packages.logging import get_logger
 from .openai_compatible import OpenAICompatibleProvider
-from .base import Model
+from .base import Model, get_root_url, url_join
 
 logger = get_logger(__name__)
 
@@ -55,24 +55,28 @@ class LlamaCppClient(OpenAICompatibleProvider):
                 data = resp.json()
                 for m in data.get("data", []):
                     mid = m.get("id", "unknown")
-                    models.append(Model(
-                        id=mid,
-                        name=mid.split(":")[0] if ":" in mid else mid,
+                    models.append(
+                        Model(
+                            id=mid,
+                            name=mid.split(":")[0] if ":" in mid else mid,
+                            provider=self.name,
+                            parameters="unknown",
+                            quantization="unknown",
+                            size_bytes=0,
+                        )
+                    )
+            # llama.cpp often returns an empty list when only one model is loaded
+            if not models and self.model_name:
+                models.append(
+                    Model(
+                        id=self.model_name,
+                        name=self.model_name,
                         provider=self.name,
                         parameters="unknown",
                         quantization="unknown",
                         size_bytes=0,
-                    ))
-            # llama.cpp often returns an empty list when only one model is loaded
-            if not models and self.model_name:
-                models.append(Model(
-                    id=self.model_name,
-                    name=self.model_name,
-                    provider=self.name,
-                    parameters="unknown",
-                    quantization="unknown",
-                    size_bytes=0,
-                ))
+                    )
+                )
         except (requests.ConnectionError, requests.Timeout) as e:
             logger.debug("llama.cpp list_models failed (connection/timeout): %s", e)
         except (requests.RequestException, ValueError, KeyError) as e:
@@ -90,12 +94,10 @@ class LlamaCppClient(OpenAICompatibleProvider):
                 return True
         except (requests.ConnectionError, requests.Timeout):
             pass
-        # llama.cpp server has a dedicated /health endpoint
+        # llama.cpp server has a dedicated /health endpoint at the server root
         try:
-            resp = requests.get(
-                self.base_url.removesuffix("/v1") + "/health",
-                timeout=5,
-            )
+            health_url = url_join(get_root_url(self.base_url), "health")
+            resp = requests.get(health_url, timeout=5)
             return resp.status_code == 200
         except (requests.ConnectionError, requests.Timeout) as e:
             logger.debug("llama.cpp health check fallback failed (connection/timeout): %s", e)

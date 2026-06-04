@@ -51,10 +51,7 @@ def _serialize_value(val: Any) -> Any:
     if isinstance(val, (list, tuple)):
         return [_serialize_value(v) for v in val]
     if hasattr(val, "__dataclass_fields__"):
-        return {
-            f.name: _serialize_value(getattr(val, f.name))
-            for f in dataclass_fields(val)
-        }
+        return {f.name: _serialize_value(getattr(val, f.name)) for f in dataclass_fields(val)}
     return val
 
 
@@ -306,10 +303,7 @@ class EventBusReplayWriter:
 
         # Replace entry if run_id already exists, otherwise append
         entry = session.to_index_entry(filename)
-        index["replays"] = [
-            e for e in index["replays"]
-            if e.get("run_id") != session.run_id
-        ]
+        index["replays"] = [e for e in index["replays"] if e.get("run_id") != session.run_id]
         index["replays"].append(entry)
         index["generated_at"] = datetime.now(timezone.utc).isoformat()
         index["total_replays"] = len(index["replays"])

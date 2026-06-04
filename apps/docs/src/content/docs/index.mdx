@@ -1,0 +1,96 @@
+---
+title: Model Lens
+description: Observability-first platform for local AI — trace, replay, compare, and understand how models behave on your hardware.
+template: splash
+hero:
+  tagline: Observability-first platform for local AI
+  image:
+    file: ../assets/logo.svg
+  actions:
+    - text: Get Started
+      link: /docs/getting-started/
+      icon: right-arrow
+      variant: primary
+    - text: View on GitHub
+      link: https://github.com/kevinjobin1/model-lens
+      icon: external
+      variant: minimal
+---
+
+```bash
+pip install -r requirements.txt
+python apps/cli/modellens.py run --quick
+```
+
+## Why Model Lens?
+
+Most local AI tooling focuses on a single layer — benchmarking, chat, model serving, or agents. Very few tools help you **understand what a model is actually doing on your machine.**
+
+Model Lens gives you the full picture: execution traces, latency profiles, memory footprints, and real-world workload evaluations.
+
+<div class="card-grid">
+  <div class="card">
+    <h3>🔬 Trace &amp; Replay</h3>
+    <p>Capture token-level execution timelines. Replay with play, pause, step, and speed controls.</p>
+  </div>
+  <div class="card">
+    <h3>📊 Compare Models</h3>
+    <p>Side-by-side latency, memory, and output diffs. Understand <em>why</em> one model outperforms another.</p>
+  </div>
+  <div class="card">
+    <h3>🏗️ Real Workloads</h3>
+    <p>Test models on actual codebases — React, NestJS, Python, Rust — not just synthetic benchmarks.</p>
+  </div>
+  <div class="card">
+    <h3>🔌 6 Providers</h3>
+    <p>LM Studio, Ollama, Open WebUI, Jan, llama.cpp, vLLM — all through OpenAI-compatible /v1 endpoints.</p>
+  </div>
+  <div class="card">
+    <h3>📡 Live Streaming</h3>
+    <p>SSE bridge streams real-time events to the dashboard. Every token, every metric, live.</p>
+  </div>
+  <div class="card">
+    <h3>🛡️ CI-Enforced Quality</h3>
+    <p>Ruff lint, ruff format, mypy type checking, and strict pytest on every push.</p>
+  </div>
+</div>
+
+## Architecture at a glance
+
+```
+Provider calls → Event Bus (thread-safe)
+                   ├── SSE bridge → Dashboard (real-time)
+                   ├── Replay writer → Disk (historical)
+                   └── Trace capture → Metrics engine
+```
+
+Every streaming token, every completion, every metric, and every benchmark lifecycle event flows through the central event bus. Consumers — the dashboard, replay engine, and metrics system — subscribe to what they need.
+
+## Quick navigation
+
+<div class="card-grid">
+  <a href="/docs/getting-started/" class="card">
+    <h3>🚀 Quick Start</h3>
+    <p>Install, configure, and run your first benchmark in under 5 minutes.</p>
+  </a>
+  <a href="/docs/architecture/" class="card">
+    <h3>🏛️ Architecture</h3>
+    <p>Package responsibilities, data flow, event-driven design, and key boundaries.</p>
+  </a>
+  <a href="/docs/guides/providers/" class="card">
+    <h3>🔌 Providers</h3>
+    <p>Setup guides for all 6 supported local LLM providers.</p>
+  </a>
+  <a href="/docs/guides/benchmarks/" class="card">
+    <h3>📏 Benchmarks</h3>
+    <p>Methodology, scoring system, failure taxonomy, and execution-grounded evaluation.</p>
+  </a>
+  <a href="/docs/reference/cli/" class="card">
+    <h3>⌨️ CLI Reference</h3>
+    <p>Complete command reference for the modellens CLI.</p>
+  </a>
+  <a href="/docs/contributing/" class="card">
+    <h3>🤝 Contributing</h3>
+    <p>Setup pre-commit hooks, run tests, and open your first PR.</p>
+  </a>
+</div>

@@ -206,6 +206,7 @@ class TraceCapture:
         memory_pressure_mb = 0.0
         try:
             import psutil
+
             process = psutil.Process()
             memory_pressure_mb = process.memory_info().rss / 1024 / 1024
         except (ImportError, ModuleNotFoundError):
@@ -228,9 +229,7 @@ class TraceCapture:
         )
 
         # Record response event
-        response_preview = response_text[:300] + (
-            "..." if len(response_text) > 300 else ""
-        )
+        response_preview = response_text[:300] + ("..." if len(response_text) > 300 else "")
         self._add_event(
             event_type="response",
             label="Response Complete",
@@ -269,7 +268,11 @@ class TraceCapture:
         tool: Optional[str] = None,
         input_data: Optional[str] = None,
     ):
-        event_id = f"{self._trace.trace_id}-e{len(self._events)}" if self._trace else f"evt_{len(self._events)}"
+        event_id = (
+            f"{self._trace.trace_id}-e{len(self._events)}"
+            if self._trace
+            else f"evt_{len(self._events)}"
+        )
         self._events.append(
             TraceEvent(
                 id=event_id,

@@ -48,15 +48,16 @@ def _get_log_level() -> int:
 
 # ── Formatter ─────────────────────────────────────────────────────
 
+
 class ModelLensFormatter(logging.Formatter):
     """Lightweight formatter that includes the logger name for context."""
 
     def format(self, record: logging.LogRecord) -> str:
         # Include module name for disambiguation
         if record.name.startswith("packages."):
-            record.shortname = record.name[len("packages."):]
+            record.shortname = record.name[len("packages.") :]
         elif record.name.startswith("apps."):
-            record.shortname = record.name[len("apps."):]
+            record.shortname = record.name[len("apps.") :]
         else:
             record.shortname = record.name
 
@@ -117,11 +118,7 @@ def _init_logging() -> None:
         file_path = os.path.join(log_dir, "modellens.log")
         fh = logging.FileHandler(file_path, encoding="utf-8")
         fh.setLevel(logging.DEBUG)
-        fh.setFormatter(
-            logging.Formatter(
-                "%(asctime)s [%(levelname)-7s] %(name)s: %(message)s"
-            )
-        )
+        fh.setFormatter(logging.Formatter("%(asctime)s [%(levelname)-7s] %(name)s: %(message)s"))
         root.addHandler(fh)
 
     _initialized = True

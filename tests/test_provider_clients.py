@@ -4,6 +4,8 @@ import json
 import unittest
 from unittest.mock import patch, MagicMock
 
+import requests.exceptions
+
 from providers.base import Model, RunRequest, ProviderAdapter
 from providers.openai_compatible import OpenAICompatibleProvider
 from providers.openwebui import OpenWebUIClient, DEFAULT_OPENWEBUI_URL
@@ -14,6 +16,7 @@ from providers.vllm import VLLMClient, DEFAULT_VLLM_URL
 
 class MockResponse:
     """Fake requests.Response for testing."""
+
     def __init__(self, json_data=None, status_code=200, text=""):
         self._json = json_data or {}
         self.status_code = status_code
@@ -24,6 +27,7 @@ class MockResponse:
 
 
 # ── OpenAICompatibleProvider (base class) ──────────────────────
+
 
 class TestOpenAICompatibleProvider(unittest.TestCase):
     def setUp(self):
@@ -53,18 +57,23 @@ class TestOpenAICompatibleProvider(unittest.TestCase):
 
     @patch("providers.openai_compatible.requests.get")
     def test_health_check_fail(self, mock_get):
-        mock_get.side_effect = Exception("Connection refused")
+        mock_get.side_effect = requests.exceptions.ConnectionError("Connection refused")
         p = OpenAICompatibleProvider()
         self.assertFalse(p.health_check())
 
     @patch("providers.openai_compatible.requests.get")
     def test_list_models(self, mock_get):
-        mock_get.return_value = MockResponse(json_data={
-            "data": [
-                {"id": "model-a", "metadata": {"parameter_count": "7B", "quantization": "Q4_K_M"}},
-                {"id": "model-b", "metadata": {"parameter_count": "13B"}},
-            ]
-        })
+        mock_get.return_value = MockResponse(
+            json_data={
+                "data": [
+                    {
+                        "id": "model-a",
+                        "metadata": {"parameter_count": "7B", "quantization": "Q4_K_M"},
+                    },
+                    {"id": "model-b", "metadata": {"parameter_count": "13B"}},
+                ]
+            }
+        )
         p = OpenAICompatibleProvider()
         models = p.list_models()
         self.assertEqual(len(models), 2)
@@ -111,9 +120,10 @@ class TestOpenAICompatibleProvider(unittest.TestCase):
 
 # ── Open WebUI ─────────────────────────────────────────────────
 
+
 class TestOpenWebUIClient(unittest.TestCase):
     def setUp(self):
-        patcher = patch("providers.openwebui.OpenAI")
+        patcher = patch("providers.openai_compatible.OpenAI")
         self.mock_openai = patcher.start()
         self.addCleanup(patcher.stop)
         self.mock_openai.return_value = MagicMock()
@@ -125,11 +135,13 @@ class TestOpenWebUIClient(unittest.TestCase):
 
     @patch("providers.openwebui.requests.get")
     def test_list_models(self, mock_get):
-        mock_get.return_value = MockResponse(json_data={
-            "data": [
-                {"id": "qwen2.5:7b", "meta": {"name": "Qwen 2.5", "size": "7B"}},
-            ]
-        })
+        mock_get.return_value = MockResponse(
+            json_data={
+                "data": [
+                    {"id": "qwen2.5:7b", "meta": {"name": "Qwen 2.5", "size": "7B"}},
+                ]
+            }
+        )
         c = OpenWebUIClient()
         models = c.list_models()
         self.assertEqual(len(models), 1)
@@ -138,9 +150,10 @@ class TestOpenWebUIClient(unittest.TestCase):
 
 # ── Jan ────────────────────────────────────────────────────────
 
+
 class TestJanClient(unittest.TestCase):
     def setUp(self):
-        patcher = patch("providers.jan.OpenAI")
+        patcher = patch("providers.openai_compatible.OpenAI")
         self.mock_openai = patcher.start()
         self.addCleanup(patcher.stop)
         self.mock_openai.return_value = MagicMock()
@@ -152,11 +165,16 @@ class TestJanClient(unittest.TestCase):
 
     @patch("providers.jan.requests.get")
     def test_list_models(self, mock_get):
-        mock_get.return_value = MockResponse(json_data={
-            "data": [
-                {"id": "llama3.2", "metadata": {"parameters": "3.2B", "size_bytes": 2000000000}},
-            ]
-        })
+        mock_get.return_value = MockResponse(
+            json_data={
+                "data": [
+                    {
+                        "id": "llama3.2",
+                        "metadata": {"parameters": "3.2B", "size_bytes": 2000000000},
+                    },
+                ]
+            }
+        )
         c = JanClient()
         models = c.list_models()
         self.assertEqual(len(models), 1)
@@ -165,9 +183,10 @@ class TestJanClient(unittest.TestCase):
 
 # ── llama.cpp ────────────────────────────────────────────────────
 
+
 class TestLlamaCppClient(unittest.TestCase):
     def setUp(self):
-        patcher = patch("providers.llamacpp.OpenAI")
+        patcher = patch("providers.openai_compatible.OpenAI")
         self.mock_openai = patcher.start()
         self.addCleanup(patcher.stop)
         self.mock_openai.return_value = MagicMock()
@@ -190,8 +209,8 @@ class TestLlamaCppClient(unittest.TestCase):
     def test_health_check_fallback(self, mock_get):
         """llama.cpp falls back to /health when /models fails."""
         mock_get.side_effect = [
-            Exception("Connection refused"),  # /models fails
-            MockResponse(status_code=200),   # /health succeeds
+            requests.exceptions.ConnectionError("Connection refused"),  # /models fails
+            MockResponse(status_code=200),  # /health succeeds
         ]
         c = LlamaCppClient()
         self.assertTrue(c.health_check())
@@ -199,9 +218,10 @@ class TestLlamaCppClient(unittest.TestCase):
 
 # ── vLLM ───────────────────────────────────────────────────────
 
+
 class TestVLLMClient(unittest.TestCase):
     def setUp(self):
-        patcher = patch("providers.vllm.OpenAI")
+        patcher = patch("providers.openai_compatible.OpenAI")
         self.mock_openai = patcher.start()
         self.addCleanup(patcher.stop)
         self.mock_openai.return_value = MagicMock()
@@ -224,8 +244,8 @@ class TestVLLMClient(unittest.TestCase):
     def test_health_check_fallback(self, mock_get):
         """vLLM falls back to /health when /models fails."""
         mock_get.side_effect = [
-            Exception("Connection refused"),  # /models fails
-            MockResponse(status_code=200),   # /health succeeds
+            requests.exceptions.ConnectionError("Connection refused"),  # /models fails
+            MockResponse(status_code=200),  # /health succeeds
         ]
         c = VLLMClient()
         self.assertTrue(c.health_check())

@@ -14,8 +14,13 @@ from .utils import _echo, RICH_AVAILABLE, console
 
 @click.command()
 @click.argument("results_dir", type=click.Path(), default="results")
-@click.option("--format", "-f", "output_format",
-              type=click.Choice(["table", "json", "markdown"]), default="table")
+@click.option(
+    "--format",
+    "-f",
+    "output_format",
+    type=click.Choice(["table", "json", "markdown"]),
+    default="table",
+)
 def leaderboard(results_dir, output_format):
     """Display leaderboard from benchmark results."""
     from apps.cli.results_schema import ResultsCollector, merge_results

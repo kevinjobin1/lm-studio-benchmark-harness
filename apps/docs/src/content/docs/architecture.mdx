@@ -1,0 +1,135 @@
+---
+title: Architecture
+description: Model Lens system design — package responsibilities, data flow, event-driven architecture, provider layer, and key architectural boundaries.
+---
+
+Model Lens is organized as a monorepo with two top-level directories: `apps/` (CLI + dashboard) and `packages/` (core system modules).
+
+## Package map
+
+```
+apps/
+  cli/                  ← Unified `modellens` CLI (Click-based)
+  dashboard/            ← Astro + React dashboard
+packages/
+  logging.py           ← Structured logging (Rich console + file output)
+  events/               ← Event bus — decoupled observability events
+  core/                 ← Benchmark framework + trace capture + workload evaluation
+  benchmarks/           ← 11 benchmark implementations
+  providers/            ← 6 provider adapters (all OpenAI-compatible /v1)
+  skills/               ← Extensible, lockfile-verified skill system
+  prompt_packs/         ← Versioned benchmark collections
+```
+
+## Package responsibilities
+
+| Package | Responsibility | Depends on |
+|---------|---------------|------------|
+| `events` | Event bus — publish/subscribe for all observability events | (self-contained) |
+| `core` | Benchmark framework, trace capture, workload evaluation | `providers` (for APICallMetrics) |
+| `benchmarks` | Individual benchmark implementations | `core` |
+| `providers` | Provider adapters + framework integrations | (self-contained) |
+| `skills` | Extensible skill system | (self-contained) |
+| `prompt_packs` | Benchmark prompt collections | (static data) |
+
+## Event-driven architecture
+
+The event bus (`packages/events/`) is the central nervous system. It decouples data producers from data consumers using typed events:
+
+```
+                            Event Bus
+                                │
+        ┌───────────────────────┼───────────────────────┐
+        │                       │                       │
+   Provider calls          Benchmark runs          Tool execution
+        │                       │                       │
+        ▼                       ▼                       ▼
+   TokenGenerated          MetricEvent             ToolCallEvent
+   CompletionEvent         RunLifecycleEvent       ErrorEvent
+        │                       │                       │
+        └───────────────────────┼───────────────────────┘
+                                │
+                  ┌─────────────┼─────────────┐
+                  │             │             │
+              Metrics        Traces        Dashboard
+              Engine         Engine         (SSE/WS)
+```
+
+### Event types
+
+| Event | Source | Consumers |
+|-------|--------|-----------|
+| `TokenGeneratedEvent` | `OpenAICompatibleProvider` streaming | TraceCapture, Dashboard (SSE) |
+| `CompletionEvent` | `OpenAICompatibleProvider` response | MetricsEngine, ResultsCollector |
+| `MetricEvent` | `BenchmarkSuite` / any component | Dashboard, ReplayEngine |
+| `ToolCallEvent` | Skill runtime | AgenticEvaluator, TraceCapture |
+| `ErrorEvent` | Any component | Dashboard, Alerts |
+| `RunLifecycleEvent` | CLI entry point / `BenchmarkSuite` | ResultsCollector, Dashboard |
+
+## Benchmark architecture (dual-authority)
+
+Model Lens intentionally maintains **two independent benchmark systems**:
+
+| System | File | Config | Purpose |
+|--------|------|--------|---------|
+| General suite | `apps/cli/benchmark.py` | `config.yaml` (YAML) | MMLU-Pro, GSM8K, HumanEval, SWE-Bench Lite, IF-Eval |
+| DevBench v2 | `apps/cli/bench_apple_silicon_v2.py` | `config.json` (JSON, deprecated) | TypeScript/NestJS/React, Apple Silicon optimized |
+
+Both systems are **first-class and equally authoritative** — they are not migration phases. They share scoring/evaluation modules but differ in execution pipeline and config format. **Do not merge them.**
+
+## Provider architecture
+
+All 6 providers implement the `ProviderAdapter` interface and use OpenAI-compatible `/v1/chat/completions` endpoints:
+
+```
+ProviderAdapter (ABC — packages/providers/base.py)
+    ├── OllamaClient
+    ├── OpenWebUIClient
+    ├── JanClient
+    ├── LlamaCppClient
+    ├── VLLMClient
+    └── OpenAICompatibleClient
+```
+
+| Provider | Default URL | Auto-detect probe |
+|----------|-------------|-------------------|
+| LM Studio | `http://localhost:1234/v1` | `/v1/models` |
+| Ollama | `http://localhost:11434/v1` | `/api/tags` |
+| llama.cpp | `http://localhost:8080/v1` | `/v1/models` |
+| vLLM | `http://localhost:8000/v1` | `/v1/models` |
+| Open WebUI | `http://localhost:3000/api/v1` | `/api/v1/models` |
+| Jan | `http://localhost:1337/v1` | `/v1/models` |
+
+Auto-detection probes in order: LM Studio → Ollama → llama.cpp → vLLM → Open WebUI → Jan.
+
+## Data flow
+
+```
+User / Dashboard
+    │
+    ▼
+modellens.py (CLI entry point)
+    │
+    ├──[workload]──→ Real-project workload evaluation
+    ├──[devbench]──→ Apple Silicon DevBench v2
+    ├──[general]───→ BenchmarkSuite (11 benchmarks)
+    └──[compare]──→ Both frameworks
+    │
+    ▼
+Results + Traces → Event Bus → Dashboard (Astro + React) → Cloudflare Pages
+```
+
+## Key boundaries
+
+1. **Events package is self-contained.** No dependencies on core, providers, or benchmarks.
+2. **Core never imports from benchmarks.** Individual benchmarks import from core, not vice versa.
+3. **Providers are self-contained.** Each client depends only on `base.py`, not on core.
+4. **CLI is the only entry point.** The dashboard delegates to `modellens.py` via subprocess.
+5. **Skills are lazy-loaded.** Registered at startup, validated against `modellens.lock`.
+6. **Prompt packs are static data.** No code execution, just JSON/YAML prompt definitions.
+
+## See also
+
+- [Provider Contract](/docs/reference/provider-contract/) — formal provider interface spec
+- [Event Schema](/docs/reference/event-schema/) — typed event bus contract
+- [Run Schema](/docs/reference/run-schema/) — canonical data model

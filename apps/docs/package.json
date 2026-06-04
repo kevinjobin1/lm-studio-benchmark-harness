@@ -1,0 +1,16 @@
+{
+  "name": "modellens-docs",
+  "version": "1.0.0",
+  "description": "Model Lens documentation — observability-first platform for local AI",
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "start": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview"
+  },
+  "dependencies": {
+    "@astrojs/starlight": "^0.34.0",
+    "astro": "^5.0.0"
+  }
+}

@@ -224,9 +224,7 @@ def detect_hardware() -> HardwareInfo:
 
     # ── Platform ──────────────────────────────────────────────────
     hw.os_name = platform.system()  # Darwin, Linux, Windows
-    hw.os_version = (
-        platform.mac_ver()[0] if hw.os_name == "Darwin" else platform.version()
-    )
+    hw.os_version = platform.mac_ver()[0] if hw.os_name == "Darwin" else platform.version()
     hw.kernel = platform.release()
     hw.architecture = platform.machine()
     hw.hostname = platform.node()

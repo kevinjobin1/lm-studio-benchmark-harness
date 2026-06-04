@@ -37,6 +37,7 @@ from events import (
 #  BASIC PUB/SUB
 # ═════════════════════════════════════════════════════════════════════
 
+
 class TestEventBusBasicSubscribe(unittest.TestCase):
     """Tests for basic subscribe and emit_sync."""
 
@@ -62,8 +63,12 @@ class TestEventBusBasicSubscribe(unittest.TestCase):
         """Handler for one event type should not receive another type."""
         self.bus.subscribe(TokenGeneratedEvent, self.handler)
         event = CompletionEvent(
-            model="qwen", response="ok", tokens_used=5,
-            latency_ms=100, ttft_ms=50, tokens_per_second=50.0,
+            model="qwen",
+            response="ok",
+            tokens_used=5,
+            latency_ms=100,
+            ttft_ms=50,
+            tokens_per_second=50.0,
         )
         self.bus.emit_sync(event)
 
@@ -94,9 +99,14 @@ class TestEventBusBasicSubscribe(unittest.TestCase):
         self.bus.subscribe(TokenGeneratedEvent, self.handler)
 
         for i in range(5):
-            self.bus.emit_sync(TokenGeneratedEvent(
-                model="qwen", token=str(i), index=i, timing_ms=float(i * 10),
-            ))
+            self.bus.emit_sync(
+                TokenGeneratedEvent(
+                    model="qwen",
+                    token=str(i),
+                    index=i,
+                    timing_ms=float(i * 10),
+                )
+            )
 
         self.assertEqual(len(self.received), 5)
         for i, ev in enumerate(self.received):
@@ -107,6 +117,7 @@ class TestEventBusBasicSubscribe(unittest.TestCase):
 # ═════════════════════════════════════════════════════════════════════
 #  WILDCARD SUBSCRIPTION
 # ═════════════════════════════════════════════════════════════════════
+
 
 class TestEventBusSubscribeAll(unittest.TestCase):
     """Tests for wildcard subscribe_all handlers."""
@@ -142,13 +153,14 @@ class TestEventBusSubscribeAll(unittest.TestCase):
         self.bus.emit_sync(TokenGeneratedEvent(model="m", token="t", index=0, timing_ms=1.0))
         self.bus.emit_sync(MetricEvent(name="test", value=1.0))
 
-        self.assertEqual(len(type_received), 1)   # Only TokenGeneratedEvent
-        self.assertEqual(len(wild_received), 2)   # Both events
+        self.assertEqual(len(type_received), 1)  # Only TokenGeneratedEvent
+        self.assertEqual(len(wild_received), 2)  # Both events
 
 
 # ═════════════════════════════════════════════════════════════════════
 #  UNSUBSCRIBE
 # ═════════════════════════════════════════════════════════════════════
+
 
 class TestEventBusUnsubscribe(unittest.TestCase):
     """Tests for unsubscribe and unsubscribe_all.
@@ -166,8 +178,10 @@ class TestEventBusUnsubscribe(unittest.TestCase):
 
     def _make_handler(self):
         received = self.received
+
         def handler(event):
             received.append(event)
+
         return handler
 
     def test_unsubscribe_removes_handler(self):
@@ -237,6 +251,7 @@ class TestEventBusUnsubscribe(unittest.TestCase):
 #  ASYNC EMIT
 # ═════════════════════════════════════════════════════════════════════
 
+
 class TestEventBusAsyncEmit(unittest.TestCase):
     """Tests for async emit with async handlers."""
 
@@ -253,9 +268,14 @@ class TestEventBusAsyncEmit(unittest.TestCase):
         self.bus.subscribe(TokenGeneratedEvent, async_handler)
 
         async def emit_event():
-            await self.bus.emit(TokenGeneratedEvent(
-                model="qwen", token="hello", index=0, timing_ms=12.5,
-            ))
+            await self.bus.emit(
+                TokenGeneratedEvent(
+                    model="qwen",
+                    token="hello",
+                    index=0,
+                    timing_ms=12.5,
+                )
+            )
 
         asyncio.run(emit_event())
 
@@ -277,9 +297,14 @@ class TestEventBusAsyncEmit(unittest.TestCase):
         self.bus.subscribe(TokenGeneratedEvent, async_handler)
 
         async def emit_event():
-            await self.bus.emit(TokenGeneratedEvent(
-                model="qwen", token="hello", index=0, timing_ms=12.5,
-            ))
+            await self.bus.emit(
+                TokenGeneratedEvent(
+                    model="qwen",
+                    token="hello",
+                    index=0,
+                    timing_ms=12.5,
+                )
+            )
 
         asyncio.run(emit_event())
 
@@ -297,10 +322,16 @@ class TestEventBusAsyncEmit(unittest.TestCase):
 
         async def emit_events():
             await self.bus.emit(TokenGeneratedEvent(model="m", token="t", index=0, timing_ms=1.0))
-            await self.bus.emit(CompletionEvent(
-                model="m", response="r", tokens_used=5,
-                latency_ms=100, ttft_ms=50, tokens_per_second=50.0,
-            ))
+            await self.bus.emit(
+                CompletionEvent(
+                    model="m",
+                    response="r",
+                    tokens_used=5,
+                    latency_ms=100,
+                    ttft_ms=50,
+                    tokens_per_second=50.0,
+                )
+            )
 
         asyncio.run(emit_events())
 
@@ -312,6 +343,7 @@ class TestEventBusAsyncEmit(unittest.TestCase):
 # ═════════════════════════════════════════════════════════════════════
 #  ERROR HANDLING
 # ═════════════════════════════════════════════════════════════════════
+
 
 class TestEventBusErrorHandling(unittest.TestCase):
     """Tests that subscriber errors do not propagate."""
@@ -333,9 +365,14 @@ class TestEventBusErrorHandling(unittest.TestCase):
         self.bus.subscribe(TokenGeneratedEvent, good_handler)
 
         # Should not raise
-        self.bus.emit_sync(TokenGeneratedEvent(
-            model="qwen", token="hello", index=0, timing_ms=12.5,
-        ))
+        self.bus.emit_sync(
+            TokenGeneratedEvent(
+                model="qwen",
+                token="hello",
+                index=0,
+                timing_ms=12.5,
+            )
+        )
 
         self.assertEqual(len(received), 1)
 
@@ -353,9 +390,14 @@ class TestEventBusErrorHandling(unittest.TestCase):
         self.bus.subscribe(TokenGeneratedEvent, good_handler)
 
         async def emit_event():
-            await self.bus.emit(TokenGeneratedEvent(
-                model="qwen", token="hello", index=0, timing_ms=12.5,
-            ))
+            await self.bus.emit(
+                TokenGeneratedEvent(
+                    model="qwen",
+                    token="hello",
+                    index=0,
+                    timing_ms=12.5,
+                )
+            )
 
         # Should not raise
         asyncio.run(emit_event())
@@ -375,9 +417,14 @@ class TestEventBusErrorHandling(unittest.TestCase):
         self.bus.subscribe_all(bad_handler)
         self.bus.subscribe_all(good_handler)
 
-        self.bus.emit_sync(TokenGeneratedEvent(
-            model="qwen", token="hello", index=0, timing_ms=12.5,
-        ))
+        self.bus.emit_sync(
+            TokenGeneratedEvent(
+                model="qwen",
+                token="hello",
+                index=0,
+                timing_ms=12.5,
+            )
+        )
 
         self.assertEqual(len(received), 1)
 
@@ -408,6 +455,7 @@ class TestEventBusErrorHandling(unittest.TestCase):
 #  PUBLISH CONTEXT
 # ═════════════════════════════════════════════════════════════════════
 
+
 class TestEventBusPublishContext(unittest.TestCase):
     """Tests for the publish context manager."""
 
@@ -422,9 +470,14 @@ class TestEventBusPublishContext(unittest.TestCase):
 
         async def emit_with_context():
             async with self.bus.publish(run_id="run_abc", source="test") as ctx:
-                ctx.emit(TokenGeneratedEvent(
-                    model="qwen", token="hello", index=0, timing_ms=12.5,
-                ))
+                ctx.emit(
+                    TokenGeneratedEvent(
+                        model="qwen",
+                        token="hello",
+                        index=0,
+                        timing_ms=12.5,
+                    )
+                )
 
         asyncio.run(emit_with_context())
 
@@ -440,11 +493,16 @@ class TestEventBusPublishContext(unittest.TestCase):
 
         async def emit_with_context():
             async with self.bus.publish(run_id="wrong", source="wrong") as ctx:
-                ctx.emit(TokenGeneratedEvent(
-                    model="qwen", token="hello", index=0, timing_ms=12.5,
-                    run_id="explicit_run",
-                    source="explicit_source",
-                ))
+                ctx.emit(
+                    TokenGeneratedEvent(
+                        model="qwen",
+                        token="hello",
+                        index=0,
+                        timing_ms=12.5,
+                        run_id="explicit_run",
+                        source="explicit_source",
+                    )
+                )
 
         asyncio.run(emit_with_context())
 
@@ -484,6 +542,7 @@ class TestEventBusPublishContext(unittest.TestCase):
 # ═════════════════════════════════════════════════════════════════════
 #  RUN-SCOPED SUBSCRIPTIONS
 # ═════════════════════════════════════════════════════════════════════
+
 
 class TestEventBusRunScoped(unittest.TestCase):
     """Tests for run-scoped subscriptions with unsubscribe_run."""
@@ -533,6 +592,7 @@ class TestEventBusRunScoped(unittest.TestCase):
 #  ENABLE / DISABLE
 # ═════════════════════════════════════════════════════════════════════
 
+
 class TestEventBusEnableDisable(unittest.TestCase):
     """Tests for enable/disable lifecycle."""
 
@@ -568,9 +628,14 @@ class TestEventBusEnableDisable(unittest.TestCase):
         self.bus.disable()
 
         async def emit_event():
-            await self.bus.emit(TokenGeneratedEvent(
-                model="m", token="t", index=0, timing_ms=1.0,
-            ))
+            await self.bus.emit(
+                TokenGeneratedEvent(
+                    model="m",
+                    token="t",
+                    index=0,
+                    timing_ms=1.0,
+                )
+            )
 
         asyncio.run(emit_event())
 
@@ -583,9 +648,14 @@ class TestEventBusEnableDisable(unittest.TestCase):
         self.bus.enable()
 
         async def emit_event():
-            await self.bus.emit(TokenGeneratedEvent(
-                model="m", token="t", index=0, timing_ms=1.0,
-            ))
+            await self.bus.emit(
+                TokenGeneratedEvent(
+                    model="m",
+                    token="t",
+                    index=0,
+                    timing_ms=1.0,
+                )
+            )
 
         asyncio.run(emit_event())
 
@@ -595,6 +665,7 @@ class TestEventBusEnableDisable(unittest.TestCase):
 # ═════════════════════════════════════════════════════════════════════
 #  CLEAR
 # ═════════════════════════════════════════════════════════════════════
+
 
 class TestEventBusClear(unittest.TestCase):
     """Tests for the clear method."""
@@ -639,6 +710,7 @@ class TestEventBusClear(unittest.TestCase):
 # ═════════════════════════════════════════════════════════════════════
 #  HANDLER COUNT
 # ═════════════════════════════════════════════════════════════════════
+
 
 class TestEventBusHandlerCount(unittest.TestCase):
     """Tests for the handler_count property."""
@@ -698,6 +770,7 @@ class TestEventBusHandlerCount(unittest.TestCase):
 #  CONCRETE EVENT TYPES
 # ═════════════════════════════════════════════════════════════════════
 
+
 class TestEventBusConcreteEvents(unittest.TestCase):
     """Tests that all concrete event types work correctly with EventBus."""
 
@@ -709,15 +782,17 @@ class TestEventBusConcreteEvents(unittest.TestCase):
         received = []
         self.bus.subscribe(TokenGeneratedEvent, lambda e: received.append(e))
 
-        self.bus.emit_sync(TokenGeneratedEvent(
-            model="qwen-3.5-9b",
-            token="Hello",
-            index=0,
-            timing_ms=150.0,
-            provider="lm-studio",
-            run_id="run_001",
-            source="benchmark",
-        ))
+        self.bus.emit_sync(
+            TokenGeneratedEvent(
+                model="qwen-3.5-9b",
+                token="Hello",
+                index=0,
+                timing_ms=150.0,
+                provider="lm-studio",
+                run_id="run_001",
+                source="benchmark",
+            )
+        )
 
         self.assertEqual(len(received), 1)
         e = received[0]
@@ -735,18 +810,20 @@ class TestEventBusConcreteEvents(unittest.TestCase):
         received = []
         self.bus.subscribe(CompletionEvent, lambda e: received.append(e))
 
-        self.bus.emit_sync(CompletionEvent(
-            model="qwen",
-            response="Paris is the capital of France.",
-            tokens_used=7,
-            latency_ms=320.0,
-            ttft_ms=150.0,
-            tokens_per_second=45.2,
-            provider="ollama",
-            run_id="run_002",
-            source="benchmark",
-            success=True,
-        ))
+        self.bus.emit_sync(
+            CompletionEvent(
+                model="qwen",
+                response="Paris is the capital of France.",
+                tokens_used=7,
+                latency_ms=320.0,
+                ttft_ms=150.0,
+                tokens_per_second=45.2,
+                provider="ollama",
+                run_id="run_002",
+                source="benchmark",
+                success=True,
+            )
+        )
 
         self.assertEqual(len(received), 1)
         e = received[0]
@@ -764,16 +841,18 @@ class TestEventBusConcreteEvents(unittest.TestCase):
         received = []
         self.bus.subscribe(CompletionEvent, lambda e: received.append(e))
 
-        self.bus.emit_sync(CompletionEvent(
-            model="qwen",
-            response="",
-            tokens_used=0,
-            latency_ms=5000.0,
-            ttft_ms=0,
-            tokens_per_second=0,
-            success=False,
-            error="Connection timeout",
-        ))
+        self.bus.emit_sync(
+            CompletionEvent(
+                model="qwen",
+                response="",
+                tokens_used=0,
+                latency_ms=5000.0,
+                ttft_ms=0,
+                tokens_per_second=0,
+                success=False,
+                error="Connection timeout",
+            )
+        )
 
         e = received[0]
         self.assertFalse(e.success)
@@ -784,15 +863,17 @@ class TestEventBusConcreteEvents(unittest.TestCase):
         received = []
         self.bus.subscribe(MetricEvent, lambda e: received.append(e))
 
-        self.bus.emit_sync(MetricEvent(
-            name="workload.score",
-            value=0.85,
-            unit="",
-            tags={"task_id": "wl-001", "task_type": "implement_feature"},
-            model="qwen",
-            run_id="run_003",
-            source="workload",
-        ))
+        self.bus.emit_sync(
+            MetricEvent(
+                name="workload.score",
+                value=0.85,
+                unit="",
+                tags={"task_id": "wl-001", "task_type": "implement_feature"},
+                model="qwen",
+                run_id="run_003",
+                source="workload",
+            )
+        )
 
         e = received[0]
         self.assertEqual(e.name, "workload.score")
@@ -806,15 +887,17 @@ class TestEventBusConcreteEvents(unittest.TestCase):
         received = []
         self.bus.subscribe(ErrorEvent, lambda e: received.append(e))
 
-        self.bus.emit_sync(ErrorEvent(
-            message="Task failed: connection refused",
-            exception="ConnectionError",
-            stack_trace="Traceback (most recent call last):\n  ...",
-            component="workload_runner",
-            run_id="run_004",
-            source="workload",
-            severity="error",
-        ))
+        self.bus.emit_sync(
+            ErrorEvent(
+                message="Task failed: connection refused",
+                exception="ConnectionError",
+                stack_trace="Traceback (most recent call last):\n  ...",
+                component="workload_runner",
+                run_id="run_004",
+                source="workload",
+                severity="error",
+            )
+        )
 
         e = received[0]
         self.assertIn("connection refused", e.message)
@@ -829,15 +912,17 @@ class TestEventBusConcreteEvents(unittest.TestCase):
         self.bus.subscribe(RunLifecycleEvent, lambda e: received.append(e))
 
         # Emit a lifecycle event
-        self.bus.emit_sync(RunLifecycleEvent(
-            status="completed",
-            model="qwen",
-            provider="lm-studio",
-            workload="nestjs-api",
-            run_id="run_005",
-            source="workload",
-            duration_ms=1234.5,
-        ))
+        self.bus.emit_sync(
+            RunLifecycleEvent(
+                status="completed",
+                model="qwen",
+                provider="lm-studio",
+                workload="nestjs-api",
+                run_id="run_005",
+                source="workload",
+                duration_ms=1234.5,
+            )
+        )
 
         e = received[0]
         self.assertEqual(e.status, "completed")
@@ -870,10 +955,16 @@ class TestEventBusConcreteEvents(unittest.TestCase):
         self.bus.emit_sync(RunLifecycleEvent(status="started", model="m"))
         self.bus.emit_sync(TokenGeneratedEvent(model="m", token="Hello", index=0, timing_ms=10.0))
         self.bus.emit_sync(TokenGeneratedEvent(model="m", token="world", index=1, timing_ms=15.0))
-        self.bus.emit_sync(CompletionEvent(
-            model="m", response="Hello world", tokens_used=2,
-            latency_ms=50, ttft_ms=10, tokens_per_second=40.0,
-        ))
+        self.bus.emit_sync(
+            CompletionEvent(
+                model="m",
+                response="Hello world",
+                tokens_used=2,
+                latency_ms=50,
+                ttft_ms=10,
+                tokens_per_second=40.0,
+            )
+        )
         self.bus.emit_sync(MetricEvent(name="score", value=0.9))
         self.bus.emit_sync(RunLifecycleEvent(status="completed", model="m", duration_ms=50.0))
 
@@ -890,6 +981,7 @@ class TestEventBusConcreteEvents(unittest.TestCase):
 #  EVENT DATA INTEGRITY
 # ═════════════════════════════════════════════════════════════════════
 
+
 class TestEventBusDataIntegrity(unittest.TestCase):
     """Tests that event data is not mutated or lost during delivery."""
 
@@ -900,14 +992,18 @@ class TestEventBusDataIntegrity(unittest.TestCase):
         bus.subscribe_all(lambda e: received.append(e.id))
 
         for i in range(100):
-            bus.emit_sync(TokenGeneratedEvent(
-                model="m", token=str(i), index=i, timing_ms=float(i),
-            ))
+            bus.emit_sync(
+                TokenGeneratedEvent(
+                    model="m",
+                    token=str(i),
+                    index=i,
+                    timing_ms=float(i),
+                )
+            )
 
         # All IDs should be unique
         self.assertEqual(len(received), 100)
-        self.assertEqual(len(set(received)), 100,
-                         "Event IDs should be unique across 100 events")
+        self.assertEqual(len(set(received)), 100, "Event IDs should be unique across 100 events")
 
     def test_token_events_sequential_indices(self):
         """TokenGeneratedEvent indices should be preserved through delivery."""
@@ -916,9 +1012,14 @@ class TestEventBusDataIntegrity(unittest.TestCase):
         bus.subscribe(TokenGeneratedEvent, lambda e: received.append(e.index))
 
         for i in range(20):
-            bus.emit_sync(TokenGeneratedEvent(
-                model="m", token=f"tok_{i}", index=i, timing_ms=float(i),
-            ))
+            bus.emit_sync(
+                TokenGeneratedEvent(
+                    model="m",
+                    token=f"tok_{i}",
+                    index=i,
+                    timing_ms=float(i),
+                )
+            )
 
         self.assertEqual(received, list(range(20)))
 
@@ -940,22 +1041,30 @@ class TestEventBusDataIntegrity(unittest.TestCase):
 #  EDGE CASES
 # ═════════════════════════════════════════════════════════════════════
 
+
 class TestEventBusEdgeCases(unittest.TestCase):
     """Edge cases for the EventBus."""
 
     def test_emit_with_no_subscribers(self):
         """Emitting with no subscribers should not raise."""
         bus = EventBus()
-        bus.emit_sync(TokenGeneratedEvent(model="m", token="t", index=0, timing_ms=1.0))  # Should not raise
+        bus.emit_sync(
+            TokenGeneratedEvent(model="m", token="t", index=0, timing_ms=1.0)
+        )  # Should not raise
 
     def test_emit_async_with_no_subscribers(self):
         """Async emitting with no subscribers should not raise."""
         bus = EventBus()
 
         async def emit_event():
-            await bus.emit(TokenGeneratedEvent(
-                model="m", token="t", index=0, timing_ms=1.0,
-            ))
+            await bus.emit(
+                TokenGeneratedEvent(
+                    model="m",
+                    token="t",
+                    index=0,
+                    timing_ms=1.0,
+                )
+            )
 
         asyncio.run(emit_event())  # Should not raise
 
@@ -1032,6 +1141,7 @@ class TestEventBusEdgeCases(unittest.TestCase):
 #  MODEL LENS EVENT & PRIORITY
 # ═════════════════════════════════════════════════════════════════════
 
+
 class TestModelLensEventPriority(unittest.TestCase):
     """Tests for EventPriority enum and ModelLensEvent base class."""
 
@@ -1103,6 +1213,7 @@ class TestDefaultBus(unittest.TestCase):
     def test_default_bus_is_eventbus_instance(self):
         """default_bus should be an EventBus instance."""
         from events import default_bus
+
         self.assertIsInstance(default_bus, EventBus)
 
     def test_default_bus_emits_to_subscribers(self):

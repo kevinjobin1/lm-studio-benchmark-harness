@@ -18,6 +18,7 @@ from datetime import datetime
 
 # ── Agentic Score (importable without skills dep) ────────────────
 
+
 @dataclass
 class AgenticScoreData:
     """Agentic/tool-use evaluation scores for a benchmark result.
@@ -25,6 +26,7 @@ class AgenticScoreData:
     Mirrors skills.types.AgenticScore but with no skills dependency —
     so results_schema can be used independently.
     """
+
     overall_agentic_score: float = 0.0
     validity_score: float = 0.0
     json_valid: bool = False
@@ -48,6 +50,7 @@ class AgenticScoreData:
 @dataclass
 class HardwareInfo:
     """Hardware and system information."""
+
     platform: str = ""
     processor: str = ""
     memory_gb: int = 0
@@ -57,6 +60,7 @@ class HardwareInfo:
 @dataclass
 class MetricScores:
     """Core evaluation metrics for a model."""
+
     coding_score: float = 0.0
     reasoning_score: float = 0.0
     instruction_score: float = 0.0
@@ -69,6 +73,7 @@ class MetricScores:
 @dataclass
 class PerformanceMetrics:
     """Performance and latency metrics."""
+
     tokens_per_sec: float = 0.0
     normalized_tps: float = 0.0
     ttft_ms: float = 0.0
@@ -79,6 +84,7 @@ class PerformanceMetrics:
 @dataclass
 class RunStats:
     """Statistical summary of multiple runs."""
+
     mean: float = 0.0
     std: float = 0.0
     min: float = 0.0
@@ -92,6 +98,7 @@ class RunStats:
 @dataclass
 class FailureBreakdown:
     """Failure taxonomy breakdown."""
+
     hallucinated_api: int = 0
     wrong_async_usage: int = 0
     incorrect_json_schema: int = 0
@@ -118,6 +125,7 @@ class FailureBreakdown:
 @dataclass
 class BenchmarkResult:
     """Unified benchmark result for a single model run."""
+
     # Identity
     run_id: str = ""
     model: str = ""
@@ -253,7 +261,9 @@ class BenchmarkResult:
         )
 
         f = data.get("failures", {})
-        result.failures = FailureBreakdown(**{k: f.get(k, 0) for k in asdict(FailureBreakdown()).keys()})
+        result.failures = FailureBreakdown(
+            **{k: f.get(k, 0) for k in asdict(FailureBreakdown()).keys()}
+        )
 
         result.category_scores = data.get("category_scores", {})
         result.config_snapshot = data.get("config_snapshot", {})
@@ -294,7 +304,8 @@ class ResultsCollector:
             # Try to get memory info
             try:
                 import psutil
-                info.memory_gb = int(psutil.virtual_memory().total / (1024 ** 3))
+
+                info.memory_gb = int(psutil.virtual_memory().total / (1024**3))
             except ImportError:
                 info.memory_gb = 0
         except Exception:
@@ -309,8 +320,7 @@ class ResultsCollector:
 
         try:
             result = subprocess.run(
-                ["git", "rev-parse", "HEAD"],
-                capture_output=True, text=True, timeout=5
+                ["git", "rev-parse", "HEAD"], capture_output=True, text=True, timeout=5
             )
             if result.returncode == 0:
                 sha = result.stdout.strip()
@@ -320,7 +330,9 @@ class ResultsCollector:
         try:
             result = subprocess.run(
                 ["git", "rev-parse", "--abbrev-ref", "HEAD"],
-                capture_output=True, text=True, timeout=5
+                capture_output=True,
+                text=True,
+                timeout=5,
             )
             if result.returncode == 0:
                 branch = result.stdout.strip()
@@ -329,17 +341,19 @@ class ResultsCollector:
 
         return sha, branch
 
-    def create_result(self,
-                      model: str,
-                      metrics: MetricScores,
-                      performance: PerformanceMetrics,
-                      stats: RunStats,
-                      failures: Optional[FailureBreakdown] = None,
-                      model_metadata: Optional[Dict[str, str]] = None,
-                      config_snapshot: Optional[Dict[str, Any]] = None,
-                      packs_used: Optional[List[str]] = None,
-                      seed: Optional[int] = None,
-                      prompt_version: str = "v1") -> BenchmarkResult:
+    def create_result(
+        self,
+        model: str,
+        metrics: MetricScores,
+        performance: PerformanceMetrics,
+        stats: RunStats,
+        failures: Optional[FailureBreakdown] = None,
+        model_metadata: Optional[Dict[str, str]] = None,
+        config_snapshot: Optional[Dict[str, Any]] = None,
+        packs_used: Optional[List[str]] = None,
+        seed: Optional[int] = None,
+        prompt_version: str = "v1",
+    ) -> BenchmarkResult:
         """Create a new BenchmarkResult with system info auto-populated."""
         hardware = self.gather_system_info()
         git_sha, git_branch = self.gather_git_info()
@@ -381,14 +395,16 @@ class ResultsCollector:
         # Save aggregated results
         aggregated = self._aggregate()
         agg_path = self.output_dir / "results.json"
-        with open(agg_path, 'w') as f:
+        with open(agg_path, "w") as f:
             json.dump(aggregated, f, indent=2, default=str)
         paths["aggregated"] = str(agg_path)
 
         # Save latest pointer
         latest_path = self.output_dir / "latest.json"
-        with open(latest_path, 'w') as f:
-            json.dump({"latest_run": aggregated["runs"][-1]["run_id"] if aggregated["runs"] else None}, f)
+        with open(latest_path, "w") as f:
+            json.dump(
+                {"latest_run": aggregated["runs"][-1]["run_id"] if aggregated["runs"] else None}, f
+            )
         paths["latest"] = str(latest_path)
 
         return paths
@@ -428,19 +444,21 @@ def merge_results(results: List[BenchmarkResult]) -> Dict[str, Any]:
     models = []
     for model, model_results in by_model.items():
         best = max(model_results, key=lambda r: r.metrics.overall_score)
-        models.append({
-            "model": model,
-            "metadata": best.model_metadata,
-            "best_run_id": best.run_id,
-            "metrics": asdict(best.metrics),
-            "performance": asdict(best.performance),
-            "stats": {
-                "mean": best.stats.mean,
-                "std": best.stats.std,
-                "runs": best.stats.runs,
-            },
-            "total_failures": best.failures.total_failures,
-        })
+        models.append(
+            {
+                "model": model,
+                "metadata": best.model_metadata,
+                "best_run_id": best.run_id,
+                "metrics": asdict(best.metrics),
+                "performance": asdict(best.performance),
+                "stats": {
+                    "mean": best.stats.mean,
+                    "std": best.stats.std,
+                    "runs": best.stats.runs,
+                },
+                "total_failures": best.failures.total_failures,
+            }
+        )
 
     # Sort by overall score
     models.sort(key=lambda m: m["metrics"]["overall_score"], reverse=True)

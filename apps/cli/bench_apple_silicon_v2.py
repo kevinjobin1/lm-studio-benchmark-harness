@@ -35,27 +35,28 @@ from scoring import (
     StatisticalScore,
     FailureType,
     DeveloperRealismScorer,
-    TokenizationAwareMetrics
+    TokenizationAwareMetrics,
 )
-from prompt_generator import (
-    PromptGenerator,
-    GeneratedPrompt,
-    PromptCategory
-)
+from prompt_generator import PromptGenerator, GeneratedPrompt, PromptCategory
 
 # ── V2 Trace Capture ────────────────────────────────────────────
 try:
     from core.trace_capture import TraceCapture, wrap_stream
 except ImportError:
     TraceCapture = None  # type: ignore
-    wrap_stream = None    # type: ignore
+    wrap_stream = None  # type: ignore
     print("[devbench] Trace capture not available — traces disabled.", file=sys.stderr)
 
 # ── Event Bus ───────────────────────────────────────────────────
 try:
     from events import (
-        EventBus, default_bus, TokenGeneratedEvent, CompletionEvent,
-        RunLifecycleEvent, MetricEvent, ErrorEvent,
+        EventBus,
+        default_bus,
+        TokenGeneratedEvent,
+        CompletionEvent,
+        RunLifecycleEvent,
+        MetricEvent,
+        ErrorEvent,
     )
 except ImportError:
     # Fallback: no-op event types so the rest of the code still works
@@ -83,6 +84,7 @@ except ImportError:
 # ── Simple metrics shim for trace capture (module-level, not per-call) ─
 class _TraceMetricsShim:
     """Minimal metrics duck-type so TraceCapture.finish() gets tps/token data."""
+
     def __init__(self, tps: float, total_tok: int, prompt_tok: int, comp_tok: int):
         self.tokens_per_second = tps
         self.total_tokens = total_tok
@@ -93,6 +95,7 @@ class _TraceMetricsShim:
 @dataclass
 class BenchmarkResult:
     """Result from a single benchmark run with statistical rigor."""
+
     model: str
     category: str
     prompt: str
@@ -113,14 +116,14 @@ class BenchmarkResult:
 
 class LMStudioModelDetector:
     """Auto-detect models installed in LM Studio."""
-    
+
     def __init__(self, lm_studio_path: str = "~/Library/Application Support/LM Studio"):
         self.lm_studio_path = Path(lm_studio_path).expanduser()
-    
+
     def detect_models(self) -> List[Dict[str, str]]:
         """Detect installed LM Studio models with metadata."""
         models = []
-        
+
         try:
             models_dir = self.lm_studio_path / "Models"
             if models_dir.exists():
@@ -130,37 +133,43 @@ class LMStudioModelDetector:
                         if config_file.exists():
                             with open(config_file) as f:
                                 config = json.load(f)
-                                models.append({
-                                    "name": config.get("model_name", model_path.name),
-                                    "path": str(model_path),
-                                    "size": config.get("size", "unknown"),
-                                    "quantization": config.get("quantization", "unknown"),
-                                    "parameters": config.get("parameters", "unknown")
-                                })
+                                models.append(
+                                    {
+                                        "name": config.get("model_name", model_path.name),
+                                        "path": str(model_path),
+                                        "size": config.get("size", "unknown"),
+                                        "quantization": config.get("quantization", "unknown"),
+                                        "parameters": config.get("parameters", "unknown"),
+                                    }
+                                )
                         else:
-                            models.append({
-                                "name": model_path.name,
-                                "path": str(model_path),
-                                "size": "unknown",
-                                "quantization": "unknown",
-                                "parameters": "unknown"
-                            })
+                            models.append(
+                                {
+                                    "name": model_path.name,
+                                    "path": str(model_path),
+                                    "size": "unknown",
+                                    "quantization": "unknown",
+                                    "parameters": "unknown",
+                                }
+                            )
         except Exception as e:
             print(f"Could not auto-detect models: {e}")
-        
+
         return models
 
 
 class AppleSiliconBenchmarkV2:
     """Benchmark runner v2 with statistical rigor and execution-grounded scoring."""
-    
-    def __init__(self, 
-                 api_base: str = "http://localhost:1234/v1", 
-                 api_key: str = "lm-studio",
-                 num_runs: int = 5,
-                 traces_dir: str = "",
-                 no_traces: bool = False,
-                 event_bus: Optional[object] = None):
+
+    def __init__(
+        self,
+        api_base: str = "http://localhost:1234/v1",
+        api_key: str = "lm-studio",
+        num_runs: int = 5,
+        traces_dir: str = "",
+        no_traces: bool = False,
+        event_bus: Optional[object] = None,
+    ):
         self.client = OpenAI(base_url=api_base, api_key=api_key)
         self.prompt_generator = PromptGenerator()
         self.evaluator = ComprehensiveEvaluator(num_runs=num_runs)
@@ -175,8 +184,10 @@ class AppleSiliconBenchmarkV2:
         self.event_bus = event_bus or default_bus
         # event bus is available if import succeeded AND a bus instance is provided
         self._events_available = self.event_bus is not None and EventBus is not None
-    
-    def run_single_completion(self, model_name: str, prompt: str, capture_trace: bool = True) -> tuple:
+
+    def run_single_completion(
+        self, model_name: str, prompt: str, capture_trace: bool = True
+    ) -> tuple:
         """Run a single completion and return (response, token_times, ttft, total_time, trace).
 
         Returns 5-tuple: (response_text, token_times, ttft, total_time, trace_or_None)
@@ -188,7 +199,7 @@ class AppleSiliconBenchmarkV2:
         trace = None
         source = f"devbench.{model_name}"
         run_id = f"devbench_{model_name}_{int(start_time)}"
-        
+
         # Set up trace capture if available
         capture = None
         if capture_trace and TraceCapture is not None:
@@ -198,16 +209,16 @@ class AppleSiliconBenchmarkV2:
                 prompt=prompt,
                 provider="lm-studio",
             )
-        
+
         try:
             stream = self.client.chat.completions.create(
                 model=model_name,
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.2,  # Slight temperature for variance testing
                 max_tokens=1000,
-                stream=True
+                stream=True,
             )
-            
+
             last_token_time = start_time
             token_index = 0
             for chunk in stream:
@@ -215,129 +226,141 @@ class AppleSiliconBenchmarkV2:
                     current_time = time.time()
                     if first_token_time is None:
                         first_token_time = current_time
-                    
+
                     token_times.append(current_time - last_token_time)
                     last_token_time = current_time
                     text = chunk.choices[0].delta.content
                     response_text += text
-                    
+
                     # Emit token event
                     if self._events_available:
                         timing_ms = (current_time - start_time) * 1000
-                        self.event_bus.emit_sync(TokenGeneratedEvent(
-                            model=model_name,
-                            token=text,
-                            index=token_index,
-                            timing_ms=timing_ms,
-                            provider="lm-studio",
-                            run_id=run_id,
-                            source=source,
-                        ))
-                    
+                        self.event_bus.emit_sync(
+                            TokenGeneratedEvent(
+                                model=model_name,
+                                token=text,
+                                index=token_index,
+                                timing_ms=timing_ms,
+                                provider="lm-studio",
+                                run_id=run_id,
+                                source=source,
+                            )
+                        )
+
                     # Record token in trace
                     if capture is not None:
                         capture.record_token(text, token_index)
                     token_index += 1
-            
+
             total_time = time.time() - start_time
             ttft = first_token_time - start_time if first_token_time else total_time
             ttft_ms = ttft * 1000
             est_tokens = len(response_text) // 4
             gen_time = total_time - ttft
             tps = est_tokens / gen_time if gen_time > 0 else 0
-            
+
             # Finish trace capture
             if capture is not None:
                 trace = capture.finish(
                     response_text,
                     _TraceMetricsShim(tps, est_tokens, len(prompt) // 4, est_tokens),
                 )
-            
+
             # Emit completion event
             if self._events_available:
-                self.event_bus.emit_sync(CompletionEvent(
-                    model=model_name,
-                    response=response_text,
-                    tokens_used=est_tokens,
-                    latency_ms=total_time * 1000,
-                    ttft_ms=ttft_ms,
-                    tokens_per_second=tps,
-                    provider="lm-studio",
-                    run_id=run_id,
-                    source=source,
-                    success=True,
-                ))
-            
+                self.event_bus.emit_sync(
+                    CompletionEvent(
+                        model=model_name,
+                        response=response_text,
+                        tokens_used=est_tokens,
+                        latency_ms=total_time * 1000,
+                        ttft_ms=ttft_ms,
+                        tokens_per_second=tps,
+                        provider="lm-studio",
+                        run_id=run_id,
+                        source=source,
+                        success=True,
+                    )
+                )
+
             return response_text, token_times, ttft, total_time, trace
-            
+
         except Exception as e:
             total_time = time.time() - start_time
             print(f"Error in completion: {e}")
-            
+
             # Emit error + failed completion events
             if self._events_available:
-                self.event_bus.emit_sync(ErrorEvent(
-                    message=f"DevBench completion failed: {e}",
-                    exception=type(e).__name__,
-                    component="devbench_runner",
-                    run_id=run_id,
-                    source=source,
-                    severity="error",
-                ))
-                self.event_bus.emit_sync(CompletionEvent(
-                    model=model_name,
-                    response="",
-                    tokens_used=0,
-                    latency_ms=total_time * 1000,
-                    ttft_ms=0,
-                    tokens_per_second=0,
-                    provider="lm-studio",
-                    run_id=run_id,
-                    source=source,
-                    success=False,
-                    error=str(e),
-                ))
-            
+                self.event_bus.emit_sync(
+                    ErrorEvent(
+                        message=f"DevBench completion failed: {e}",
+                        exception=type(e).__name__,
+                        component="devbench_runner",
+                        run_id=run_id,
+                        source=source,
+                        severity="error",
+                    )
+                )
+                self.event_bus.emit_sync(
+                    CompletionEvent(
+                        model=model_name,
+                        response="",
+                        tokens_used=0,
+                        latency_ms=total_time * 1000,
+                        ttft_ms=0,
+                        tokens_per_second=0,
+                        provider="lm-studio",
+                        run_id=run_id,
+                        source=source,
+                        success=False,
+                        error=str(e),
+                    )
+                )
+
             if capture is not None:
                 capture.record_error(str(e))
                 capture.finish("", None)
                 trace = capture.trace
             return "", [], 0, 0, trace
-    
-    def run_benchmark_with_variance(self, 
-                                   model_name: str, 
-                                   prompt_data: GeneratedPrompt) -> BenchmarkResult:
+
+    def run_benchmark_with_variance(
+        self, model_name: str, prompt_data: GeneratedPrompt
+    ) -> BenchmarkResult:
         """Run benchmark with multiple runs for statistical variance."""
         prompt = prompt_data.prompt
         category = prompt_data.category.value
         source = f"devbench.{model_name}.{category}"
         run_id = f"devbench_{model_name}_{category}_{int(time.time())}"
-        
+
         # Emit lifecycle: benchmark started
         if self._events_available:
-            self.event_bus.emit_sync(RunLifecycleEvent(
-                status="started",
-                model=model_name,
-                workload=f"devbench/{category}",
-                run_id=run_id,
-                source=source,
-            ))
-        
+            self.event_bus.emit_sync(
+                RunLifecycleEvent(
+                    status="started",
+                    model=model_name,
+                    workload=f"devbench/{category}",
+                    run_id=run_id,
+                    source=source,
+                )
+            )
+
         # Start memory monitoring
         process = psutil.Process()
         start_ram = process.memory_info().rss / 1024 / 1024
-        
+
         # Run multiple times for variance
         responses = []
         ttfts = []
         total_times = []
         token_times_list = []
-        
+
         print(f"   Running {self.num_runs} iterations for variance...")
-        
+
         traces = []  # V2: collect traces from this benchmark
         for i in range(self.num_runs):
-            result_tuple = self.run_single_completion(model_name, prompt, capture_trace=not self.no_traces)
+            result_tuple = self.run_single_completion(
+                model_name, prompt, capture_trace=not self.no_traces
+            )
             response, token_times, ttft, total_time, trace = result_tuple
             responses.append(response)
             ttfts.append(ttft)
@@ -345,22 +368,22 @@ class AppleSiliconBenchmarkV2:
             token_times_list.append(token_times)
             if trace is not None:
                 traces.append(trace)
-            print(f"     Run {i+1}/{self.num_runs}: {len(response)} chars, {ttft:.3f}s TTFT")
-        
+            print(f"     Run {i + 1}/{self.num_runs}: {len(response)} chars, {ttft:.3f}s TTFT")
+
         # V2: Persist captured traces
         trace_ids_saved: List[str] = []
         if traces:
             saved_paths = self.save_traces(traces)
             trace_ids_saved = [t.trace_id for t in traces]
-        
+
         # End memory monitoring
         end_ram = process.memory_info().rss / 1024 / 1024
         ram_usage = end_ram - start_ram
-        
+
         # Calculate statistical metrics
         ttft_mean = statistics.mean(ttfts)
         ttft_std = statistics.stdev(ttfts) if len(ttfts) > 1 else 0.0
-        
+
         # Calculate tokens/sec for each run
         tps_values = []
         for response, total_time in zip(responses, total_times):
@@ -369,26 +392,28 @@ class AppleSiliconBenchmarkV2:
                 token_count = len(response) / 4
                 tps = token_count / total_time
                 tps_values.append(tps)
-        
+
         tokens_per_second_mean = statistics.mean(tps_values) if tps_values else 0.0
         tokens_per_second_std = statistics.stdev(tps_values) if len(tps_values) > 1 else 0.0
-        
+
         # Tokenization-aware normalization
         avg_response_length = statistics.mean([len(r) for r in responses]) if responses else 0
         normalized_tps_mean = self.token_metrics.normalize_tokens_per_second(
             tokens_per_second_mean, avg_response_length
         )
-        
+
         # Steady-state speed and tail latency
         all_token_times = []
         for token_times in token_times_list:
             all_token_times.extend(token_times)
-        
+
         if all_token_times:
-            steady_state_speed, tail_latency = self.token_metrics.compute_steady_state_speed(all_token_times)
+            steady_state_speed, tail_latency = self.token_metrics.compute_steady_state_speed(
+                all_token_times
+            )
         else:
             steady_state_speed, tail_latency = 0.0, 0.0
-        
+
         # Evaluate with variance
         evaluation = self.evaluator.evaluate_with_variance(
             responses,
@@ -397,93 +422,112 @@ class AppleSiliconBenchmarkV2:
                 "expected_keywords": prompt_data.expected_keywords,
                 "constraints": prompt_data.constraints,
                 "expected_answer": prompt_data.expected_answer,
-                "json_schema": prompt_data.json_schema
+                "json_schema": prompt_data.json_schema,
             },
-            category
+            category,
         )
-        
+
         # Calculate developer realism score
         latency_score = 1.0 / (1.0 + ttft_mean)  # Lower TTFT = higher score
-        verbosity_penalty = min(0.2, max(0.0, (avg_response_length - 500) / 2000))  # Penalize very verbose responses
+        verbosity_penalty = min(
+            0.2, max(0.0, (avg_response_length - 500) / 2000)
+        )  # Penalize very verbose responses
         developer_score = self.developer_scorer.compute_developer_score(
-            evaluation.score_components,
-            latency_score,
-            verbosity_penalty
+            evaluation.score_components, latency_score, verbosity_penalty
         )
-        
+
         # Emit metric events for scores
         if self._events_available:
-            self.event_bus.emit_sync(MetricEvent(
-                name="devbench.overall_score",
-                value=evaluation.overall_score,
-                tags={
-                    "model": model_name,
-                    "category": category,
-                    "num_runs": str(self.num_runs),
-                },
-                model=model_name,
-                run_id=run_id,
-                source=source,
-            ))
-            self.event_bus.emit_sync(MetricEvent(
-                name="devbench.developer_score",
-                value=developer_score,
-                tags={"model": model_name, "category": category},
-                model=model_name,
-                run_id=run_id,
-                source=source,
-            ))
-            self.event_bus.emit_sync(MetricEvent(
-                name="devbench.ttft_ms",
-                value=ttft_mean * 1000,
-                tags={"model": model_name, "category": category},
-                model=model_name,
-                run_id=run_id,
-                source=source,
-            ))
-            self.event_bus.emit_sync(MetricEvent(
-                name="devbench.tokens_per_second",
-                value=tokens_per_second_mean,
-                tags={"model": model_name, "category": category},
-                model=model_name,
-                run_id=run_id,
-                source=source,
-            ))
-            # Emit score components as individual metrics
-            for component_name in ("correctness", "instruction_compliance", "reasoning_quality",
-                                   "code_executability", "type_safety"):
-                value = getattr(evaluation.score_components, component_name, 0.0)
-                self.event_bus.emit_sync(MetricEvent(
-                    name=f"devbench.{component_name}",
-                    value=value,
+            self.event_bus.emit_sync(
+                MetricEvent(
+                    name="devbench.overall_score",
+                    value=evaluation.overall_score,
+                    tags={
+                        "model": model_name,
+                        "category": category,
+                        "num_runs": str(self.num_runs),
+                    },
+                    model=model_name,
+                    run_id=run_id,
+                    source=source,
+                )
+            )
+            self.event_bus.emit_sync(
+                MetricEvent(
+                    name="devbench.developer_score",
+                    value=developer_score,
                     tags={"model": model_name, "category": category},
                     model=model_name,
                     run_id=run_id,
                     source=source,
-                ))
-            
+                )
+            )
+            self.event_bus.emit_sync(
+                MetricEvent(
+                    name="devbench.ttft_ms",
+                    value=ttft_mean * 1000,
+                    tags={"model": model_name, "category": category},
+                    model=model_name,
+                    run_id=run_id,
+                    source=source,
+                )
+            )
+            self.event_bus.emit_sync(
+                MetricEvent(
+                    name="devbench.tokens_per_second",
+                    value=tokens_per_second_mean,
+                    tags={"model": model_name, "category": category},
+                    model=model_name,
+                    run_id=run_id,
+                    source=source,
+                )
+            )
+            # Emit score components as individual metrics
+            for component_name in (
+                "correctness",
+                "instruction_compliance",
+                "reasoning_quality",
+                "code_executability",
+                "type_safety",
+            ):
+                value = getattr(evaluation.score_components, component_name, 0.0)
+                self.event_bus.emit_sync(
+                    MetricEvent(
+                        name=f"devbench.{component_name}",
+                        value=value,
+                        tags={"model": model_name, "category": category},
+                        model=model_name,
+                        run_id=run_id,
+                        source=source,
+                    )
+                )
+
             # Emit failure count
-            self.event_bus.emit_sync(MetricEvent(
-                name="devbench.failure_count",
-                value=float(len(evaluation.failures)),
-                tags={"model": model_name, "category": category},
-                model=model_name,
-                run_id=run_id,
-                source=source,
-            ))
-        
+            self.event_bus.emit_sync(
+                MetricEvent(
+                    name="devbench.failure_count",
+                    value=float(len(evaluation.failures)),
+                    tags={"model": model_name, "category": category},
+                    model=model_name,
+                    run_id=run_id,
+                    source=source,
+                )
+            )
+
         # Emit lifecycle: benchmark completed
         if self._events_available:
             total_duration = sum(total_times) * 1000
-            self.event_bus.emit_sync(RunLifecycleEvent(
-                status="completed",
-                model=model_name,
-                workload=f"devbench/{category}",
-                run_id=run_id,
-                source=source,
-                duration_ms=total_duration,
-            ))
-        
+            self.event_bus.emit_sync(
+                RunLifecycleEvent(
+                    status="completed",
+                    model=model_name,
+                    workload=f"devbench/{category}",
+                    run_id=run_id,
+                    source=source,
+                    duration_ms=total_duration,
+                )
+            )
+
         return BenchmarkResult(
             model=model_name,
             category=category,
@@ -503,39 +547,43 @@ class AppleSiliconBenchmarkV2:
             metadata={
                 "difficulty": prompt_data.difficulty,
                 "num_runs": self.num_runs,
-                "avg_response_length": avg_response_length
-            }
+                "avg_response_length": avg_response_length,
+            },
         )
-    
-    def benchmark_model(self, 
-                       model_name: str, 
-                       prompts: Optional[List[GeneratedPrompt]] = None,
-                       parallel: bool = True) -> List[BenchmarkResult]:
+
+    def benchmark_model(
+        self,
+        model_name: str,
+        prompts: Optional[List[GeneratedPrompt]] = None,
+        parallel: bool = True,
+    ) -> List[BenchmarkResult]:
         """Benchmark a single model against all prompts."""
         if prompts is None:
             prompts = self.prompt_generator.generate_default_batch(total_prompts=20)
-        
+
         source = f"devbench.{model_name}"
         run_id = f"devbench_{model_name}_full_{int(time.time())}"
-        
+
         # Emit lifecycle: model benchmark started
         if self._events_available:
-            self.event_bus.emit_sync(RunLifecycleEvent(
-                status="started",
-                model=model_name,
-                workload="devbench/full",
-                run_id=run_id,
-                source=source,
-            ))
-        
+            self.event_bus.emit_sync(
+                RunLifecycleEvent(
+                    status="started",
+                    model=model_name,
+                    workload="devbench/full",
+                    run_id=run_id,
+                    source=source,
+                )
+            )
+
         start_time = time.time()
-        
+
         print(f"\n🚀 Benchmarking {model_name}")
         print(f"   Running {len(prompts)} benchmarks with {self.num_runs} iterations each...")
         print(f"   Total runs: {len(prompts) * self.num_runs}\n")
-        
+
         model_results = []
-        
+
         if parallel:
             # Parallel execution
             with ThreadPoolExecutor(max_workers=3) as executor:
@@ -543,83 +591,99 @@ class AppleSiliconBenchmarkV2:
                     executor.submit(self.run_benchmark_with_variance, model_name, prompt): prompt
                     for prompt in prompts
                 }
-                
+
                 for i, future in enumerate(as_completed(future_to_prompt)):
                     prompt = future_to_prompt[future]
                     try:
                         result = future.result()
                         model_results.append(result)
-                        print(f"   [{i+1}/{len(prompts)}] {result.category}: "
-                              f"QPS={result.evaluation.statistical_score.mean:.2f}±{result.evaluation.statistical_score.std:.2f}, "
-                              f"DevScore={result.developer_score:.2f}")
+                        print(
+                            f"   [{i + 1}/{len(prompts)}] {result.category}: "
+                            f"QPS={result.evaluation.statistical_score.mean:.2f}±{result.evaluation.statistical_score.std:.2f}, "
+                            f"DevScore={result.developer_score:.2f}"
+                        )
                     except Exception as e:
-                        print(f"   Error on prompt {i+1}: {e}")
+                        print(f"   Error on prompt {i + 1}: {e}")
         else:
             # Sequential execution
             for i, prompt in enumerate(prompts):
-                print(f"   [{i+1}/{len(prompts)}] {prompt.category.value}: {prompt.prompt[:50]}...")
+                print(
+                    f"   [{i + 1}/{len(prompts)}] {prompt.category.value}: {prompt.prompt[:50]}..."
+                )
                 result = self.run_benchmark_with_variance(model_name, prompt)
                 model_results.append(result)
-                print(f"      QPS: {result.evaluation.statistical_score.mean:.2f}±{result.evaluation.statistical_score.std:.2f}")
+                print(
+                    f"      QPS: {result.evaluation.statistical_score.mean:.2f}±{result.evaluation.statistical_score.std:.2f}"
+                )
                 print(f"      DevScore: {result.developer_score:.2f}")
                 print(f"      Failures: {[f.value for f in result.evaluation.failures]}")
-        
+
         self.results.extend(model_results)
-        
+
         # Emit lifecycle: model benchmark completed
         total_duration = (time.time() - start_time) * 1000
         if self._events_available:
             status = "completed" if model_results else "failed"
-            self.event_bus.emit_sync(RunLifecycleEvent(
-                status=status,
-                model=model_name,
-                workload="devbench/full",
-                run_id=run_id,
-                source=source,
-                duration_ms=total_duration,
-                error="No results produced" if not model_results else None,
-            ))
-        
+            self.event_bus.emit_sync(
+                RunLifecycleEvent(
+                    status=status,
+                    model=model_name,
+                    workload="devbench/full",
+                    run_id=run_id,
+                    source=source,
+                    duration_ms=total_duration,
+                    error="No results produced" if not model_results else None,
+                )
+            )
+
         # Emit aggregate metrics for the model (only if results exist)
         if self._events_available and model_results:
             avg_dev_score = statistics.mean([r.developer_score for r in model_results])
             avg_tps = statistics.mean([r.tokens_per_second_mean for r in model_results])
             avg_ttft = statistics.mean([r.ttft_mean for r in model_results]) * 1000
             total_failures = sum(len(r.evaluation.failures) for r in model_results)
-            
-            self.event_bus.emit_sync(MetricEvent(
-                name="devbench.model.avg_developer_score",
-                value=avg_dev_score,
-                tags={"model": model_name, "num_prompts": str(len(prompts))},
-                model=model_name,
-                run_id=run_id,
-                source=source,
-            ))
-            self.event_bus.emit_sync(MetricEvent(
-                name="devbench.model.avg_tokens_per_second",
-                value=avg_tps,
-                tags={"model": model_name},
-                model=model_name,
-                run_id=run_id,
-                source=source,
-            ))
-            self.event_bus.emit_sync(MetricEvent(
-                name="devbench.model.avg_ttft_ms",
-                value=avg_ttft,
-                tags={"model": model_name},
-                model=model_name,
-                run_id=run_id,
-                source=source,
-            ))
-            self.event_bus.emit_sync(MetricEvent(
-                name="devbench.model.total_failures",
-                value=float(total_failures),
-                tags={"model": model_name},
-                model=model_name,
-                run_id=run_id,
-                source=source,
-            ))
-        
+
+            self.event_bus.emit_sync(
+                MetricEvent(
+                    name="devbench.model.avg_developer_score",
+                    value=avg_dev_score,
+                    tags={"model": model_name, "num_prompts": str(len(prompts))},
+                    model=model_name,
+                    run_id=run_id,
+                    source=source,
+                )
+            )
+            self.event_bus.emit_sync(
+                MetricEvent(
+                    name="devbench.model.avg_tokens_per_second",
+                    value=avg_tps,
+                    tags={"model": model_name},
+                    model=model_name,
+                    run_id=run_id,
+                    source=source,
+                )
+            )
+            self.event_bus.emit_sync(
+                MetricEvent(
+                    name="devbench.model.avg_ttft_ms",
+                    value=avg_ttft,
+                    tags={"model": model_name},
+                    model=model_name,
+                    run_id=run_id,
+                    source=source,
+                )
+            )
+            self.event_bus.emit_sync(
+                MetricEvent(
+                    name="devbench.model.total_failures",
+                    value=float(total_failures),
+                    tags={"model": model_name},
+                    model=model_name,
+                    run_id=run_id,
+                    source=source,
+                )
+            )
+
         return model_results
 
     def save_traces(self, traces: List) -> List[str]:
@@ -630,7 +694,7 @@ class AppleSiliconBenchmarkV2:
                 continue
             try:
                 file_path = self.traces_dir / f"{trace.trace_id}.json"
-                with open(file_path, 'w') as f:
+                with open(file_path, "w") as f:
                     f.write(trace.to_json())
                 saved.append(str(file_path))
             except Exception as e:
@@ -642,11 +706,11 @@ class AppleSiliconBenchmarkV2:
 
 class ReportGeneratorV2:
     """Generate comprehensive reports for public leaderboard."""
-    
+
     def __init__(self, output_dir: str = "devbench_results"):
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(exist_ok=True)
-    
+
     def generate_markdown_report(self, results: List[BenchmarkResult]) -> str:
         """Generate comprehensive markdown report."""
         # Group results by model
@@ -655,14 +719,14 @@ class ReportGeneratorV2:
             if result.model not in by_model:
                 by_model[result.model] = []
             by_model[result.model].append(result)
-        
+
         # Calculate aggregate metrics per model
         model_stats = {}
         for model, model_results in by_model.items():
             # Category averages
             categories = ["code", "frontend", "reasoning", "math", "instruction", "debugging"]
             category_scores = {}
-            
+
             for cat in categories:
                 cat_results = [r for r in model_results if r.category == cat]
                 if cat_results:
@@ -670,76 +734,80 @@ class ReportGeneratorV2:
                     category_scores[cat] = avg_score
                 else:
                     category_scores[cat] = 0.0
-            
+
             # Performance metrics
             avg_tps = statistics.mean([r.tokens_per_second_mean for r in model_results])
             avg_ttft = statistics.mean([r.ttft_mean for r in model_results])
             avg_dev_score = statistics.mean([r.developer_score for r in model_results])
             avg_normalized_tps = statistics.mean([r.normalized_tps_mean for r in model_results])
-            
+
             # Failure aggregation
             all_failures = []
             for r in model_results:
                 all_failures.extend(r.evaluation.failures)
-            
+
             failure_counts = {}
             for failure in all_failures:
                 failure_counts[failure.value] = failure_counts.get(failure.value, 0) + 1
-            
+
             model_stats[model] = {
                 **category_scores,
                 "tokens_per_second": avg_tps,
                 "normalized_tps": avg_normalized_tps,
                 "ttft": avg_ttft,
                 "developer_score": avg_dev_score,
-                "failure_counts": failure_counts
+                "failure_counts": failure_counts,
             }
-        
+
         # Generate markdown
         md = "# 🍎 LM Studio DevBench Results\n\n"
         md += "Public benchmark for local small AI models on Apple Silicon\n\n"
         md += "**Hardware**: MacBook Pro M3, 18GB unified memory\n"
         md += "**Focus**: TypeScript/NestJS/React development workflow\n"
         md += "**Metric**: Quality-per-token/sec with statistical rigor (n=5 runs per prompt)\n\n"
-        
+
         # Summary table
         md += "## 📊 Leaderboard\n\n"
         md += "| Model | Code | Frontend | Reasoning | Math | IF | Debug | DevScore | tok/s | TTFT | NormTPS |\n"
         md += "|-------|------|----------|-----------|------|----|-------|----------|-------|------|--------|\n"
-        
-        for model, stats in sorted(model_stats.items(), key=lambda x: x[1]["developer_score"], reverse=True):
+
+        for model, stats in sorted(
+            model_stats.items(), key=lambda x: x[1]["developer_score"], reverse=True
+        ):
             md += f"| {model} | {stats['code']:.2%} | {stats['frontend']:.2%} | {stats['reasoning']:.2%} | {stats['math']:.2%} | {stats['instruction']:.2%} | {stats['debugging']:.2%} | {stats['developer_score']:.2f} | {stats['tokens_per_second']:.1f} | {stats['ttft']:.3f}s | {stats['normalized_tps']:.1f} |\n"
-        
+
         # Awards
         md += "\n## 🏆 Awards\n\n"
-        
+
         best_coder = max(model_stats.items(), key=lambda x: x[1]["code"])
         md += f"**Best Coder**: {best_coder[0]} ({best_coder[1]['code']:.2%})\n\n"
-        
+
         best_debugger = max(model_stats.items(), key=lambda x: x[1]["debugging"])
         md += f"**Best Debugger**: {best_debugger[0]} ({best_debugger[1]['debugging']:.2%})\n\n"
-        
+
         fastest = max(model_stats.items(), key=lambda x: x[1]["normalized_tps"])
         md += f"**Fastest**: {fastest[0]} ({fastest[1]['normalized_tps']:.1f} norm-tok/s)\n\n"
-        
+
         best_dev = max(model_stats.items(), key=lambda x: x[1]["developer_score"])
         md += f"**Best Developer Experience**: {best_dev[0]} ({best_dev[1]['developer_score']:.2f})\n\n"
-        
+
         overall_winner = best_dev[0]
         md += f"**🥇 Overall Winner**: {overall_winner}\n\n"
-        
+
         # Failure analysis
         md += "## 🔍 Failure Analysis\n\n"
         md += "Common failure patterns across models:\n\n"
-        
+
         all_failures_combined = {}
         for model, stats in model_stats.items():
             for failure, count in stats["failure_counts"].items():
                 all_failures_combined[failure] = all_failures_combined.get(failure, 0) + count
-        
-        for failure, count in sorted(all_failures_combined.items(), key=lambda x: x[1], reverse=True):
+
+        for failure, count in sorted(
+            all_failures_combined.items(), key=lambda x: x[1], reverse=True
+        ):
             md += f"- **{failure}**: {count} occurrences\n"
-        
+
         # Methodology
         md += "\n## 📋 Methodology\n\n"
         md += "- **Statistical Rigor**: 5 runs per prompt, mean ± std reported\n"
@@ -749,16 +817,16 @@ class ReportGeneratorV2:
         md += "- **Developer Realism Score**: Weighted formula for practical utility\n"
         md += "- **Failure Taxonomy**: Detailed classification of error patterns\n"
         md += "- **Categories**: Code (40%), Frontend (20%), Reasoning (15%), Math (15%), Instruction (5%), Debugging (5%)\n\n"
-        
+
         md += "**Key Question Answered**: Which model gives the best answers while still feeling instant on an 18GB MacBook?\n"
-        
+
         # Save markdown
         md_file = self.output_dir / "results.md"
-        with open(md_file, 'w') as f:
+        with open(md_file, "w") as f:
             f.write(md)
-        
+
         return str(md_file)
-    
+
     def generate_json(self, results: List[BenchmarkResult], model_metadata: Dict[str, Dict]) -> str:
         """Generate JSON for X thread generator and further analysis."""
         # Group results by model
@@ -767,13 +835,13 @@ class ReportGeneratorV2:
             if result.model not in by_model:
                 by_model[result.model] = []
             by_model[result.model].append(result)
-        
+
         # Calculate aggregate metrics per model
         model_stats = {}
         for model, model_results in by_model.items():
             categories = ["code", "frontend", "reasoning", "math", "instruction", "debugging"]
             category_scores = {}
-            
+
             for cat in categories:
                 cat_results = [r for r in model_results if r.category == cat]
                 if cat_results:
@@ -781,21 +849,21 @@ class ReportGeneratorV2:
                     category_scores[cat] = avg_score
                 else:
                     category_scores[cat] = 0.0
-            
+
             avg_tps = statistics.mean([r.tokens_per_second_mean for r in model_results])
             avg_ttft = statistics.mean([r.ttft_mean for r in model_results])
             avg_dev_score = statistics.mean([r.developer_score for r in model_results])
             avg_normalized_tps = statistics.mean([r.normalized_tps_mean for r in model_results])
-            
+
             # Failure aggregation
             all_failures = []
             for r in model_results:
                 all_failures.extend(r.evaluation.failures)
-            
+
             failure_counts = {}
             for failure in all_failures:
                 failure_counts[failure.value] = failure_counts.get(failure.value, 0) + 1
-            
+
             model_stats[model] = {
                 **category_scores,
                 "tokens_per_second": avg_tps,
@@ -803,13 +871,13 @@ class ReportGeneratorV2:
                 "ttft": avg_ttft,
                 "developer_score": avg_dev_score,
                 "failure_counts": failure_counts,
-                "metadata": model_metadata.get(model, {})
+                "metadata": model_metadata.get(model, {}),
             }
-        
+
         # Find overall winner
         overall_winner = max(model_stats.items(), key=lambda x: x[1]["developer_score"])
         best_developer_score = overall_winner[1]["developer_score"]
-        
+
         # Build JSON structure
         json_data = {
             "overall_winner": overall_winner[0],
@@ -817,15 +885,15 @@ class ReportGeneratorV2:
             "models": list(model_stats.keys()),
             "model_stats": model_stats,
             "failure_analysis": self._aggregate_failures(model_stats),
-            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
+            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
         }
-        
+
         json_file = self.output_dir / "results.json"
-        with open(json_file, 'w') as f:
+        with open(json_file, "w") as f:
             json.dump(json_data, f, indent=2)
-        
+
         return str(json_file)
-    
+
     def _aggregate_failures(self, model_stats: Dict) -> Dict:
         """Aggregate failures across all models."""
         all_failures = {}
@@ -833,46 +901,63 @@ class ReportGeneratorV2:
             for failure, count in stats["failure_counts"].items():
                 all_failures[failure] = all_failures.get(failure, 0) + count
         return all_failures
-    
+
     def generate_csv(self, results: List[BenchmarkResult]) -> str:
         """Generate CSV for data analysis."""
         import csv
-        
+
         csv_file = self.output_dir / "results.csv"
-        with open(csv_file, 'w', newline='') as f:
+        with open(csv_file, "w", newline="") as f:
             writer = csv.writer(f)
-            writer.writerow([
-                "model", "category", "overall_score", "score_std", "correctness",
-                "instruction_compliance", "reasoning_quality", "code_executability",
-                "type_safety", "developer_score", "tokens_per_second", "normalized_tps",
-                "ttft", "steady_state_speed", "tail_latency", "ram_usage_mb",
-                "failures", "num_runs"
-            ])
-            
+            writer.writerow(
+                [
+                    "model",
+                    "category",
+                    "overall_score",
+                    "score_std",
+                    "correctness",
+                    "instruction_compliance",
+                    "reasoning_quality",
+                    "code_executability",
+                    "type_safety",
+                    "developer_score",
+                    "tokens_per_second",
+                    "normalized_tps",
+                    "ttft",
+                    "steady_state_speed",
+                    "tail_latency",
+                    "ram_usage_mb",
+                    "failures",
+                    "num_runs",
+                ]
+            )
+
             for result in results:
-                writer.writerow([
-                    result.model,
-                    result.category,
-                    result.evaluation.overall_score,
-                    result.evaluation.statistical_score.std,
-                    result.evaluation.score_components.correctness,
-                    result.evaluation.score_components.instruction_compliance,
-                    result.evaluation.score_components.reasoning_quality,
-                    result.evaluation.score_components.code_executability,
-                    result.evaluation.score_components.type_safety,
-                    result.developer_score,
-                    result.tokens_per_second_mean,
-                    result.normalized_tps_mean,
-                    result.ttft_mean,
-                    result.steady_state_speed,
-                    result.tail_latency,
-                    result.ram_usage_mb,
-                    ",".join([f.value for f in result.evaluation.failures]),
-                    result.metadata.get("num_runs", 1)
-                ])
-        
+                writer.writerow(
+                    [
+                        result.model,
+                        result.category,
+                        result.evaluation.overall_score,
+                        result.evaluation.statistical_score.std,
+                        result.evaluation.score_components.correctness,
+                        result.evaluation.score_components.instruction_compliance,
+                        result.evaluation.score_components.reasoning_quality,
+                        result.evaluation.score_components.code_executability,
+                        result.evaluation.score_components.type_safety,
+                        result.developer_score,
+                        result.tokens_per_second_mean,
+                        result.normalized_tps_mean,
+                        result.ttft_mean,
+                        result.steady_state_speed,
+                        result.tail_latency,
+                        result.ram_usage_mb,
+                        ",".join([f.value for f in result.evaluation.failures]),
+                        result.metadata.get("num_runs", 1),
+                    ]
+                )
+
         return str(csv_file)
-    
+
     def generate_radar_chart(self, results: List[BenchmarkResult]) -> str:
         """Generate radar chart for model comparison."""
         # Group by model
@@ -881,11 +966,11 @@ class ReportGeneratorV2:
             if result.model not in by_model:
                 by_model[result.model] = []
             by_model[result.model].append(result)
-        
+
         # Calculate category averages per model
         categories = ["code", "frontend", "reasoning", "math", "instruction", "debugging"]
         model_data = {}
-        
+
         for model, model_results in by_model.items():
             scores = []
             for cat in categories:
@@ -896,52 +981,66 @@ class ReportGeneratorV2:
                 else:
                     scores.append(0)
             model_data[model] = scores
-        
+
         # Create radar chart
-        fig, ax = plt.subplots(figsize=(12, 10), subplot_kw=dict(projection='polar'))
-        
+        fig, ax = plt.subplots(figsize=(12, 10), subplot_kw=dict(projection="polar"))
+
         angles = np.linspace(0, 2 * np.pi, len(categories), endpoint=False).tolist()
         angles += angles[:1]
-        
+
         colors = plt.cm.Set3(np.linspace(0, 1, len(model_data)))
-        
+
         for (model, scores), color in zip(model_data.items(), colors):
             scores += scores[:1]
-            ax.plot(angles, scores, 'o-', linewidth=2, label=model, color=color)
+            ax.plot(angles, scores, "o-", linewidth=2, label=model, color=color)
             ax.fill(angles, scores, alpha=0.15, color=color)
-        
+
         ax.set_xticks(angles[:-1])
         ax.set_xticklabels([c.title() for c in categories])
         ax.set_ylim(0, 1)
-        ax.set_title('Model Capability Radar Chart\n(with Statistical Rigor)', size=16, pad=20)
-        ax.legend(loc='upper right', bbox_to_anchor=(1.3, 1.0))
+        ax.set_title("Model Capability Radar Chart\n(with Statistical Rigor)", size=16, pad=20)
+        ax.legend(loc="upper right", bbox_to_anchor=(1.3, 1.0))
         ax.grid(True)
-        
+
         chart_file = self.output_dir / "radar_chart.png"
-        plt.savefig(chart_file, dpi=150, bbox_inches='tight')
+        plt.savefig(chart_file, dpi=150, bbox_inches="tight")
         plt.close()
-        
+
         return str(chart_file)
 
 
 def main():
     """Main entry point."""
     import argparse
-    
-    parser = argparse.ArgumentParser(description="LM Studio DevBench v2 - Public Benchmark for Local Small AI Models")
-    parser.add_argument("--api-base", default="http://localhost:1234/v1", help="LM Studio API base URL")
-    parser.add_argument("--models", nargs="+", help="Specific models to benchmark (default: auto-detect)")
+
+    parser = argparse.ArgumentParser(
+        description="LM Studio DevBench v2 - Public Benchmark for Local Small AI Models"
+    )
+    parser.add_argument(
+        "--api-base", default="http://localhost:1234/v1", help="LM Studio API base URL"
+    )
+    parser.add_argument(
+        "--models", nargs="+", help="Specific models to benchmark (default: auto-detect)"
+    )
     parser.add_argument("--output-dir", default="devbench_results", help="Output directory")
-    parser.add_argument("--num-runs", type=int, default=5, help="Number of runs per prompt for variance")
+    parser.add_argument(
+        "--num-runs", type=int, default=5, help="Number of runs per prompt for variance"
+    )
     parser.add_argument("--num-prompts", type=int, default=20, help="Total number of prompts")
-    parser.add_argument("--parallel", action="store_true", default=True, help="Enable parallel execution")
+    parser.add_argument(
+        "--parallel", action="store_true", default=True, help="Enable parallel execution"
+    )
     parser.add_argument("--sequential", action="store_true", help="Disable parallel execution")
-    parser.add_argument("--sse-port", type=int, default=None,
-                        help="Start SSE event bridge on this port for real-time dashboard updates. "
-                             "0 = auto-select (prints SSE_PORT:N to stdout on start).")
-    
+    parser.add_argument(
+        "--sse-port",
+        type=int,
+        default=None,
+        help="Start SSE event bridge on this port for real-time dashboard updates. "
+        "0 = auto-select (prints SSE_PORT:N to stdout on start).",
+    )
+
     args = parser.parse_args()
-    
+
     # ── SSE Bridge ──────────────────────────────────────────────
     sse_server = None
     if args.sse_port is not None and args.sse_port > 0 and EventBusSSEServer is not None:
@@ -951,7 +1050,7 @@ def main():
             print(f"SSE_PORT:{actual_port}", flush=True)
         except Exception as e:
             print(f"⚠ SSE server failed to start: {e}", flush=True)
-    
+
     # ── Replay Writer ────────────────────────────────────────
     replay_writer = None
     if EventBusReplayWriter is not None:
@@ -962,7 +1061,7 @@ def main():
             replay_writer.start()
         except Exception as e:
             print(f"⚠ Replay writer failed to start: {e}", flush=True)
-    
+
     try:
         # Detect models if not specified
         model_metadata = {}
@@ -980,7 +1079,7 @@ def main():
                     "size": m.get("size", "unknown"),
                     "quantization": m.get("quantization", "unknown"),
                     "parameters": m.get("parameters", "unknown"),
-                    "path": m.get("path", "unknown")
+                    "path": m.get("path", "unknown"),
                 }
             print(f"Found {len(args.models)} models: {', '.join(args.models)}")
         else:
@@ -990,45 +1089,43 @@ def main():
                     "size": "unknown",
                     "quantization": "unknown",
                     "parameters": "unknown",
-                    "path": "manual"
+                    "path": "manual",
                 }
-        
+
         # Initialize benchmark
-        benchmark = AppleSiliconBenchmarkV2(
-            api_base=args.api_base,
-            num_runs=args.num_runs
-        )
-        
+        benchmark = AppleSiliconBenchmarkV2(api_base=args.api_base, num_runs=args.num_runs)
+
         # Generate prompts
         print(f"\n📝 Generating {args.num_prompts} diverse prompts...")
         prompts = benchmark.prompt_generator.generate_default_batch(total_prompts=args.num_prompts)
         print(f"Generated {len(prompts)} prompts across categories:")
         from collections import Counter
+
         cat_counts = Counter([p.category.value for p in prompts])
         for cat, count in cat_counts.items():
             print(f"  {cat}: {count}")
-        
+
         # Run benchmarks for each model
         parallel = args.parallel and not args.sequential
         for model in args.models:
             benchmark.benchmark_model(model, prompts, parallel=parallel)
-        
+
         # Generate reports
         print("\n📊 Generating reports...")
         report_gen = ReportGeneratorV2(args.output_dir)
-        
+
         md_file = report_gen.generate_markdown_report(benchmark.results)
         print(f"✓ Markdown report: {md_file}")
-        
+
         csv_file = report_gen.generate_csv(benchmark.results)
         print(f"✓ CSV data: {csv_file}")
-        
+
         json_file = report_gen.generate_json(benchmark.results, model_metadata)
         print(f"✓ JSON data: {json_file}")
-        
+
         chart_file = report_gen.generate_radar_chart(benchmark.results)
         print(f"✓ Radar chart: {chart_file}")
-        
+
         print(f"\n✅ Benchmark complete! Results saved to {args.output_dir}/")
         print(f"📝 Post {md_file} on X with the radar chart!")
         print(f"🔬 Statistical rigor: {args.num_runs} runs per prompt, variance reported")

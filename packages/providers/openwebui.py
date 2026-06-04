@@ -52,14 +52,16 @@ class OpenWebUIClient(OpenAICompatibleProvider):
                     mid = m.get("id", "unknown")
                     info = m.get("info", {}) or {}
                     meta = m.get("meta", {}) or {}
-                    models.append(Model(
-                        id=mid,
-                        name=meta.get("name", mid),
-                        provider=self.name,
-                        parameters=meta.get("size", "unknown"),
-                        quantization=meta.get("quantization", "unknown"),
-                        size_bytes=meta.get("bytes", 0),
-                    ))
+                    models.append(
+                        Model(
+                            id=mid,
+                            name=meta.get("name", mid),
+                            provider=self.name,
+                            parameters=meta.get("size", "unknown"),
+                            quantization=meta.get("quantization", "unknown"),
+                            size_bytes=meta.get("bytes", 0),
+                        )
+                    )
         except (requests.ConnectionError, requests.Timeout) as e:
             logger.debug("Open WebUI list_models failed (connection/timeout): %s", e)
         except (requests.RequestException, ValueError, KeyError) as e:

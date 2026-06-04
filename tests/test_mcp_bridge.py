@@ -13,11 +13,11 @@ class FakeSkill(Skill):
     """A fake skill for testing."""
 
     def __init__(self, name: str = "fake", version: str = "1.0.0"):
+        super().__init__()
         self._name = name
         self._version = version
 
-    @property
-    def manifest(self) -> SkillManifest:
+    def _create_manifest(self) -> SkillManifest:
         return SkillManifest(
             name=self._name,
             description=f"Fake {self._name} skill for testing",
@@ -76,16 +76,12 @@ class TestMCPBridge(unittest.TestCase):
         self.assertIsNone(tool)
 
     def test_invoke_tool_success(self):
-        result = asyncio.run(
-            self.bridge.invoke_tool("uppercase", {"value": "hello"})
-        )
+        result = asyncio.run(self.bridge.invoke_tool("uppercase", {"value": "hello"}))
         self.assertTrue(result.get("success"))
         self.assertEqual(result.get("data", {}).get("result"), "HELLO")
 
     def test_invoke_tool_not_found(self):
-        result = asyncio.run(
-            self.bridge.invoke_tool("missing", {"value": "hello"})
-        )
+        result = asyncio.run(self.bridge.invoke_tool("missing", {"value": "hello"}))
         self.assertFalse(result.get("success"))
         self.assertIn("not found", result.get("error", "").lower())
 

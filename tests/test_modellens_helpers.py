@@ -8,6 +8,7 @@ from unittest.mock import patch, MagicMock
 
 # Mock external deps before importing modellens helpers
 import sys
+
 sys.modules["openai"] = MagicMock()
 sys.modules["requests"] = MagicMock()
 sys.modules["click"] = MagicMock()
@@ -35,23 +36,23 @@ class TestFmtSize(unittest.TestCase):
         self.assertEqual(_fmt_size(512 * 1024), "512 KB")
 
     def test_megabytes(self):
-        self.assertEqual(_fmt_size(1024 ** 2), "1 MB")
-        self.assertEqual(_fmt_size(5 * 1024 ** 2), "5 MB")
-        self.assertEqual(_fmt_size(999 * 1024 ** 2), "999 MB")
+        self.assertEqual(_fmt_size(1024**2), "1 MB")
+        self.assertEqual(_fmt_size(5 * 1024**2), "5 MB")
+        self.assertEqual(_fmt_size(999 * 1024**2), "999 MB")
 
     def test_gigabytes(self):
-        self.assertEqual(_fmt_size(1024 ** 3), "1.0 GB")
+        self.assertEqual(_fmt_size(1024**3), "1.0 GB")
         self.assertEqual(_fmt_size(3826000000), "3.6 GB")
-        self.assertEqual(_fmt_size(2 * 1024 ** 3), "2.0 GB")
-        self.assertEqual(_fmt_size(10 * 1024 ** 3), "10.0 GB")
+        self.assertEqual(_fmt_size(2 * 1024**3), "2.0 GB")
+        self.assertEqual(_fmt_size(10 * 1024**3), "10.0 GB")
 
     def test_boundary_just_below_gb(self):
         """1023 MB should still format as MB, not GB."""
-        self.assertEqual(_fmt_size(1023 * 1024 ** 2), "1023 MB")
+        self.assertEqual(_fmt_size(1023 * 1024**2), "1023 MB")
 
     def test_boundary_exact_mb_to_gb(self):
         """Exactly 1 GB should format as GB."""
-        self.assertEqual(_fmt_size(1024 ** 3), "1.0 GB")
+        self.assertEqual(_fmt_size(1024**3), "1.0 GB")
 
 
 class TestListModelsDetailed(unittest.TestCase):
@@ -71,11 +72,10 @@ class TestListModelsDetailed(unittest.TestCase):
         mock_get.return_value = mock_response
 
         from modellens import _list_models_detailed
+
         result = _list_models_detailed("lm-studio", "http://localhost:1234/v1", "lm-studio")
 
-        mock_get.assert_called_once_with(
-            "http://localhost:1234/v1/models", timeout=5
-        )
+        mock_get.assert_called_once_with("http://localhost:1234/v1/models", timeout=5)
 
         self.assertEqual(len(result), 2)
         self.assertEqual(result[0]["id"], "qwen3.5-9b-coder")
@@ -116,11 +116,10 @@ class TestListModelsDetailed(unittest.TestCase):
         mock_get.return_value = mock_response
 
         from modellens import _list_models_detailed
+
         result = _list_models_detailed("ollama", "http://localhost:11434", "ollama")
 
-        mock_get.assert_called_once_with(
-            "http://localhost:11434/api/tags", timeout=5
-        )
+        mock_get.assert_called_once_with("http://localhost:11434/api/tags", timeout=5)
 
         self.assertEqual(len(result), 2)
 
@@ -146,12 +145,11 @@ class TestListModelsDetailed(unittest.TestCase):
         mock_get.return_value = mock_response
 
         from modellens import _list_models_detailed
+
         _list_models_detailed("ollama", "http://localhost:11434/v1", "ollama")
 
         # Should have stripped /v1 and called the clean URL
-        mock_get.assert_called_once_with(
-            "http://localhost:11434/api/tags", timeout=5
-        )
+        mock_get.assert_called_once_with("http://localhost:11434/api/tags", timeout=5)
 
     @patch("requests.get")
     def test_non_200_response_returns_empty(self, mock_get):
@@ -161,6 +159,7 @@ class TestListModelsDetailed(unittest.TestCase):
         mock_get.return_value = mock_response
 
         from modellens import _list_models_detailed
+
         result = _list_models_detailed("ollama", "http://localhost:11434", "ollama")
 
         self.assertEqual(result, [])
@@ -171,6 +170,7 @@ class TestListModelsDetailed(unittest.TestCase):
         mock_get.side_effect = Exception("Connection refused")
 
         from modellens import _list_models_detailed
+
         result = _list_models_detailed("ollama", "http://localhost:11434", "ollama")
 
         self.assertEqual(result, [])
@@ -184,6 +184,7 @@ class TestListModelsDetailed(unittest.TestCase):
         mock_get.return_value = mock_response
 
         from modellens import _list_models_detailed
+
         result = _list_models_detailed("lm-studio", "http://localhost:1234/v1", "lm-studio")
 
         self.assertEqual(len(result), 1)
@@ -206,6 +207,7 @@ class TestListModelsDetailed(unittest.TestCase):
         mock_get.return_value = mock_response
 
         from modellens import _list_models_detailed
+
         result = _list_models_detailed("ollama", "http://localhost:11434", "ollama")
 
         self.assertEqual(len(result), 1)
@@ -226,6 +228,7 @@ class TestResolveProvider(unittest.TestCase):
         mock_get.return_value = mock_response
 
         from modellens import _resolve_provider
+
         provider, api_base, api_key = _resolve_provider(provider=None)
 
         self.assertEqual(provider, "lm-studio")
@@ -243,6 +246,7 @@ class TestResolveProvider(unittest.TestCase):
         mock_ollama.return_value = mock_client
 
         from modellens import _resolve_provider
+
         provider, api_base, api_key = _resolve_provider(provider=None)
 
         self.assertEqual(provider, "ollama")
@@ -261,6 +265,7 @@ class TestResolveProvider(unittest.TestCase):
         mock_ollama.return_value = mock_client
 
         from modellens import _resolve_provider
+
         provider, api_base, api_key = _resolve_provider(provider=None)
 
         self.assertEqual(provider, "lm-studio")
@@ -281,6 +286,7 @@ class TestResolveProvider(unittest.TestCase):
         mock_ollama.return_value = mock_client
 
         from modellens import _resolve_provider
+
         provider, api_base, api_key = _resolve_provider(provider=None)
 
         # 500 response means LM Studio not detected; ollama also fails → lm-studio fallback
@@ -300,6 +306,7 @@ class TestResolveProvider(unittest.TestCase):
         mock_ollama.return_value = mock_client
 
         from modellens import _resolve_provider
+
         provider, api_base, api_key = _resolve_provider(provider=None)
 
         # Empty model list means no models → falls through to ollama → fails → lm-studio

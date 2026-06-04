@@ -31,6 +31,7 @@ from apps.cli.commands.utils import (
 
 # ── Mock HTTP Server ────────────────────────────────────────────
 
+
 class MockOpenAIHandler(BaseHTTPRequestHandler):
     """Request handler that serves OpenAI-compatible responses."""
 
@@ -47,41 +48,45 @@ class MockOpenAIHandler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         if self.path in ("/v1/models", "/api/v1/models", "/models"):
-            self._send_json({
-                "data": [
-                    {
-                        "id": "mock-model-1",
-                        "metadata": {
-                            "parameter_count": "7B",
-                            "quantization": "Q4_K_M",
-                            "model_size": 4000000000,
-                        }
-                    },
-                    {
-                        "id": "mock-model-2",
-                        "metadata": {
-                            "parameter_count": "13B",
-                        }
-                    },
-                ]
-            })
+            self._send_json(
+                {
+                    "data": [
+                        {
+                            "id": "mock-model-1",
+                            "metadata": {
+                                "parameter_count": "7B",
+                                "quantization": "Q4_K_M",
+                                "model_size": 4000000000,
+                            },
+                        },
+                        {
+                            "id": "mock-model-2",
+                            "metadata": {
+                                "parameter_count": "13B",
+                            },
+                        },
+                    ]
+                }
+            )
         elif self.path == "/health":
             self._send_json({"status": "ok"})
         elif self.path == "/api/tags":
             # Ollama native endpoint
-            self._send_json({
-                "models": [
-                    {
-                        "name": "llama3.2:latest",
-                        "details": {
-                            "quantization_level": "Q4_0",
-                            "family": "llama",
-                            "format": "gguf",
-                        },
-                        "size": 2000000000,
-                    }
-                ]
-            })
+            self._send_json(
+                {
+                    "models": [
+                        {
+                            "name": "llama3.2:latest",
+                            "details": {
+                                "quantization_level": "Q4_0",
+                                "family": "llama",
+                                "format": "gguf",
+                            },
+                            "size": 2000000000,
+                        }
+                    ]
+                }
+            )
         else:
             self.send_response(404)
             self.end_headers()
@@ -100,34 +105,66 @@ class MockOpenAIHandler(BaseHTTPRequestHandler):
                 self.send_header("Content-Type", "text/event-stream")
                 self.end_headers()
                 chunks = [
-                    {"id": "chatcmpl-mock", "object": "chat.completion.chunk", "created": 0, "model": model, "choices": [{"index": 0, "delta": {"content": "Hello"}, "finish_reason": None}]},
-                    {"id": "chatcmpl-mock", "object": "chat.completion.chunk", "created": 0, "model": model, "choices": [{"index": 0, "delta": {"content": " world"}, "finish_reason": None}]},
-                    {"id": "chatcmpl-mock", "object": "chat.completion.chunk", "created": 0, "model": model, "choices": [{"index": 0, "delta": {"content": "!"}, "finish_reason": None}]},
-                    {"id": "chatcmpl-mock", "object": "chat.completion.chunk", "created": 0, "model": model, "choices": [{"index": 0, "delta": {"content": None}, "finish_reason": "stop"}]},
+                    {
+                        "id": "chatcmpl-mock",
+                        "object": "chat.completion.chunk",
+                        "created": 0,
+                        "model": model,
+                        "choices": [
+                            {"index": 0, "delta": {"content": "Hello"}, "finish_reason": None}
+                        ],
+                    },
+                    {
+                        "id": "chatcmpl-mock",
+                        "object": "chat.completion.chunk",
+                        "created": 0,
+                        "model": model,
+                        "choices": [
+                            {"index": 0, "delta": {"content": " world"}, "finish_reason": None}
+                        ],
+                    },
+                    {
+                        "id": "chatcmpl-mock",
+                        "object": "chat.completion.chunk",
+                        "created": 0,
+                        "model": model,
+                        "choices": [{"index": 0, "delta": {"content": "!"}, "finish_reason": None}],
+                    },
+                    {
+                        "id": "chatcmpl-mock",
+                        "object": "chat.completion.chunk",
+                        "created": 0,
+                        "model": model,
+                        "choices": [
+                            {"index": 0, "delta": {"content": None}, "finish_reason": "stop"}
+                        ],
+                    },
                 ]
                 for chunk in chunks:
                     self.wfile.write(f"data: {json.dumps(chunk)}\n\n".encode())
             else:
-                self._send_json({
-                    "id": "chatcmpl-mock",
-                    "object": "chat.completion",
-                    "model": model,
-                    "choices": [
-                        {
-                            "index": 0,
-                            "message": {
-                                "role": "assistant",
-                                "content": "Hello from mock server!",
-                            },
-                            "finish_reason": "stop",
-                        }
-                    ],
-                    "usage": {
-                        "prompt_tokens": 10,
-                        "completion_tokens": 5,
-                        "total_tokens": 15,
+                self._send_json(
+                    {
+                        "id": "chatcmpl-mock",
+                        "object": "chat.completion",
+                        "model": model,
+                        "choices": [
+                            {
+                                "index": 0,
+                                "message": {
+                                    "role": "assistant",
+                                    "content": "Hello from mock server!",
+                                },
+                                "finish_reason": "stop",
+                            }
+                        ],
+                        "usage": {
+                            "prompt_tokens": 10,
+                            "completion_tokens": 5,
+                            "total_tokens": 15,
+                        },
                     }
-                })
+                )
         else:
             self.send_response(404)
             self.end_headers()
@@ -171,6 +208,7 @@ def start_health_only_server():
 
 
 # ── Integration Tests ───────────────────────────────────────────
+
 
 class TestProviderIntegration(unittest.TestCase):
     @classmethod
@@ -225,6 +263,7 @@ class TestProviderIntegration(unittest.TestCase):
     def test_openai_compatible_run_prompt(self):
         """Test run_prompt end-to-end against the mock server."""
         from providers.base import RunRequest
+
         p = OpenAICompatibleProvider(base_url=self.base_url, model_name="mock-model")
         result = p.run_prompt(RunRequest(prompt="Say hello", model="mock-model"))
         self.assertEqual(result.response, "Hello from mock server!")
@@ -321,6 +360,7 @@ class TestProviderIntegration(unittest.TestCase):
 
     def test_ollama_run_prompt(self):
         from providers.base import RunRequest
+
         c = OllamaClient(base_url=f"http://127.0.0.1:{self.port}", model_name="mock-model")
         result = c.run_prompt(RunRequest(prompt="Say hello", model="mock-model"))
         self.assertEqual(result.response, "Hello from mock server!")
@@ -349,10 +389,16 @@ class TestHealthCLIIntegration(unittest.TestCase):
     def test_health_reachable_vllm(self):
         """health against reachable vLLM server shows healthy + model count."""
         runner = CliRunner()
-        result = runner.invoke(cli, [
-            "health", "--provider", "vllm",
-            "--api-base", self.base_url,
-        ])
+        result = runner.invoke(
+            cli,
+            [
+                "health",
+                "--provider",
+                "vllm",
+                "--api-base",
+                self.base_url,
+            ],
+        )
         self.assertEqual(result.exit_code, 0, msg=result.output)
         self.assertIn("healthy", result.output.lower())
         self.assertIn("2 available", result.output)
@@ -360,11 +406,17 @@ class TestHealthCLIIntegration(unittest.TestCase):
     def test_health_reachable_json(self):
         """health --json against reachable server returns structured JSON."""
         runner = CliRunner()
-        result = runner.invoke(cli, [
-            "health", "--provider", "vllm",
-            "--api-base", self.base_url,
-            "--json",
-        ])
+        result = runner.invoke(
+            cli,
+            [
+                "health",
+                "--provider",
+                "vllm",
+                "--api-base",
+                self.base_url,
+                "--json",
+            ],
+        )
         self.assertEqual(result.exit_code, 0, msg=result.output)
 
         data = json.loads(result.output)
@@ -380,10 +432,16 @@ class TestHealthCLIIntegration(unittest.TestCase):
 
         try:
             runner = CliRunner()
-            result = runner.invoke(cli, [
-                "health", "--provider", "llama.cpp",
-                "--api-base", f"http://127.0.0.1:{port}/v1",
-            ])
+            result = runner.invoke(
+                cli,
+                [
+                    "health",
+                    "--provider",
+                    "llama.cpp",
+                    "--api-base",
+                    f"http://127.0.0.1:{port}/v1",
+                ],
+            )
             self.assertEqual(result.exit_code, 0, msg=result.output)
             self.assertIn("healthy", result.output.lower())
         finally:
@@ -395,11 +453,17 @@ class TestHealthCLIIntegration(unittest.TestCase):
 
         try:
             runner = CliRunner()
-            result = runner.invoke(cli, [
-                "health", "--provider", "llama.cpp",
-                "--api-base", f"http://127.0.0.1:{port}/v1",
-                "--json",
-            ])
+            result = runner.invoke(
+                cli,
+                [
+                    "health",
+                    "--provider",
+                    "llama.cpp",
+                    "--api-base",
+                    f"http://127.0.0.1:{port}/v1",
+                    "--json",
+                ],
+            )
             self.assertEqual(result.exit_code, 0, msg=result.output)
 
             data = json.loads(result.output)
@@ -457,6 +521,7 @@ class TestProviderUtilsIntegration(unittest.TestCase):
 
     def test_validate_provider_connection_fail(self):
         import io, sys
+
         # Point to a non-existent port; suppress printed error output
         captured = io.StringIO()
         old_stdout = sys.stdout

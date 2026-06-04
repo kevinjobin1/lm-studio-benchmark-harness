@@ -26,13 +26,18 @@ from .base import (
     RunRequest,
     RunResult,
     APICallMetrics,
+    normalize_base_url,
 )
 
 try:
     from events import (
-        EventBus, default_bus,
-        TokenGeneratedEvent, CompletionEvent, ErrorEvent,
+        EventBus,
+        default_bus,
+        TokenGeneratedEvent,
+        CompletionEvent,
+        ErrorEvent,
     )
+
     _EVENTS_AVAILABLE = True
 except ImportError:
     EventBus = None  # type: ignore
@@ -68,7 +73,7 @@ class OpenAICompatibleProvider(ProviderAdapter):
         event_bus: Optional[object] = None,
         event_source: str = "",
     ):
-        self.base_url = (base_url or self.default_url).rstrip("/")
+        self.base_url = normalize_base_url(base_url or self.default_url)
         self.api_key = api_key or self.default_api_key
         self.model_name = model_name
         self.timeout = timeout
@@ -109,14 +114,16 @@ class OpenAICompatibleProvider(ProviderAdapter):
                 for m in data.get("data", []):
                     mid = m.get("id", "unknown")
                     meta = m.get("metadata", {}) or {}
-                    models.append(Model(
-                        id=mid,
-                        name=mid.split(":")[0] if ":" in mid else mid,
-                        provider=self.name,
-                        parameters=meta.get("parameter_count", "unknown"),
-                        quantization=meta.get("quantization", "unknown"),
-                        size_bytes=meta.get("model_size", 0),
-                    ))
+                    models.append(
+                        Model(
+                            id=mid,
+                            name=mid.split(":")[0] if ":" in mid else mid,
+                            provider=self.name,
+                            parameters=meta.get("parameter_count", "unknown"),
+                            quantization=meta.get("quantization", "unknown"),
+                            size_bytes=meta.get("model_size", 0),
+                        )
+                    )
         except (requests.ConnectionError, requests.Timeout) as e:
             logger.debug("Cannot list models (connection/timeout): %s", e)
         except (requests.RequestException, ValueError, KeyError) as e:
@@ -173,7 +180,10 @@ class OpenAICompatibleProvider(ProviderAdapter):
         prompt_tokens = 0
         completion_tokens = 0
 
-        run_id = f"{self.name}_{self.model_name}_{int(start_time)}"
+        run_id = (
+            getattr(self, "_current_run_id", "")
+            or f"{self.name}_{self.model_name}_{int(start_time)}"
+        )
 
         try:
             if stream:
@@ -198,15 +208,17 @@ class OpenAICompatibleProvider(ProviderAdapter):
                         # ── Emit TokenGeneratedEvent ───────────
                         if self._events_available:
                             timing_ms = (time.time() - start_time) * 1000
-                            self.event_bus.emit_sync(TokenGeneratedEvent(
-                                model=self.model_name,
-                                token=token_text,
-                                index=accumulated_tokens - 1,
-                                timing_ms=timing_ms,
-                                provider=self.name,
-                                run_id=run_id,
-                                source=self._event_source,
-                            ))
+                            self.event_bus.emit_sync(
+                                TokenGeneratedEvent(
+                                    model=self.model_name,
+                                    token=token_text,
+                                    index=accumulated_tokens - 1,
+                                    timing_ms=timing_ms,
+                                    provider=self.name,
+                                    run_id=run_id,
+                                    source=self._event_source,
+                                )
+                            )
 
                 total_time = time.time() - start_time
                 ttft = (first_token_time - start_time) if first_token_time else total_time
@@ -242,27 +254,31 @@ class OpenAICompatibleProvider(ProviderAdapter):
 
             # ── Emit Error + failed CompletionEvent ────────────
             if self._events_available:
-                self.event_bus.emit_sync(ErrorEvent(
-                    message=f"Provider {self.name} completion failed: {e}",
-                    exception=type(e).__name__,
-                    component=self.name,
-                    run_id=run_id,
-                    source=self._event_source,
-                    severity="error",
-                ))
-                self.event_bus.emit_sync(CompletionEvent(
-                    model=self.model_name,
-                    response="",
-                    tokens_used=0,
-                    latency_ms=total_time * 1000,
-                    ttft_ms=0,
-                    tokens_per_second=0,
-                    provider=self.name,
-                    run_id=run_id,
-                    source=self._event_source,
-                    success=False,
-                    error=str(e),
-                ))
+                self.event_bus.emit_sync(
+                    ErrorEvent(
+                        message=f"Provider {self.name} completion failed: {e}",
+                        exception=type(e).__name__,
+                        component=self.name,
+                        run_id=run_id,
+                        source=self._event_source,
+                        severity="error",
+                    )
+                )
+                self.event_bus.emit_sync(
+                    CompletionEvent(
+                        model=self.model_name,
+                        response="",
+                        tokens_used=0,
+                        latency_ms=total_time * 1000,
+                        ttft_ms=0,
+                        tokens_per_second=0,
+                        provider=self.name,
+                        run_id=run_id,
+                        source=self._event_source,
+                        success=False,
+                        error=str(e),
+                    )
+                )
 
             return "", APICallMetrics(
                 ttft=0.0,
@@ -287,18 +303,20 @@ class OpenAICompatibleProvider(ProviderAdapter):
 
         # ── Emit CompletionEvent ────────────────────────────────
         if self._events_available:
-            self.event_bus.emit_sync(CompletionEvent(
-                model=self.model_name,
-                response=response_text,
-                tokens_used=total_tokens,
-                latency_ms=total_time * 1000,
-                ttft_ms=ttft * 1000,
-                tokens_per_second=tokens_per_second,
-                provider=self.name,
-                run_id=run_id,
-                source=self._event_source,
-                success=True,
-            ))
+            self.event_bus.emit_sync(
+                CompletionEvent(
+                    model=self.model_name,
+                    response=response_text,
+                    tokens_used=total_tokens,
+                    latency_ms=total_time * 1000,
+                    ttft_ms=ttft * 1000,
+                    tokens_per_second=tokens_per_second,
+                    provider=self.name,
+                    run_id=run_id,
+                    source=self._event_source,
+                    success=True,
+                )
+            )
 
         return response_text, metrics
 

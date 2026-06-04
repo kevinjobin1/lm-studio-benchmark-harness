@@ -21,6 +21,8 @@ from .base import (
     RunResult,
     ProviderMetrics,
     APICallMetrics,
+    normalize_base_url,
+    url_join,
 )
 
 logger = get_logger(__name__)
@@ -47,8 +49,8 @@ class OllamaClient(ProviderAdapter):
         timeout: int = 120,
         max_retries: int = 3,
     ):
-        self.base_url = base_url.rstrip("/")
-        self.v1_url = f"{base_url.rstrip('/')}/v1"
+        self.base_url = normalize_base_url(base_url)
+        self.v1_url = url_join(self.base_url, "v1")
         self.api_key = api_key
         self.model_name = model_name
         self.timeout = timeout
@@ -97,16 +99,16 @@ class OllamaClient(ProviderAdapter):
                     base_name = parts[0]
                     tag = parts[1] if len(parts) > 1 else "latest"
 
-                    models.append(Model(
-                        id=full_name,
-                        name=base_name,
-                        provider="ollama",
-                        parameters=tag,
-                        quantization=m.get("details", {}).get(
-                            "quantization_level", "unknown"
-                        ),
-                        size_bytes=m.get("size", 0),
-                    ))
+                    models.append(
+                        Model(
+                            id=full_name,
+                            name=base_name,
+                            provider="ollama",
+                            parameters=tag,
+                            quantization=m.get("details", {}).get("quantization_level", "unknown"),
+                            size_bytes=m.get("size", 0),
+                        )
+                    )
         except (requests.ConnectionError, requests.Timeout) as e:
             logger.debug("Ollama list_models failed (connection/timeout): %s", e)
         except (requests.RequestException, ValueError, KeyError) as e:
@@ -199,8 +201,12 @@ class OllamaClient(ProviderAdapter):
             total_time = time.time() - start_time
             ttft = total_time
 
-            prompt_tokens = getattr(response.usage, 'prompt_tokens', 0) if hasattr(response, 'usage') else 0
-            completion_tokens = getattr(response.usage, 'completion_tokens', 0) if hasattr(response, 'usage') else 0
+            prompt_tokens = (
+                getattr(response.usage, "prompt_tokens", 0) if hasattr(response, "usage") else 0
+            )
+            completion_tokens = (
+                getattr(response.usage, "completion_tokens", 0) if hasattr(response, "usage") else 0
+            )
 
         total_tokens = prompt_tokens + completion_tokens
         tokens_per_second = completion_tokens / total_time if total_time > 0 else 0

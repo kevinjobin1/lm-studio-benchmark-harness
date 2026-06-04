@@ -18,9 +18,10 @@ from datetime import datetime
 @dataclass
 class TokenEvent:
     """A single token from streaming output with precise timing."""
+
     text: str
     index: int
-    timestamp_ms: float          # ms since run start
+    timestamp_ms: float  # ms since run start
     cumulative_tokens: int
 
 
@@ -31,20 +32,22 @@ class TraceEvent:
     Matches the dashboard TraceStep type so captured traces
     can be fed directly into TraceTimeline without transformation.
     """
-    id: str                      # e.g. "trace-abc123-s0"
+
+    id: str  # e.g. "trace-abc123-s0"
     type: Literal["system", "prompt", "token", "tool_call", "reasoning", "response", "error"]
-    label: str                   # Human-readable label
-    detail: Optional[str] = None # Extended description / metadata
-    timing_ms: float = 0.0       # Duration of this step
-    tool: Optional[str] = None   # Tool name (for tool_call events)
+    label: str  # Human-readable label
+    detail: Optional[str] = None  # Extended description / metadata
+    timing_ms: float = 0.0  # Duration of this step
+    tool: Optional[str] = None  # Tool name (for tool_call events)
     input: Optional[str] = None  # Tool input (for tool_call events)
-    output: Optional[str] = None # Tool output (for tool_call events)
+    output: Optional[str] = None  # Tool output (for tool_call events)
     status: Literal["success", "failure", "pending"] = "success"
 
 
 @dataclass
 class TraceMetrics:
     """Aggregate metrics for a trace run."""
+
     ttft_ms: float = 0.0
     tokens_per_second: float = 0.0
     total_tokens: int = 0
@@ -59,6 +62,7 @@ class TraceMetrics:
 @dataclass
 class TraceArtifacts:
     """Captured artifacts from a trace run."""
+
     response: str = ""
     logs: List[str] = field(default_factory=list)
     errors: List[str] = field(default_factory=list)
@@ -71,6 +75,7 @@ class Trace:
     Can be serialized to JSON and stored alongside benchmark results.
     The dashboard loads individual trace files via /api/traces/[trace_id].
     """
+
     trace_id: str
     run_id: str
     model: str
@@ -82,7 +87,7 @@ class Trace:
     artifacts: TraceArtifacts = field(default_factory=TraceArtifacts)
     started_at: str = field(default_factory=lambda: datetime.now().isoformat())
     completed_at: str = ""
-    pack: str = ""               # Prompt pack used (if any)
+    pack: str = ""  # Prompt pack used (if any)
     hardware: Optional[Dict[str, Any]] = None  # Hardware snapshot
 
     def to_dict(self) -> Dict[str, Any]:
@@ -140,6 +145,7 @@ class Trace:
     def to_json(self, indent: int = 2) -> str:
         """Serialize to JSON string."""
         import json
+
         return json.dumps(self.to_dict(), indent=indent, default=str, ensure_ascii=False)
 
 

@@ -1,0 +1,82 @@
+---
+title: Design System
+description: Kinetic Logic — the design system behind the Model Lens dashboard. Colors, typography, elevation, and component patterns.
+---
+
+> **Kinetic Logic** — a precision-obsessed, information-dense design system for developer tools.
+
+## Brand &amp; style
+
+**Personality:** Clinical, reliable, utilitarian. The aesthetic is Minimalist-Technical, drawing from the visual language of IDEs and observability platforms.
+
+**Key principles:**
+- **Objectivity** — every pixel serves a functional purpose
+- **Density** — high-fidelity data clusters without sacrificing legibility
+- **Clarity** — disciplined color system for success, failure, and pending states
+
+## Colors
+
+| Token | Value | Usage |
+|-------|-------|-------|
+| Surface | `#12131a` | Application canvas |
+| Surface container | `#1e1f26` | Cards, widgets, tables |
+| Surface hover | `#292931` | Interactive states |
+| Surface modal | `#33343c` | Popovers, dialogs |
+| Primary | `#adc6ff` | Actions, active states, links |
+| Success | `#4edea3` | Passing benchmarks, healthy nodes |
+| Failure | `#ffb2b7` | Regressions, errors, critical alerts |
+| Outline | `#424754` | Borders, dividers |
+| Text primary | `#e3e1ec` | Body text |
+| Text secondary | `#c2c6d6` | Labels, metadata |
+
+## Typography
+
+| Role | Font | Size | Weight |
+|------|------|------|--------|
+| Display | Inter | 24px | 600 |
+| Headline | Inter | 16px | 600 |
+| Body | Inter | 14px | 400 |
+| Caption | Inter | 12px | 400 |
+| Code label | JetBrains Mono | 12px | 500 |
+| Code data | JetBrains Mono | 13px | 400 |
+
+**Rule:** Use JetBrains Mono for any value derived from a benchmark run. This ensures character alignment in performance columns.
+
+## Elevation
+
+Shadows are replaced by **tonal layering** — depth is communicated through color value shifts:
+
+| Level | Color | Usage |
+|-------|-------|-------|
+| 0 | `#12131a` | Application canvas |
+| 1 | `#1e1f26` | Cards, widgets |
+| 2 | `#292931` | Hover, active |
+| 3 | `#33343c` | Popovers, modals |
+
+## Components
+
+### Data tables
+High-density with 1px borders. `mono-data` font for cell values. Heatmap cells use background-color opacity based on value percentile.
+
+### Buttons
+Low-profile. Outline style for secondary, solid primary for actions. Capped at 32px height.
+
+### Code blocks
+JetBrains Mono at 13px. GitHub-inspired green/red highlights for diffs.
+
+### Trace timelines
+Horizontal stacked bars using the primary/success/failure palette. 1px vertical markers for TTFT.
+
+### Status indicators
+6px circles: green (passing), amber (warning), rose (error).
+
+## Spacing
+
+Built on a 4px base unit:
+
+| Token | Value |
+|-------|-------|
+| Container padding | 24px (1.5rem) |
+| Stack gap | 16px (1rem) |
+| Tight gap | 8px (0.5rem) |
+| Border radius | 4px (0.25rem) |

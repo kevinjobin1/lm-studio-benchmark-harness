@@ -1,6 +1,6 @@
 # Model Lens Vision
 
-> Benchmarking is a feature. Observability is the product.
+> Benchmarking is a feature. Observability is the product. Serving is infrastructure. Understanding is the workflow.
 
 ---
 
@@ -30,7 +30,18 @@ Model Lens exists to answer these questions.
 
 ## What we are building
 
-We are not building another leaderboard. We are building the equivalent of:
+We are not building:
+
+- Another leaderboard
+- Another chat interface
+- Another model server
+- Another agent framework
+
+Excellent projects already exist for those use cases.
+
+Model Lens focuses on understanding model behavior after execution.
+
+We are building the equivalent of:
 
 - **Chrome DevTools** for local AI
 - **Datadog** for local AI
@@ -93,3 +104,37 @@ And Model Lens should provide:
 - Workload comparisons
 
 Instead of a single score.
+
+## Ecosystem Positioning
+
+### Model Serving
+
+- Ollama
+- llama.cpp
+- vLLM
+- LM Studio
+
+### User Interfaces
+
+- Open WebUI
+- Jan
+- LibreChat
+
+### Benchmarking
+
+- OpenBench
+- lm-evaluation-harness
+
+### Observability
+
+Model Lens
+
+## Long-Term Goal
+
+Become the default observability layer for local AI.
+
+If developers ask:
+
+"Why did my model behave this way?"
+
+Model Lens should be the first tool they open.

@@ -29,6 +29,7 @@ try:
     from events import default_bus
     from events.sse import EventBusSSEServer
     from events.replay import EventBusReplayWriter
+
     _EVENTS_AVAILABLE = True
 except ImportError:
     default_bus = None  # type: ignore
@@ -38,50 +39,101 @@ except ImportError:
 
 
 @click.command()
-@click.option("--api-base", default=None, show_default=False,
-              help="Provider base URL (auto-detected for known providers)")
+@click.option(
+    "--api-base",
+    default=None,
+    show_default=False,
+    help="Provider base URL (auto-detected for known providers)",
+)
 @click.option("--api-key", default=None, show_default=False)
-@click.option("--provider", "-p",
-              type=click.Choice(["lm-studio", "ollama", "open-webui", "jan", "llama.cpp", "vllm"]),
-              default=None, show_default=False,
-              help="Provider to use (auto-detected if omitted)")
-@click.option("--models", "-m", multiple=True,
-              help="Models to benchmark (repeatable). Auto-detects if omitted.")
-@click.option("--model-name", default=None,
-              help="Single model name (alias for --models with one value)")
-@click.option("--framework", "-f",
-              type=click.Choice(["devbench", "general", "compare"]),
-              default="devbench", show_default=True,
-              help="Benchmark framework: devbench (TypeScript/React/NestJS), "
-                   "general (MMLU, GSM8K, HumanEval, etc.), compare (both)")
+@click.option(
+    "--provider",
+    "-p",
+    type=click.Choice(["lm-studio", "ollama", "open-webui", "jan", "llama.cpp", "vllm"]),
+    default=None,
+    show_default=False,
+    help="Provider to use (auto-detected if omitted)",
+)
+@click.option(
+    "--models",
+    "-m",
+    multiple=True,
+    help="Models to benchmark (repeatable). Auto-detects if omitted.",
+)
+@click.option(
+    "--model-name", default=None, help="Single model name (alias for --models with one value)"
+)
+@click.option(
+    "--framework",
+    "-f",
+    type=click.Choice(["devbench", "general", "compare"]),
+    default="devbench",
+    show_default=True,
+    help="Benchmark framework: devbench (TypeScript/React/NestJS), "
+    "general (MMLU, GSM8K, HumanEval, etc.), compare (both)",
+)
 @click.option("--output-dir", "-o", default="results", show_default=True)
-@click.option("--num-runs", "-n", type=int, default=5, show_default=True,
-              help="Runs per prompt for statistical variance (devbench only)")
+@click.option(
+    "--num-runs",
+    "-n",
+    type=int,
+    default=5,
+    show_default=True,
+    help="Runs per prompt for statistical variance (devbench only)",
+)
 @click.option("--num-prompts", type=int, default=20, show_default=True)
-@click.option("--samples", type=int, default=None,
-              help="Samples per benchmark (general framework)")
-@click.option("--quick", is_flag=True,
-              help="Quick mode: fewer prompts and runs")
-@click.option("--config", "-c", default=None,
-              help="Config file path (unified YAML; devbench settings live under the 'devbench:' section)")
+@click.option("--samples", type=int, default=None, help="Samples per benchmark (general framework)")
+@click.option("--quick", is_flag=True, help="Quick mode: fewer prompts and runs")
+@click.option(
+    "--config",
+    "-c",
+    default=None,
+    help="Config file path (unified YAML; devbench settings live under the 'devbench:' section)",
+)
 @click.option("--parallel/--sequential", default=True, show_default=True)
 @click.option("--seed", type=int, default=None)
-@click.option("--verbose", "-v", is_flag=True,
-              help="Verbose output: show raw model responses")
-@click.option("--ci", "ci_mode", is_flag=True,
-              help="CI-safe headless mode")
-@click.option("--traces-dir", "traces_dir", default="results/traces", show_default=True,
-              help="Directory for captured execution traces (V2)")
-@click.option("--no-traces", "no_traces", is_flag=True,
-              help="Disable trace capture for faster benchmark runs")
-@click.option("--json-output", is_flag=True,
-              help="Output results as JSON to stdout")
-@click.option("--sse-port", type=int, default=None,
-              help="Start SSE event bridge on this port for real-time dashboard updates. "
-                   "0 = auto-select (prints SSE_PORT:N to stdout on start).")
-def run(api_base, api_key, provider, models, model_name, framework, output_dir,
-        num_runs, num_prompts, samples, quick, config, parallel, seed,
-        verbose, ci_mode, json_output, traces_dir, no_traces, sse_port):
+@click.option("--verbose", "-v", is_flag=True, help="Verbose output: show raw model responses")
+@click.option("--ci", "ci_mode", is_flag=True, help="CI-safe headless mode")
+@click.option(
+    "--traces-dir",
+    "traces_dir",
+    default="results/traces",
+    show_default=True,
+    help="Directory for captured execution traces (V2)",
+)
+@click.option(
+    "--no-traces", "no_traces", is_flag=True, help="Disable trace capture for faster benchmark runs"
+)
+@click.option("--json-output", is_flag=True, help="Output results as JSON to stdout")
+@click.option(
+    "--sse-port",
+    type=int,
+    default=None,
+    help="Start SSE event bridge on this port for real-time dashboard updates. "
+    "0 = auto-select (prints SSE_PORT:N to stdout on start).",
+)
+def run(
+    api_base,
+    api_key,
+    provider,
+    models,
+    model_name,
+    framework,
+    output_dir,
+    num_runs,
+    num_prompts,
+    samples,
+    quick,
+    config,
+    parallel,
+    seed,
+    verbose,
+    ci_mode,
+    json_output,
+    traces_dir,
+    no_traces,
+    sse_port,
+):
     """
     Run benchmarks against local models.
 
@@ -182,16 +234,33 @@ def run(api_base, api_key, provider, models, model_name, framework, output_dir,
         _echo("")
 
 
-def _run_general_framework(api_base, api_key, models, config, samples,
-                           quick, output_dir, verbose, ci_mode, hardware=None,
-                           sse_port=None):
+def _run_general_framework(
+    api_base,
+    api_key,
+    models,
+    config,
+    samples,
+    quick,
+    output_dir,
+    verbose,
+    ci_mode,
+    hardware=None,
+    sse_port=None,
+):
     """Delegate to the general-purpose benchmark.py suite."""
     from core import BenchmarkSuite
     from benchmarks import (
-        MMLUProBenchmark, GSM8KBenchmark, AIMEBenchmark,
-        HumanEvalBenchmark, SWEBenchLiteBenchmark, IFEvalBenchmark,
-        NeedleInHaystackBenchmark, BFCLBenchmark, SpeedLatencyBenchmark,
-        MemoryBenchmark, CreativityBenchmark,
+        MMLUProBenchmark,
+        GSM8KBenchmark,
+        AIMEBenchmark,
+        HumanEvalBenchmark,
+        SWEBenchLiteBenchmark,
+        IFEvalBenchmark,
+        NeedleInHaystackBenchmark,
+        BFCLBenchmark,
+        SpeedLatencyBenchmark,
+        MemoryBenchmark,
+        CreativityBenchmark,
     )
     from providers.openai_compatible import OpenAICompatibleProvider
     from apps.cli.reporting import ReportGenerator
@@ -257,9 +326,9 @@ def _run_general_framework(api_base, api_key, models, config, samples,
         _cleanup_event_infra(sse_server, replay_writer)
         sys.exit(1)
 
-    suite = BenchmarkSuite(client, cfg,
-                           event_bus=default_bus if _EVENTS_AVAILABLE else None,
-                           event_source=event_source)
+    suite = BenchmarkSuite(
+        client, cfg, event_bus=default_bus if _EVENTS_AVAILABLE else None, event_source=event_source
+    )
     bc = cfg.get("benchmarks", {})
 
     def _cfg(key):
@@ -268,33 +337,40 @@ def _run_general_framework(api_base, api_key, models, config, samples,
         return c
 
     # Register all benchmarks
+    # Register all benchmarks
     suite.register_benchmark("mmlu_pro", MMLUProBenchmark(client, _cfg("mmlu_pro")))
     suite.register_benchmark("gsm8k", GSM8KBenchmark(client, _cfg("gsm8k")))
     suite.register_benchmark("aime", AIMEBenchmark(client, _cfg("aime")))
     suite.register_benchmark("humaneval", HumanEvalBenchmark(client, _cfg("humaneval")))
-    suite.register_benchmark("swe_bench_lite", SWEBenchLiteBenchmark(client, _cfg("swe_bench_lite")))
+    suite.register_benchmark(
+        "swe_bench_lite", SWEBenchLiteBenchmark(client, _cfg("swe_bench_lite"))
+    )
     suite.register_benchmark("if_eval", IFEvalBenchmark(client, _cfg("ifeval")))
-    suite.register_benchmark("needle_in_haystack", NeedleInHaystackBenchmark(client, _cfg("needle_in_haystack")))
+    suite.register_benchmark(
+        "needle_in_haystack", NeedleInHaystackBenchmark(client, _cfg("needle_in_haystack"))
+    )
     suite.register_benchmark("bfcl", BFCLBenchmark(client, _cfg("bfcl")))
     suite.register_benchmark("speed_latency", SpeedLatencyBenchmark(client, _cfg("speed_latency")))
     suite.register_benchmark("memory", MemoryBenchmark(client, _cfg("memory")))
     suite.register_benchmark("creativity", CreativityBenchmark(client, _cfg("creativity")))
 
-    results = suite.run_all(samples=sample_count)
-    summary = suite.get_summary()
+    summary = {}
+    try:
+        results = suite.run_all(samples=sample_count)
+        summary = suite.get_summary()
 
-    report_gen = ReportGenerator(output_dir)
-    report_gen.generate_all(summary, suite.all_results)
+        report_gen = ReportGenerator(output_dir)
+        report_gen.generate_all(summary, suite.all_results)
 
-    # Save hardware info alongside results
-    if hardware:
-        hw_path = Path(output_dir) / "hardware.json"
-        hw_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(hw_path, "w") as f:
-            json.dump(hardware.to_dict(), f, indent=2, default=str)
-
-    # ── Clean up SSE + replay ───────────────────────────────────
-    _cleanup_event_infra(sse_server, replay_writer)
+        # Save hardware info alongside results
+        if hardware:
+            hw_path = Path(output_dir) / "hardware.json"
+            hw_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(hw_path, "w") as f:
+                json.dump(hardware.to_dict(), f, indent=2, default=str)
+    finally:
+        # ── Clean up SSE + replay (always runs, even on error) ─
+        _cleanup_event_infra(sse_server, replay_writer)
 
     if not ci_mode and RICH_AVAILABLE:
         table = Table(title=f"General Benchmark: {model_name}")
@@ -309,15 +385,32 @@ def _run_general_framework(api_base, api_key, models, config, samples,
         console.print(table)
 
 
-def _run_devbench_framework(api_base, api_key, models, num_runs, num_prompts,
-                            quick, output_dir, parallel, seed, ci_mode, json_output,
-                            hardware=None, traces_dir="results/traces", no_traces=False,
-                            config=None, sse_port=None):
+def _run_devbench_framework(
+    api_base,
+    api_key,
+    models,
+    num_runs,
+    num_prompts,
+    quick,
+    output_dir,
+    parallel,
+    seed,
+    ci_mode,
+    json_output,
+    hardware=None,
+    traces_dir="results/traces",
+    no_traces=False,
+    config=None,
+    sse_port=None,
+):
     """Delegate to the DevBench v2 Apple Silicon benchmark."""
     import apps.cli.bench_apple_silicon_v2 as devbench
     from apps.cli.prompt_generator import PromptGenerator, GeneratedPrompt, PromptCategory
     from apps.cli.results_schema import (
-        ResultsCollector, MetricScores, PerformanceMetrics, RunStats,
+        ResultsCollector,
+        MetricScores,
+        PerformanceMetrics,
+        RunStats,
     )
     from statistics import mean, stdev
     from collections import Counter
@@ -379,59 +472,62 @@ def _run_devbench_framework(api_base, api_key, models, num_runs, num_prompts,
 
     all_results = []
     benchmark = devbench.AppleSiliconBenchmarkV2(
-        api_base=api_base, api_key=api_key, num_runs=num_runs,
+        api_base=api_base,
+        api_key=api_key,
+        num_runs=num_runs,
         traces_dir=traces_dir,
         no_traces=no_traces,
         event_bus=default_bus if _EVENTS_AVAILABLE else None,
     )
 
-    for model_name in models:
-        if not ci_mode:
-            _echo(f"\n━━━ {model_name} ━━━", "bold")
-        model_results = benchmark.benchmark_model(model_name, prompts, parallel=parallel)
-        all_results.extend(model_results)
-        if not ci_mode and model_results:
-            avg_score = mean([r.developer_score for r in model_results])
-            avg_tps = mean([r.tokens_per_second_mean for r in model_results])
-            _echo(f"  ✓ DevScore: {avg_score:.3f}  |  tok/s: {avg_tps:.1f}", "green")
+    try:
+        for model_name in models:
+            if not ci_mode:
+                _echo(f"\n━━━ {model_name} ━━━", "bold")
+            model_results = benchmark.benchmark_model(model_name, prompts, parallel=parallel)
+            all_results.extend(model_results)
+            if not ci_mode and model_results:
+                avg_score = mean([r.developer_score for r in model_results])
+                avg_tps = mean([r.tokens_per_second_mean for r in model_results])
+                _echo(f"  ✓ DevScore: {avg_score:.3f}  |  tok/s: {avg_tps:.1f}", "green")
 
-    # Save results
-    collector = ResultsCollector(output_dir)
-    for model_name in models:
-        model_results = [r for r in all_results if r.model == model_name]
-        if not model_results:
-            continue
-        scores = [r.developer_score for r in model_results]
-        tps_vals = [r.tokens_per_second_mean for r in model_results]
-        ttft_vals = [r.ttft_mean for r in model_results]
+        # Save results
+        collector = ResultsCollector(output_dir)
+        for model_name in models:
+            model_results = [r for r in all_results if r.model == model_name]
+            if not model_results:
+                continue
+            scores = [r.developer_score for r in model_results]
+            tps_vals = [r.tokens_per_second_mean for r in model_results]
+            ttft_vals = [r.ttft_mean for r in model_results]
 
-        result = collector.create_result(
-            model=model_name,
-            metrics=MetricScores(overall_score=mean(scores) if scores else 0.0),
-            performance=PerformanceMetrics(
-                tokens_per_sec=mean(tps_vals) if tps_vals else 0.0,
-                ttft_ms=mean(ttft_vals) * 1000 if ttft_vals else 0.0,
-            ),
-            stats=RunStats(
-                mean=mean(scores) if scores else 0.0,
-                std=stdev(scores) if len(scores) > 1 else 0.0,
-                runs=num_runs,
-            ),
-            seed=seed,
-        )
-        collector.add_result(result)
+            result = collector.create_result(
+                model=model_name,
+                metrics=MetricScores(overall_score=mean(scores) if scores else 0.0),
+                performance=PerformanceMetrics(
+                    tokens_per_sec=mean(tps_vals) if tps_vals else 0.0,
+                    ttft_ms=mean(ttft_vals) * 1000 if ttft_vals else 0.0,
+                ),
+                stats=RunStats(
+                    mean=mean(scores) if scores else 0.0,
+                    std=stdev(scores) if len(scores) > 1 else 0.0,
+                    runs=num_runs,
+                ),
+                seed=seed,
+            )
+            collector.add_result(result)
 
-    saved = collector.save_all()
+        saved = collector.save_all()
 
-    # Save hardware info alongside results
-    if hardware:
-        hw_path = Path(output_dir) / "hardware.json"
-        hw_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(hw_path, "w") as f:
-            json.dump(hardware.to_dict(), f, indent=2, default=str)
-
-    # ── Clean up SSE + replay ───────────────────────────────────
-    _cleanup_event_infra(sse_server, replay_writer)
+        # Save hardware info alongside results
+        if hardware:
+            hw_path = Path(output_dir) / "hardware.json"
+            hw_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(hw_path, "w") as f:
+                json.dump(hardware.to_dict(), f, indent=2, default=str)
+    finally:
+        # ── Clean up SSE + replay (always runs, even on error) ─
+        _cleanup_event_infra(sse_server, replay_writer)
 
     if json_output:
         aggregated = collector._aggregate()
@@ -455,15 +551,16 @@ def _run_devbench_framework(api_base, api_key, models, num_runs, num_prompts,
 
 # ── Event infrastructure lifecycle helpers ────────────────────────
 
+
 def _cleanup_event_infra(sse_server, replay_writer):
     """Safely stop the SSE server and flush the replay writer."""
     if sse_server is not None:
         try:
             sse_server.stop()
-        except Exception:
-            pass
+        except (AttributeError, TypeError, OSError):
+            pass  # Already stopped or partially initialized
     if replay_writer is not None:
         try:
             replay_writer.stop()
-        except Exception:
-            pass
+        except (AttributeError, TypeError, OSError):
+            pass  # Already stopped or partially initialized

@@ -22,6 +22,7 @@ from skills.types import Action, AgenticResponse, AgenticScore
 @dataclass
 class AgenticEvaluationResult:
     """Complete agentic evaluation result."""
+
     score: AgenticScore
     errors: List[str] = field(default_factory=list)
     warnings: List[str] = field(default_factory=list)
@@ -76,9 +77,7 @@ class AgenticEvaluator:
         actions = resp.actions
 
         # ── 2. PLANNING ─────────────────────────────────────────
-        score.planning_score = self._evaluate_planning(
-            actions, expected_actions, errors, warnings
-        )
+        score.planning_score = self._evaluate_planning(actions, expected_actions, errors, warnings)
 
         # ── 3. SKILL CORRECTNESS ────────────────────────────────
         score.skill_correctness_score = self._evaluate_skill_correctness(
@@ -86,9 +85,7 @@ class AgenticEvaluator:
         )
 
         # ── 4. CONSTRAINT ADHERENCE ─────────────────────────────
-        score.constraint_adherence_score = self._evaluate_constraints(
-            actions, score, errors
-        )
+        score.constraint_adherence_score = self._evaluate_constraints(actions, score, errors)
 
         # Compute overall
         score.compute_overall()
@@ -161,7 +158,7 @@ class AgenticEvaluator:
             pass
 
         # Try extracting from markdown fence
-        fence_match = re.search(r'```(?:json)?\s*\n?(.*?)\n?```', raw, re.DOTALL)
+        fence_match = re.search(r"```(?:json)?\s*\n?(.*?)\n?```", raw, re.DOTALL)
         if fence_match:
             try:
                 return AgenticResponse.from_json(fence_match.group(1).strip())
@@ -238,7 +235,9 @@ class AgenticEvaluator:
         read_indices = [i for i, s in enumerate(skills) if s == "read_file"]
         if read_indices and write_indices and min(write_indices) < min(read_indices):
             score -= 0.1
-            errors.append("Writing before reading may be out of order — did you read the input first?")
+            errors.append(
+                "Writing before reading may be out of order — did you read the input first?"
+            )
 
         # Too many steps is suspicious
         if len(actions) > 10:
@@ -338,6 +337,7 @@ class AgenticEvaluator:
 
 # ── Convenience Functions ─────────────────────────────────────────
 
+
 def evaluate_agentic_response(
     raw_response: str,
     available_skills: List[str],
@@ -359,17 +359,17 @@ def get_hallucination_rate(result: AgenticEvaluationResult) -> float:
 
 if __name__ == "__main__":
     # Quick test
-    evaluator = AgenticEvaluator(
-        available_skills=["read_file", "write_file", "json_parse", "diff"]
-    )
+    evaluator = AgenticEvaluator(available_skills=["read_file", "write_file", "json_parse", "diff"])
 
     # Valid response
-    response = json.dumps({
-        "actions": [
-            {"skill": "read_file", "input": {"path": "src/index.ts"}},
-            {"skill": "diff", "input": {"a": "old", "b": "new"}},
-        ]
-    })
+    response = json.dumps(
+        {
+            "actions": [
+                {"skill": "read_file", "input": {"path": "src/index.ts"}},
+                {"skill": "diff", "input": {"a": "old", "b": "new"}},
+            ]
+        }
+    )
 
     result = evaluator.evaluate(response)
     print(f"Overall agentic score: {result.score.compute_overall():.2%}")

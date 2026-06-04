@@ -1,7 +1,9 @@
 ############################################
 # OS / IDE
 ############################################
-
+.openclaude
+.agents
+.ruff_cache
 .DS_Store
 .AppleDouble
 .LSOverride

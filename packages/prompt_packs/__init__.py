@@ -27,12 +27,14 @@ PACKS_ROOT = Path(__file__).parent
 
 class PackValidationError(Exception):
     """Raised when a pack fails validation."""
+
     pass
 
 
 @dataclass
 class PackPrompt:
     """A single prompt template from a pack with parameterization info."""
+
     id: str
     task: str
     template: str
@@ -75,6 +77,7 @@ class PackPrompt:
 @dataclass
 class PackCategory:
     """A category within a prompt pack."""
+
     id: str
     label: str
     difficulty: List[str]
@@ -85,6 +88,7 @@ class PackCategory:
 @dataclass
 class PromptPack:
     """A complete prompt pack with metadata and categories."""
+
     name: str
     version: str
     description: str
@@ -94,8 +98,9 @@ class PromptPack:
     categories: List[PackCategory] = field(default_factory=list)
     total_prompts: int = 0
 
-    def get_prompt(self, category_id: Optional[str] = None,
-                   difficulty: Optional[str] = None) -> PackPrompt:
+    def get_prompt(
+        self, category_id: Optional[str] = None, difficulty: Optional[str] = None
+    ) -> PackPrompt:
         """Get a random prompt, optionally filtered by category and difficulty."""
         candidates = []
 
@@ -197,8 +202,11 @@ class PackLoader:
             return
 
         for pack_dir in self.packs_root.iterdir():
-            if pack_dir.is_dir() and not pack_dir.name.startswith('.') \
-               and not pack_dir.name.startswith('__'):
+            if (
+                pack_dir.is_dir()
+                and not pack_dir.name.startswith(".")
+                and not pack_dir.name.startswith("__")
+            ):
                 pack_json_path = pack_dir / "pack.json"
                 if pack_json_path.exists():
                     try:
@@ -230,7 +238,7 @@ class PackLoader:
             tags=pack_data["tags"],
             generator=pack_data["generator"],
             path=pack_dir,
-            total_prompts=pack_data.get("total_prompts", 0)
+            total_prompts=pack_data.get("total_prompts", 0),
         )
 
         # Load categories from pack.json
@@ -239,7 +247,7 @@ class PackLoader:
                 id=cat_data["id"],
                 label=cat_data["label"],
                 difficulty=cat_data["difficulty"],
-                count=cat_data["count"]
+                count=cat_data["count"],
             )
             pack.categories.append(category)
 
@@ -271,7 +279,7 @@ class PackLoader:
                         category_id=category_id,
                         code=p_data.get("code"),
                         issue=p_data.get("issue"),
-                        expected_fix=p_data.get("expected_fix")
+                        expected_fix=p_data.get("expected_fix"),
                     )
                     cat_prompts.append(prompt)
 
@@ -306,15 +314,17 @@ class PackLoader:
                 "description": p.description,
                 "tags": p.tags,
                 "total_prompts": len(p.get_all_prompts()),
-                "categories": [c.label for c in p.categories]
+                "categories": [c.label for c in p.categories],
             }
             for p in self.packs.values()
         ]
 
-    def generate_from_packs(self,
-                            pack_names: Optional[List[str]] = None,
-                            total_prompts: int = 20,
-                            seed: Optional[int] = None) -> List[str]:
+    def generate_from_packs(
+        self,
+        pack_names: Optional[List[str]] = None,
+        total_prompts: int = 20,
+        seed: Optional[int] = None,
+    ) -> List[str]:
         """Generate concrete prompts from specified packs.
 
         Args:
@@ -358,6 +368,7 @@ class PackLoader:
 
 
 # Convenience functions
+
 
 def load_all_packs() -> PackLoader:
     """Load all prompt packs and return the loader."""

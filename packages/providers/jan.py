@@ -50,14 +50,17 @@ class JanClient(OpenAICompatibleProvider):
                     mid = m.get("id", "unknown")
                     meta = m.get("metadata", {}) or {}
                     # Jan typically stores model info in metadata
-                    models.append(Model(
-                        id=mid,
-                        name=meta.get("name", mid),
-                        provider=self.name,
-                        parameters=meta.get("parameters") or meta.get("parameter_count", "unknown"),
-                        quantization=meta.get("quantization", "unknown"),
-                        size_bytes=meta.get("size_bytes", 0),
-                    ))
+                    models.append(
+                        Model(
+                            id=mid,
+                            name=meta.get("name", mid),
+                            provider=self.name,
+                            parameters=meta.get("parameters")
+                            or meta.get("parameter_count", "unknown"),
+                            quantization=meta.get("quantization", "unknown"),
+                            size_bytes=meta.get("size_bytes", 0),
+                        )
+                    )
         except (requests.ConnectionError, requests.Timeout) as e:
             logger.debug("Jan list_models failed (connection/timeout): %s", e)
         except (requests.RequestException, ValueError, KeyError) as e:

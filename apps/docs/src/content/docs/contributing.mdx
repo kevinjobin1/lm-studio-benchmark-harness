@@ -1,0 +1,146 @@
+---
+title: Contributing
+description: How to contribute to Model Lens — setup, pre-commit hooks, code quality standards, testing, and PR guidelines.
+---
+
+## Getting started
+
+### Prerequisites
+
+- Python 3.10+
+- Git
+- A local LLM provider for testing (LM Studio or Ollama recommended)
+
+### Development setup
+
+```bash
+git clone https://github.com/kevinjobin1/model-lens.git
+cd model-lens
+pip install -r requirements.txt
+pip install ".[dev]"
+pre-commit install
+```
+
+### Dev dependencies
+
+The `[dev]` extra in `pyproject.toml` installs:
+- `ruff` — linting and formatting
+- `mypy` — type checking
+- `pytest` and `pytest-cov` — testing
+- `pre-commit` — git hook management
+
+### Pre-commit hooks
+
+On every commit, the following checks run automatically:
+
+| Hook | What it checks |
+|------|---------------|
+| `trailing-whitespace` | No trailing whitespace |
+| `end-of-file-fixer` | Files end with a newline |
+| `check-yaml` / `check-json` / `check-toml` | Valid config files |
+| `check-added-large-files` | No files > 500KB |
+| `ruff check --fix` | Linting with auto-fixes |
+| `ruff format` | Consistent code formatting |
+| `mypy` | Type checking (`MYPYPATH=packages`) |
+
+To run manually:
+
+```bash
+pre-commit run --all-files
+```
+
+## Code quality standards
+
+These are enforced on every push via CI (`.github/workflows/ci.yml`):
+
+```bash
+# Lint
+ruff check packages/ apps/cli/ tests/
+
+# Format
+ruff format --check --diff packages/ apps/cli/ tests/
+
+# Type check
+MYPYPATH=packages mypy packages/ apps/cli/
+
+# Test
+pytest tests/ -v
+```
+
+The CI is **strict** — any failure blocks the build. No `|| echo` fallbacks.
+
+## Project conventions
+
+### Architecture invariants
+
+- **Events package is self-contained** — never import from core, providers, or benchmarks into `packages/events/`
+- **Providers never import core** — each client depends only on `base.py`
+- **Core never imports benchmarks** — imports flow the other direction
+- **Dual-authority benchmarks** — `benchmark.py` and `bench_apple_silicon_v2.py` are intentionally separate; do not merge them
+
+### URL handling
+
+Use `urllib.parse.urljoin()` and helpers from `packages/providers/base.py`:
+
+```python
+from providers.base import normalize_base_url, get_root_url, url_join
+```
+
+Banned patterns: `.rstrip("/")`, `.removesuffix("/v1")`, `f"{base}/{path}"` string concatenation.
+
+### Logging
+
+```python
+from packages.logging import get_logger
+logger = get_logger(__name__)
+logger.info("message", key="value")
+```
+
+No `print()` for observability data — only for CLI user-facing output.
+
+### Exception handling
+
+Never use bare `except:` or `except Exception:`. Catch specific types:
+
+```python
+try:
+    ...
+except (requests.ConnectionError, requests.Timeout):
+    ...
+```
+
+### Event emission
+
+Providers emit `TokenGeneratedEvent` per streaming token and `CompletionEvent` after response. Benchmarks emit `RunLifecycleEvent` (started/completed/failed) and `MetricEvent` per result. Always use the thread-safe `EventBus`.
+
+## Running tests
+
+```bash
+# Full suite
+pytest tests/ -v
+
+# Specific test files
+pytest tests/test_provider_clients.py -v
+
+# With coverage
+pytest tests/ -v --cov=packages --cov-report=term
+```
+
+## Submitting a PR
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Run pre-commit checks: `pre-commit run --all-files`
+5. Run tests: `pytest tests/ -v`
+6. Submit a PR with a clear description
+
+## Documentation
+
+The docs site lives at `apps/docs/` (Starlight). To preview:
+
+```bash
+cd apps/docs
+bun install
+bun run dev          # → http://localhost:4321
+```

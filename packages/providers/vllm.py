@@ -19,7 +19,7 @@ import requests
 
 from packages.logging import get_logger
 from .openai_compatible import OpenAICompatibleProvider
-from .base import Model
+from .base import Model, get_root_url, url_join
 
 logger = get_logger(__name__)
 
@@ -52,25 +52,29 @@ class VLLMClient(OpenAICompatibleProvider):
                 for m in data.get("data", []):
                     mid = m.get("id", "unknown")
                     meta = m.get("metadata", {}) or {}
-                    models.append(Model(
-                        id=mid,
-                        name=mid.split(":")[0] if ":" in mid else mid,
-                        provider=self.name,
-                        parameters=meta.get("parameter_count", "unknown"),
-                        quantization=meta.get("quantization", "unknown"),
-                        size_bytes=meta.get("model_size", 0),
-                    ))
+                    models.append(
+                        Model(
+                            id=mid,
+                            name=mid.split(":")[0] if ":" in mid else mid,
+                            provider=self.name,
+                            parameters=meta.get("parameter_count", "unknown"),
+                            quantization=meta.get("quantization", "unknown"),
+                            size_bytes=meta.get("model_size", 0),
+                        )
+                    )
             # vLLM typically serves a single model; if the list is empty
             # but we know the model name, add it manually.
             if not models and self.model_name:
-                models.append(Model(
-                    id=self.model_name,
-                    name=self.model_name,
-                    provider=self.name,
-                    parameters="unknown",
-                    quantization="unknown",
-                    size_bytes=0,
-                ))
+                models.append(
+                    Model(
+                        id=self.model_name,
+                        name=self.model_name,
+                        provider=self.name,
+                        parameters="unknown",
+                        quantization="unknown",
+                        size_bytes=0,
+                    )
+                )
         except (requests.ConnectionError, requests.Timeout) as e:
             logger.debug("vLLM list_models failed (connection/timeout): %s", e)
         except (requests.RequestException, ValueError, KeyError) as e:
@@ -88,12 +92,10 @@ class VLLMClient(OpenAICompatibleProvider):
                 return True
         except (requests.ConnectionError, requests.Timeout):
             pass
-        # vLLM has a /health endpoint for Kubernetes liveness probes
+        # vLLM has a /health endpoint for Kubernetes liveness probes at the server root
         try:
-            resp = requests.get(
-                self.base_url.removesuffix("/v1") + "/health",
-                timeout=5,
-            )
+            health_url = url_join(get_root_url(self.base_url), "health")
+            resp = requests.get(health_url, timeout=5)
             return resp.status_code == 200
         except (requests.ConnectionError, requests.Timeout) as e:
             logger.debug("vLLM health check fallback failed (connection/timeout): %s", e)

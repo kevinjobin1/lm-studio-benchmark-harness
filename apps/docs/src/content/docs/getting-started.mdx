@@ -1,0 +1,118 @@
+---
+title: Quick Start
+description: Install Model Lens, configure a provider, and run your first benchmark in under 5 minutes.
+---
+
+import { Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+
+Get Model Lens running locally with a few commands.
+
+## Prerequisites
+
+- Python 3.10+
+- A local LLM provider (we recommend [LM Studio](https://lmstudio.ai/) or [Ollama](https://ollama.com/))
+- At least one model loaded in your provider
+
+## Installation
+
+<Steps>
+
+1. **Clone the repository**
+
+   ```bash
+   git clone https://github.com/kevinjobin1/model-lens.git
+   cd model-lens
+   ```
+
+2. **Install dependencies**
+
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+3. **Install dev tooling (optional)**
+
+   ```bash
+   pip install ".[dev]"
+   pre-commit install
+   ```
+
+4. **Verify installation**
+
+   ```bash
+   python apps/cli/modellens.py --help
+   ```
+
+</Steps>
+
+## Run your first benchmark
+
+<Tabs>
+<TabItem label="Auto-detect (LM Studio)">
+
+If LM Studio is running with a model loaded:
+
+```bash
+python apps/cli/modellens.py run --quick
+```
+
+Model Lens auto-detects your provider and models.
+
+</TabItem>
+<TabItem label="Ollama">
+
+```bash
+python apps/cli/modellens.py run --provider ollama --models llama3.2 --quick
+```
+
+</TabItem>
+<TabItem label="Other providers">
+
+```bash
+# llama.cpp
+python apps/cli/modellens.py run --provider llama.cpp --quick
+
+# vLLM
+python apps/cli/modellens.py run --provider vllm --quick
+
+# Open WebUI
+python apps/cli/modellens.py run --provider open-webui --quick
+```
+
+</TabItem>
+</Tabs>
+
+## Run a workload evaluation
+
+Test models against real projects:
+
+```bash
+python apps/cli/modellens.py workload run --model qwen3.5-9b
+```
+
+## Compare two models
+
+```bash
+python apps/cli/modellens.py run --framework compare --models qwen3.5 gemma-4
+```
+
+## Start the dashboard
+
+```bash
+cd apps/dashboard
+bun install
+bun run dev          # → http://localhost:4321
+```
+
+## Stream live events to the dashboard
+
+```bash
+python apps/cli/modellens.py run --sse-port 9090
+# Dashboard connects to the SSE stream at http://localhost:9090/events
+```
+
+## Next steps
+
+- Read the [Architecture guide](/docs/architecture/) to understand how Model Lens works
+- Check [Provider setup guides](/docs/guides/providers/) for provider-specific configuration
+- Learn about [benchmark methodology](/docs/guides/benchmarks/) and scoring

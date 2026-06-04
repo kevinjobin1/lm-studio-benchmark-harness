@@ -53,32 +53,56 @@ def workload_list_projects():
 
 
 @workload.command()
-@click.option("--api-base", default=None, show_default=False,
-              help="Provider base URL (auto-detected)")
+@click.option(
+    "--api-base", default=None, show_default=False, help="Provider base URL (auto-detected)"
+)
 @click.option("--api-key", default=None, show_default=False)
-@click.option("--provider", "-p",
-              type=click.Choice(["lm-studio", "ollama", "open-webui", "jan", "llama.cpp", "vllm"]),
-              default=None,
-              help="Provider (auto-detected if omitted)")
-@click.option("--model", "-m", required=True,
-              help="Model name to evaluate (required)")
-@click.option("--project", "-p", "project_name", default="nestjs-api",
-              help="Built-in project name (default: nestjs-api)")
-@click.option("--project-source", default=None,
-              help="Local path or git URL to a real project")
-@click.option("--tasks", "-t", type=int, default=5,
-              help="Number of tasks to generate (default: 5)")
-@click.option("--output", "-o", "output_dir", default="results/workload",
-              help="Output directory (default: results/workload)")
-@click.option("--verbose", "-v", is_flag=True,
-              help="Show detailed progress and scores")
-@click.option("--json", "json_output", is_flag=True,
-              help="Output results as JSON")
-@click.option("--sse-port", type=int, default=0,
-              help="Start SSE event bridge on this port for real-time dashboard updates. "
-                   "0 = auto-select (prints SSE_PORT:N to stdout on start).")
-def run(api_base, api_key, provider, model, project_name, project_source,
-        tasks, output_dir, verbose, json_output, sse_port):
+@click.option(
+    "--provider",
+    "-p",
+    type=click.Choice(["lm-studio", "ollama", "open-webui", "jan", "llama.cpp", "vllm"]),
+    default=None,
+    help="Provider (auto-detected if omitted)",
+)
+@click.option("--model", "-m", required=True, help="Model name to evaluate (required)")
+@click.option(
+    "--project",
+    "-p",
+    "project_name",
+    default="nestjs-api",
+    help="Built-in project name (default: nestjs-api)",
+)
+@click.option("--project-source", default=None, help="Local path or git URL to a real project")
+@click.option("--tasks", "-t", type=int, default=5, help="Number of tasks to generate (default: 5)")
+@click.option(
+    "--output",
+    "-o",
+    "output_dir",
+    default="results/workload",
+    help="Output directory (default: results/workload)",
+)
+@click.option("--verbose", "-v", is_flag=True, help="Show detailed progress and scores")
+@click.option("--json", "json_output", is_flag=True, help="Output results as JSON")
+@click.option(
+    "--sse-port",
+    type=int,
+    default=0,
+    help="Start SSE event bridge on this port for real-time dashboard updates. "
+    "0 = auto-select (prints SSE_PORT:N to stdout on start).",
+)
+def run(
+    api_base,
+    api_key,
+    provider,
+    model,
+    project_name,
+    project_source,
+    tasks,
+    output_dir,
+    verbose,
+    json_output,
+    sse_port,
+):
     """Run workload evaluation against a model.
 
     \\b
@@ -99,6 +123,7 @@ def run(api_base, api_key, provider, model, project_name, project_source,
 
     # Validate connection
     import requests
+
     try:
         check_url = f"{api_base}/models"
         resp = requests.get(check_url, timeout=3)
@@ -125,6 +150,7 @@ def run(api_base, api_key, provider, model, project_name, project_source,
     if sse_port is not None and sse_port > 0:
         try:
             from events.sse import EventBusSSEServer
+
             sse_server = EventBusSSEServer(port=sse_port)
             actual_port = sse_server.start()
             print(f"SSE_PORT:{actual_port}", flush=True)
@@ -137,6 +163,7 @@ def run(api_base, api_key, provider, model, project_name, project_source,
     replay_writer = None
     try:
         from events.replay import EventBusReplayWriter
+
         replay_writer = EventBusReplayWriter(
             output_dir=str(Path(output_dir) / "replays"),
         )
@@ -186,9 +213,9 @@ def run(api_base, api_key, provider, model, project_name, project_source,
         results = runner.run_batch(workload_tasks, verbose=verbose)
 
         # 4. Show results
-        _echo(f"\n{'='*60}", "dim")
+        _echo(f"\n{'=' * 60}", "dim")
         _echo("📊 Workload Evaluation Results", "bold blue")
-        _echo(f"{'='*60}", "dim")
+        _echo(f"{'=' * 60}", "dim")
 
         scores_by_type: dict = {}
         for r in results:
@@ -220,7 +247,11 @@ def run(api_base, api_key, provider, model, project_name, project_source,
             table.add_row(
                 "[bold]OVERALL[/bold]",
                 f"[bold]{overall:.3f}[/bold]",
-                "", "", "", "", "",
+                "",
+                "",
+                "",
+                "",
+                "",
             )
 
             console.print("")
@@ -239,6 +270,7 @@ def run(api_base, api_key, provider, model, project_name, project_source,
         if all_failures:
             _echo(f"\n⚠ Common failure patterns:", "yellow")
             from collections import Counter
+
             for failure, count in Counter(all_failures).most_common(5):
                 _echo(f"   {failure}: {count}", "dim")
 

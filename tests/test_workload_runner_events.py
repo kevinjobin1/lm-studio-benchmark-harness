@@ -39,6 +39,7 @@ from core.workload import (
 #  HELPERS
 # ═════════════════════════════════════════════════════════════════════
 
+
 def make_sample_task(**overrides) -> WorkloadTask:
     """Create a minimal WorkloadTask for testing."""
     return WorkloadTask(
@@ -105,6 +106,7 @@ def make_mock_response(text: str, completion_tokens: int = 10):
 #  NON-STREAMING PATH TESTS
 # ═════════════════════════════════════════════════════════════════════
 
+
 class TestWorkloadRunnerNonStreaming(unittest.TestCase):
     """Tests for the non-streaming (default) path."""
 
@@ -163,8 +165,9 @@ class TestWorkloadRunnerNonStreaming(unittest.TestCase):
 
         metric_events = [e for e in self.events if isinstance(e, MetricEvent)]
         # Should have overall score + 5 components = 6 metric events per task
-        self.assertGreaterEqual(len(metric_events), 6,
-                                f"Expected at least 6 MetricEvents, got {len(metric_events)}")
+        self.assertGreaterEqual(
+            len(metric_events), 6, f"Expected at least 6 MetricEvents, got {len(metric_events)}"
+        )
 
         # Check overall score metric
         score_metrics = [e for e in metric_events if e.name == "workload.score"]
@@ -174,11 +177,18 @@ class TestWorkloadRunnerNonStreaming(unittest.TestCase):
 
         # Check component metrics
         component_names = {e.name for e in metric_events if e.name.startswith("workload.score.")}
-        expected_components = {"workload.score.correctness", "workload.score.completeness",
-                              "workload.score.code_quality", "workload.score.style_match",
-                              "workload.score.efficiency"}
-        self.assertSetEqual(component_names, expected_components,
-                            f"Missing score components, got: {component_names}")
+        expected_components = {
+            "workload.score.correctness",
+            "workload.score.completeness",
+            "workload.score.code_quality",
+            "workload.score.style_match",
+            "workload.score.efficiency",
+        }
+        self.assertSetEqual(
+            component_names,
+            expected_components,
+            f"Missing score components, got: {component_names}",
+        )
 
     @patch("openai.OpenAI")
     def test_lifecycle_events_on_success(self, mock_openai):
@@ -192,8 +202,11 @@ class TestWorkloadRunnerNonStreaming(unittest.TestCase):
         self.runner.run_task(self.task)
 
         lifecycle_events = [e for e in self.events if isinstance(e, RunLifecycleEvent)]
-        self.assertEqual(len(lifecycle_events), 2,
-                         f"Expected 2 lifecycle events (started + completed), got {len(lifecycle_events)}")
+        self.assertEqual(
+            len(lifecycle_events),
+            2,
+            f"Expected 2 lifecycle events (started + completed), got {len(lifecycle_events)}",
+        )
 
         started = lifecycle_events[0]
         completed = lifecycle_events[1]
@@ -216,8 +229,9 @@ class TestWorkloadRunnerNonStreaming(unittest.TestCase):
 
         event_types = {type(e).__name__ for e in self.events}
         expected_types = {"RunLifecycleEvent", "CompletionEvent", "MetricEvent"}
-        self.assertSetEqual(event_types, expected_types,
-                            f"Expected {expected_types}, got {event_types}")
+        self.assertSetEqual(
+            event_types, expected_types, f"Expected {expected_types}, got {event_types}"
+        )
 
     @patch("openai.OpenAI")
     def test_result_fields_match_events(self, mock_openai):
@@ -240,6 +254,7 @@ class TestWorkloadRunnerNonStreaming(unittest.TestCase):
 # ═════════════════════════════════════════════════════════════════════
 #  STREAMING PATH TESTS
 # ═════════════════════════════════════════════════════════════════════
+
 
 class TestWorkloadRunnerStreaming(unittest.TestCase):
     """Tests for the streaming path (stream=True)."""
@@ -302,9 +317,15 @@ class TestWorkloadRunnerStreaming(unittest.TestCase):
         self.runner.run_task(self.task)
 
         event_types = {type(e).__name__ for e in self.events}
-        expected_types = {"TokenGeneratedEvent", "CompletionEvent", "MetricEvent", "RunLifecycleEvent"}
-        self.assertSetEqual(event_types, expected_types,
-                            f"Expected {expected_types}, got {event_types}")
+        expected_types = {
+            "TokenGeneratedEvent",
+            "CompletionEvent",
+            "MetricEvent",
+            "RunLifecycleEvent",
+        }
+        self.assertSetEqual(
+            event_types, expected_types, f"Expected {expected_types}, got {event_types}"
+        )
 
     @patch("openai.OpenAI")
     def test_token_count_matches_tokens_used(self, mock_openai):
@@ -319,9 +340,12 @@ class TestWorkloadRunnerStreaming(unittest.TestCase):
         token_count = len([e for e in self.events if isinstance(e, TokenGeneratedEvent)])
         completion = [e for e in self.events if isinstance(e, CompletionEvent)][0]
 
-        self.assertEqual(completion.tokens_used, token_count,
-                         f"CompletionEvent tokens_used ({completion.tokens_used}) should match "
-                         f"TokenGeneratedEvent count ({token_count})")
+        self.assertEqual(
+            completion.tokens_used,
+            token_count,
+            f"CompletionEvent tokens_used ({completion.tokens_used}) should match "
+            f"TokenGeneratedEvent count ({token_count})",
+        )
 
     @patch("openai.OpenAI")
     def test_streaming_score_metrics(self, mock_openai):
@@ -332,7 +356,9 @@ class TestWorkloadRunnerStreaming(unittest.TestCase):
 
         self.runner.run_task(self.task)
 
-        score_metrics = [e for e in self.events if isinstance(e, MetricEvent) and e.name == "workload.score"]
+        score_metrics = [
+            e for e in self.events if isinstance(e, MetricEvent) and e.name == "workload.score"
+        ]
         self.assertEqual(len(score_metrics), 1)
         self.assertGreater(score_metrics[0].value, 0)
 
@@ -340,6 +366,7 @@ class TestWorkloadRunnerStreaming(unittest.TestCase):
 # ═════════════════════════════════════════════════════════════════════
 #  ERROR PATH TESTS (NON-STREAMING)
 # ═════════════════════════════════════════════════════════════════════
+
 
 class TestWorkloadRunnerErrorPath(unittest.TestCase):
     """Tests for error handling in WorkloadRunner (non-streaming)."""
@@ -422,8 +449,11 @@ class TestWorkloadRunnerErrorPath(unittest.TestCase):
 
         event_types = {type(e).__name__ for e in self.events}
         expected_types = {"ErrorEvent", "CompletionEvent", "RunLifecycleEvent"}
-        self.assertSetEqual(event_types, expected_types,
-                            f"Error path should emit {expected_types}, got {event_types}")
+        self.assertSetEqual(
+            event_types,
+            expected_types,
+            f"Error path should emit {expected_types}, got {event_types}",
+        )
 
     @patch("openai.OpenAI")
     def test_error_result_returned(self, mock_openai):
@@ -443,6 +473,7 @@ class TestWorkloadRunnerErrorPath(unittest.TestCase):
 # ═════════════════════════════════════════════════════════════════════
 #  ERROR PATH TESTS (STREAMING)
 # ═════════════════════════════════════════════════════════════════════
+
 
 class TestWorkloadRunnerStreamingErrorPath(unittest.TestCase):
     """Tests for error handling in streaming mode."""
@@ -514,8 +545,7 @@ class TestWorkloadRunnerStreamingErrorPath(unittest.TestCase):
         self.runner.run_task(self.task)
 
         token_events = [e for e in self.events if isinstance(e, TokenGeneratedEvent)]
-        self.assertEqual(len(token_events), 0,
-                         "No TokenGeneratedEvents should be emitted on error")
+        self.assertEqual(len(token_events), 0, "No TokenGeneratedEvents should be emitted on error")
 
     @patch("openai.OpenAI")
     def test_streaming_error_returns_failed_result(self, mock_openai):
@@ -533,6 +563,7 @@ class TestWorkloadRunnerStreamingErrorPath(unittest.TestCase):
 # ═════════════════════════════════════════════════════════════════════
 #  BATCH PATH TESTS
 # ═════════════════════════════════════════════════════════════════════
+
 
 class TestWorkloadRunnerBatch(unittest.TestCase):
     """Tests for batch lifecycle and aggregate metrics."""
@@ -568,9 +599,11 @@ class TestWorkloadRunnerBatch(unittest.TestCase):
         # Filter by batch-level lifecycle events (contain '_batch_' in run_id)
         all_lifecycle = [e for e in self.events if isinstance(e, RunLifecycleEvent)]
         batch_lifecycles = [e for e in all_lifecycle if "_batch_" in (e.run_id or "")]
-        self.assertGreaterEqual(len(batch_lifecycles), 2,
-                                f"Expected at least 2 batch lifecycle events, "
-                                f"got {len(batch_lifecycles)}")
+        self.assertGreaterEqual(
+            len(batch_lifecycles),
+            2,
+            f"Expected at least 2 batch lifecycle events, got {len(batch_lifecycles)}",
+        )
 
         batch_started = [e for e in batch_lifecycles if e.status == "started"]
         batch_completed = [e for e in batch_lifecycles if e.status == "completed"]
@@ -588,13 +621,22 @@ class TestWorkloadRunnerBatch(unittest.TestCase):
 
         self.runner.run_batch(self.tasks, verbose=False)
 
-        batch_metrics = [e for e in self.events if isinstance(e, MetricEvent)
-                         and e.name.startswith("workload.batch.")]
+        batch_metrics = [
+            e
+            for e in self.events
+            if isinstance(e, MetricEvent) and e.name.startswith("workload.batch.")
+        ]
         metric_names = {e.name for e in batch_metrics}
-        expected_metrics = {"workload.batch.avg_score", "workload.batch.avg_latency_ms",
-                            "workload.batch.total_tokens"}
-        self.assertSetEqual(metric_names, expected_metrics,
-                            f"Expected batch metrics {expected_metrics}, got {metric_names}")
+        expected_metrics = {
+            "workload.batch.avg_score",
+            "workload.batch.avg_latency_ms",
+            "workload.batch.total_tokens",
+        }
+        self.assertSetEqual(
+            metric_names,
+            expected_metrics,
+            f"Expected batch metrics {expected_metrics}, got {metric_names}",
+        )
 
         # Verify values are sensible
         avg_score = [e for e in batch_metrics if e.name == "workload.batch.avg_score"][0]
@@ -636,6 +678,7 @@ class TestWorkloadRunnerBatch(unittest.TestCase):
 #  EVENT FIELD CORRECTNESS TESTS
 # ═════════════════════════════════════════════════════════════════════
 
+
 class TestWorkloadRunnerEventFields(unittest.TestCase):
     """Tests for correctness of event field values."""
 
@@ -670,8 +713,11 @@ class TestWorkloadRunnerEventFields(unittest.TestCase):
 
         for event in self.events:
             if hasattr(event, "source") and event.source:
-                self.assertEqual(event.source, "workload.test-project",
-                                 f"Unexpected source '{event.source}' in {type(event).__name__}")
+                self.assertEqual(
+                    event.source,
+                    "workload.test-project",
+                    f"Unexpected source '{event.source}' in {type(event).__name__}",
+                )
 
     @patch("openai.OpenAI")
     def test_run_id_format(self, mock_openai):
@@ -703,8 +749,9 @@ class TestWorkloadRunnerEventFields(unittest.TestCase):
 
         self.runner.run_task(self.task)
 
-        score_metrics = [e for e in self.events if isinstance(e, MetricEvent)
-                         and e.name == "workload.score"]
+        score_metrics = [
+            e for e in self.events if isinstance(e, MetricEvent) and e.name == "workload.score"
+        ]
         self.assertEqual(len(score_metrics), 1)
         tags = score_metrics[0].tags
         self.assertEqual(tags.get("task_id"), "wl-field-test")
@@ -724,8 +771,11 @@ class TestWorkloadRunnerEventFields(unittest.TestCase):
 
         for event in self.events:
             if hasattr(event, "model"):
-                self.assertEqual(event.model, "custom-model-v2",
-                                 f"Unexpected model '{event.model}' in {type(event).__name__}")
+                self.assertEqual(
+                    event.model,
+                    "custom-model-v2",
+                    f"Unexpected model '{event.model}' in {type(event).__name__}",
+                )
 
     @patch("openai.OpenAI")
     def test_completion_event_tokens_per_second(self, mock_openai):
@@ -740,12 +790,9 @@ class TestWorkloadRunnerEventFields(unittest.TestCase):
         self.runner.run_task(self.task)
 
         completion = [e for e in self.events if isinstance(e, CompletionEvent)][0]
-        self.assertGreater(completion.tokens_per_second, 0,
-                           "tokens_per_second should be positive")
-        self.assertGreater(completion.latency_ms, 0,
-                           "latency_ms should be positive")
-        self.assertIsNone(completion.error,
-                          "successful completion should have no error")
+        self.assertGreater(completion.tokens_per_second, 0, "tokens_per_second should be positive")
+        self.assertGreater(completion.latency_ms, 0, "latency_ms should be positive")
+        self.assertIsNone(completion.error, "successful completion should have no error")
 
 
 class TestWorkloadRunnerEventOrdering(unittest.TestCase):
@@ -784,20 +831,24 @@ class TestWorkloadRunnerEventOrdering(unittest.TestCase):
         last_lifecycle_idx = lifecycle_indices[-1]
 
         # First lifecycle event should be started
-        self.assertEqual(self.events[first_lifecycle_idx].status, "started",
-                         "First lifecycle event should be 'started'")
+        self.assertEqual(
+            self.events[first_lifecycle_idx].status,
+            "started",
+            "First lifecycle event should be 'started'",
+        )
 
         # Last lifecycle event should be completed
-        self.assertEqual(self.events[last_lifecycle_idx].status, "completed",
-                         "Last lifecycle event should be 'completed'")
+        self.assertEqual(
+            self.events[last_lifecycle_idx].status,
+            "completed",
+            "Last lifecycle event should be 'completed'",
+        )
 
         # CompletionEvent should be between the two lifecycle events
         completion_indices = [i for i, n in enumerate(type_sequence) if n == "CompletionEvent"]
         for ci in completion_indices:
-            self.assertGreater(ci, first_lifecycle_idx,
-                               "CompletionEvent should come after started")
-            self.assertLess(ci, last_lifecycle_idx,
-                            "CompletionEvent should come before completed")
+            self.assertGreater(ci, first_lifecycle_idx, "CompletionEvent should come after started")
+            self.assertLess(ci, last_lifecycle_idx, "CompletionEvent should come before completed")
 
     @patch("openai.OpenAI")
     def test_event_ordering_error(self, mock_openai):
@@ -816,17 +867,21 @@ class TestWorkloadRunnerEventOrdering(unittest.TestCase):
         lifecycle_indices = [i for i, n in enumerate(type_sequence) if n == "RunLifecycleEvent"]
 
         # Order should be: started → ErrorEvent → CompletionEvent(failed) → failed
-        self.assertGreater(error_idx, lifecycle_indices[0],
-                           "ErrorEvent should come after started")
-        self.assertGreater(completion_idx, error_idx,
-                           "CompletionEvent should come after ErrorEvent")
-        self.assertGreater(lifecycle_indices[-1], completion_idx,
-                           "Failed lifecycle should come after CompletionEvent")
+        self.assertGreater(error_idx, lifecycle_indices[0], "ErrorEvent should come after started")
+        self.assertGreater(
+            completion_idx, error_idx, "CompletionEvent should come after ErrorEvent"
+        )
+        self.assertGreater(
+            lifecycle_indices[-1],
+            completion_idx,
+            "Failed lifecycle should come after CompletionEvent",
+        )
 
 
 # ═════════════════════════════════════════════════════════════════════
 #  EDGE CASES
 # ═════════════════════════════════════════════════════════════════════
+
 
 class TestWorkloadRunnerEdgeCases(unittest.TestCase):
     """Edge cases for WorkloadRunner EventBus integration."""
@@ -840,6 +895,7 @@ class TestWorkloadRunnerEdgeCases(unittest.TestCase):
     def test_default_event_bus(self):
         """WorkloadRunner should use default_bus if no event_bus provided."""
         from events import default_bus
+
         runner = WorkloadRunner()
         self.assertIs(runner.event_bus, default_bus)
 
@@ -852,6 +908,7 @@ class TestWorkloadRunnerEdgeCases(unittest.TestCase):
         """WorkloadRunner should create a default WorkloadScorer if none provided."""
         runner = WorkloadRunner()
         from core.workload import WorkloadScorer
+
         self.assertIsInstance(runner.scorer, WorkloadScorer)
 
 

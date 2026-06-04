@@ -126,9 +126,11 @@ PROMPT_TEMPLATE = {
 
 # ── Registry ──────────────────────────────────────────────────────
 
+
 @dataclass
 class RegistryEntry:
     """A pack entry in the registry."""
+
     name: str
     version: str
     description: str
@@ -204,7 +206,7 @@ class PackRegistry:
             "updated_at": datetime.now().isoformat(),
             "packs": [e.to_dict() for e in self.entries.values()],
         }
-        with open(self.REGISTRY_FILE, 'w') as f:
+        with open(self.REGISTRY_FILE, "w") as f:
             json.dump(data, f, indent=2)
 
     def register(self, entry: RegistryEntry):
@@ -240,14 +242,16 @@ class PackRegistry:
 
 # ── Scaffolder ────────────────────────────────────────────────────
 
+
 class PackScaffolder:
     """Generate a new pack from template."""
 
     def __init__(self, packs_root: Path):
         self.packs_root = packs_root
 
-    def scaffold(self, name: str, description: str = "",
-                 author: str = "", tags: Optional[List[str]] = None) -> Path:
+    def scaffold(
+        self, name: str, description: str = "", author: str = "", tags: Optional[List[str]] = None
+    ) -> Path:
         """Create a new pack directory with template files.
 
         Args:
@@ -284,18 +288,18 @@ class PackScaffolder:
             }
         ]
 
-        with open(pack_dir / "pack.json", 'w') as f:
+        with open(pack_dir / "pack.json", "w") as f:
             json.dump(pack_json, f, indent=2)
 
         # Create example prompt
         prompt_data = dict(PROMPT_TEMPLATE)
-        with open(pack_dir / "prompts" / "general.json", 'w') as f:
+        with open(pack_dir / "prompts" / "general.json", "w") as f:
             json.dump(prompt_data, f, indent=2)
 
         # Create README
         readme = f"""# {name}
 
-{pack_json['description']}
+{pack_json["description"]}
 
 ## Prompts
 
@@ -317,13 +321,14 @@ python -m skill_pack_sdk validate {name}
 python -m skill_pack_sdk publish {name}
 ```
 """
-        with open(pack_dir / "README.md", 'w') as f:
+        with open(pack_dir / "README.md", "w") as f:
             f.write(readme)
 
         return pack_dir
 
 
 # ── Validator ─────────────────────────────────────────────────────
+
 
 class PackValidator:
     """Validate packs against the SDK schema."""
@@ -412,12 +417,15 @@ class PackValidator:
         skills_dir = pack_dir / "skills"
         if skills_dir.exists():
             skill_files = [
-                f for f in skills_dir.glob("*.py")
+                f
+                for f in skills_dir.glob("*.py")
                 if not f.name.startswith("_") and not f.name.startswith(".")
             ]
             declared_skills = pack_data.get("skills", [])
             if skill_files and not declared_skills:
-                errors.append("skills/ directory has Python files but pack.json has no 'skills' declared")
+                errors.append(
+                    "skills/ directory has Python files but pack.json has no 'skills' declared"
+                )
             if declared_skills:
                 declared_names = {s["name"] for s in declared_skills}
                 actual_names = {f.stem for f in skill_files}
@@ -435,7 +443,11 @@ class PackValidator:
         invalid = []
 
         for pack_dir in sorted(packs_root.iterdir()):
-            if not pack_dir.is_dir() or pack_dir.name.startswith('.') or pack_dir.name.startswith('__'):
+            if (
+                not pack_dir.is_dir()
+                or pack_dir.name.startswith(".")
+                or pack_dir.name.startswith("__")
+            ):
                 continue
             if not (pack_dir / "pack.json").exists():
                 continue
@@ -450,6 +462,7 @@ class PackValidator:
 
 
 # ── Installer ─────────────────────────────────────────────────────
+
 
 class PackInstaller:
     """Install and uninstall packs with dependency resolution."""
@@ -484,8 +497,7 @@ class PackInstaller:
         if self.registry.is_installed(name) and not force:
             existing = self.registry.get(name)
             raise ValueError(
-                f"Pack '{name}' v{existing.version} is already installed. "
-                "Use --force to overwrite."
+                f"Pack '{name}' v{existing.version} is already installed. Use --force to overwrite."
             )
 
         # Validate
@@ -500,7 +512,9 @@ class PackInstaller:
         shutil.copytree(source, dest)
 
         # Count skills and prompts
-        skills_count = len(list((dest / "skills").glob("*.py"))) if (dest / "skills").exists() else 0
+        skills_count = (
+            len(list((dest / "skills").glob("*.py"))) if (dest / "skills").exists() else 0
+        )
         prompts_count = 0
         prompts_dir = dest / "prompts"
         if prompts_dir.exists():
@@ -554,21 +568,24 @@ class PackInstaller:
         for entry in self.registry.list_all():
             pack_dir = Path(entry.path)
             exists = pack_dir.exists()
-            result.append({
-                "name": entry.name,
-                "version": entry.version,
-                "description": entry.description,
-                "installed_at": entry.installed_at,
-                "prompts": entry.prompts_count,
-                "skills": entry.skills_count,
-                "path": entry.path,
-                "exists": exists,
-                "status": "✓" if exists else "✗ (missing)",
-            })
+            result.append(
+                {
+                    "name": entry.name,
+                    "version": entry.version,
+                    "description": entry.description,
+                    "installed_at": entry.installed_at,
+                    "prompts": entry.prompts_count,
+                    "skills": entry.skills_count,
+                    "path": entry.path,
+                    "exists": exists,
+                    "status": "✓" if exists else "✗ (missing)",
+                }
+            )
         return result
 
 
 # ── CLI ───────────────────────────────────────────────────────────
+
 
 class PackSDK:
     """Main entry point for the Skill Pack SDK."""
@@ -579,8 +596,9 @@ class PackSDK:
         self.validator = PackValidator()
         self.installer = PackInstaller(self.packs_root)
 
-    def scaffold(self, name: str, description: str = "", author: str = "",
-                 tags: Optional[List[str]] = None):
+    def scaffold(
+        self, name: str, description: str = "", author: str = "", tags: Optional[List[str]] = None
+    ):
         path = self.scaffolder.scaffold(name, description, author, tags)
         print(f"✓ Created pack at: {path}")
         print(f"  Edit {path / 'pack.json'} to customize metadata")
@@ -638,7 +656,11 @@ class PackSDK:
         if not self.packs_root.exists():
             return
         for pack_dir in self.packs_root.iterdir():
-            if not pack_dir.is_dir() or pack_dir.name.startswith('.') or pack_dir.name.startswith('__'):
+            if (
+                not pack_dir.is_dir()
+                or pack_dir.name.startswith(".")
+                or pack_dir.name.startswith("__")
+            ):
                 continue
             pack_json = pack_dir / "pack.json"
             if not pack_json.exists():
@@ -699,6 +721,7 @@ class PackSDK:
 
 
 # ── Convenience ────────────────────────────────────────────────────
+
 
 def get_sdk(packs_root: Optional[Path] = None) -> PackSDK:
     """Get the Skill Pack SDK instance."""

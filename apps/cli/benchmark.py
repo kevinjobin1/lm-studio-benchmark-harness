@@ -88,9 +88,7 @@ def create_benchmark_suite(client, config: dict) -> BenchmarkSuite:
         suite.register_benchmark("aime", AIMEBenchmark(client, _cfg("aime")))
 
     if benchmark_config.get("humaneval", {}).get("enabled", True):
-        suite.register_benchmark(
-            "humaneval", HumanEvalBenchmark(client, _cfg("humaneval"))
-        )
+        suite.register_benchmark("humaneval", HumanEvalBenchmark(client, _cfg("humaneval")))
 
     if benchmark_config.get("swe_bench_lite", {}).get("enabled", True):
         suite.register_benchmark(
@@ -118,25 +116,17 @@ def create_benchmark_suite(client, config: dict) -> BenchmarkSuite:
         suite.register_benchmark("memory", MemoryBenchmark(client, _cfg("memory")))
 
     if benchmark_config.get("creativity", {}).get("enabled", True):
-        suite.register_benchmark(
-            "creativity", CreativityBenchmark(client, _cfg("creativity"))
-        )
+        suite.register_benchmark("creativity", CreativityBenchmark(client, _cfg("creativity")))
 
     return suite
 
 
 @click.command()
-@click.option(
-    "--api-base", default="http://localhost:1234/v1", help="LM Studio API base URL"
-)
+@click.option("--api-base", default="http://localhost:1234/v1", help="LM Studio API base URL")
 @click.option("--api-key", default="lm-studio", help="API key (default: lm-studio)")
 @click.option("--model-name", required=True, help="Model name to benchmark")
-@click.option(
-    "--config", default="apps/cli/config.yaml", help="Configuration file path"
-)
-@click.option(
-    "--benchmarks", multiple=True, help="Specific benchmarks to run (default: all)"
-)
+@click.option("--config", default="apps/cli/config.yaml", help="Configuration file path")
+@click.option("--benchmarks", multiple=True, help="Specific benchmarks to run (default: all)")
 @click.option("--samples", type=int, help="Number of samples per benchmark")
 @click.option("--quick", is_flag=True, help="Quick mode with fewer samples")
 @click.option("--output-dir", default="results", help="Output directory for results")
@@ -146,9 +136,7 @@ def create_benchmark_suite(client, config: dict) -> BenchmarkSuite:
     default="custom",
     help="Evaluation framework to use",
 )
-@click.option(
-    "--install-openbench", is_flag=True, help="Install OpenBench if not present"
-)
+@click.option("--install-openbench", is_flag=True, help="Install OpenBench if not present")
 @click.option(
     "--verbose",
     "-v",
@@ -190,9 +178,7 @@ def main(
         cfg.setdefault("benchmarks", {})["verbose"] = True
 
     # Get sample count
-    sample_count = samples or cfg.get("benchmarks", {}).get(
-        "samples_per_benchmark", 100
-    )
+    sample_count = samples or cfg.get("benchmarks", {}).get("samples_per_benchmark", 100)
 
     # Get API config
     api_config = cfg.get("api", {})
@@ -443,13 +429,9 @@ def run_openbench_framework(
 
             for benchmark, result in results.get("openbench", {}).items():
                 if result.get("success", False):
-                    table.add_row(
-                        benchmark, "✓ Success", str(result.get("raw_output", "")[:50])
-                    )
+                    table.add_row(benchmark, "✓ Success", str(result.get("raw_output", "")[:50]))
                 else:
-                    table.add_row(
-                        benchmark, "✗ Failed", str(result.get("error", ""))[:50]
-                    )
+                    table.add_row(benchmark, "✗ Failed", str(result.get("error", ""))[:50])
 
             console.print(table)
 
@@ -483,9 +465,7 @@ def run_comparison_mode(
     install_openbench,
 ):
     """Run comparison mode between LM Eval and OpenBench."""
-    console.print(
-        f"[bold yellow]🔄 Comparison Mode: LM Eval vs OpenBench[/bold yellow]\n"
-    )
+    console.print(f"[bold yellow]🔄 Comparison Mode: LM Eval vs OpenBench[/bold yellow]\n")
 
     # Determine which benchmarks to run (intersection of both frameworks)
     if benchmarks:
@@ -543,9 +523,7 @@ def run_comparison_mode(
         )
 
         suite = create_benchmark_suite(client, cfg)
-        custom_results = suite.run_all(
-            samples=sample_count, benchmark_names=benchmark_list
-        )
+        custom_results = suite.run_all(samples=sample_count, benchmark_names=benchmark_list)
         comparison_results["custom"] = suite.get_summary()
         console.print("[green]✓ Custom benchmarks complete[/green]\n")
     except Exception as e:
@@ -567,9 +545,7 @@ def run_comparison_mode(
         custom_score = "N/A"
 
         # Extract LM Eval score
-        lm_eval_data = (
-            comparison_results.get("lm_eval", {}).get("lm_eval", {}).get("results", {})
-        )
+        lm_eval_data = comparison_results.get("lm_eval", {}).get("lm_eval", {}).get("results", {})
         if benchmark in LM_EVAL_TASK_MAPPING:
             task_name = LM_EVAL_TASK_MAPPING[benchmark]
             if task_name in lm_eval_data:
@@ -624,9 +600,7 @@ def run_comparison_mode(
 def run_agentic_framework(console, model_name, sample_count, output_dir):
     """Run agentic/tool-use benchmark framework."""
     console.print("\n[bold blue]🧠 Agentic Skills Benchmark Mode[/bold blue]\n")
-    console.print(
-        "[dim]Evaluating tool selection, planning, and constraint adherence...[/dim]\n"
-    )
+    console.print("[dim]Evaluating tool selection, planning, and constraint adherence...[/dim]\n")
 
     try:
         from skills.agentic_benchmark import run_agentic_benchmark_sync
@@ -727,9 +701,7 @@ def run_agentic_framework(console, model_name, sample_count, output_dir):
 
     except ImportError as e:
         console.print(f"[red]Error: Agentic skills system not available: {e}[/red]")
-        console.print(
-            "[yellow]Make sure skills/ package is properly installed.[/yellow]"
-        )
+        console.print("[yellow]Make sure skills/ package is properly installed.[/yellow]")
     except Exception as e:
         console.print(f"[red]Error running agentic benchmark: {e}[/red]")
 

@@ -352,6 +352,7 @@ class TestWrapStream:
 
         class FakeStream:
             """Minimal mock of an OpenAI streaming response."""
+
             def __init__(self, chunks):
                 self._chunks = chunks
                 self._idx = 0
@@ -379,11 +380,13 @@ class TestWrapStream:
                 self.content = content
 
         capture.start(model="wrap-test", prompt="wrap", provider="test")
-        fake_stream = FakeStream([
-            FakeChunk("Hello"),
-            FakeChunk(" "),
-            FakeChunk("world"),
-        ])
+        fake_stream = FakeStream(
+            [
+                FakeChunk("Hello"),
+                FakeChunk(" "),
+                FakeChunk("world"),
+            ]
+        )
 
         collected = []
         for chunk in wrap_stream(fake_stream, capture):

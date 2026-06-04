@@ -4,6 +4,7 @@ Checks if a provider is reachable and healthy.
 """
 
 import sys
+from urllib.parse import urljoin
 
 import click
 
@@ -12,17 +13,24 @@ from .utils import (
     _resolve_provider,
     PROVIDER_CONFIG,
 )
+from providers.base import get_root_url
 
 
 @click.command()
-@click.option("--provider", "-p",
-              type=click.Choice(["lm-studio", "ollama", "open-webui", "jan", "llama.cpp", "vllm"]),
-              default=None,
-              help="Provider to check (auto-detected if omitted)")
-@click.option("--api-base", default=None, show_default=False,
-              help="Provider base URL (auto-detected for known providers)")
-@click.option("--json", "json_output", is_flag=True,
-              help="Output as JSON")
+@click.option(
+    "--provider",
+    "-p",
+    type=click.Choice(["lm-studio", "ollama", "open-webui", "jan", "llama.cpp", "vllm"]),
+    default=None,
+    help="Provider to check (auto-detected if omitted)",
+)
+@click.option(
+    "--api-base",
+    default=None,
+    show_default=False,
+    help="Provider base URL (auto-detected for known providers)",
+)
+@click.option("--json", "json_output", is_flag=True, help="Output as JSON")
 def health(provider, api_base, json_output):
     """Check provider health and connectivity.
 
@@ -69,9 +77,10 @@ def health(provider, api_base, json_output):
     # ── Provider-specific fallback checks ────────────────────────
     if not reachable:
         if provider in ("llama.cpp", "vllm"):
-            # Try /health endpoint fallback
+            # Try /health endpoint at the server root (outside /v1)
             try:
-                health_url = api_base.removesuffix("/v1") + "/health"
+                root = get_root_url(api_base)
+                health_url = urljoin(root + "/", "health")
                 resp = requests.get(health_url, timeout=5)
                 if resp.status_code == 200:
                     reachable = True
@@ -83,14 +92,21 @@ def health(provider, api_base, json_output):
     # ── Output ──────────────────────────────────────────────────
     if json_output:
         import json as json_mod
-        click.echo(json_mod.dumps({
-            "provider": provider,
-            "api_base": api_base,
-            "reachable": reachable,
-            "status_code": status_code,
-            "error": error,
-            "models_detected": model_count,
-        }, indent=2, default=str))
+
+        click.echo(
+            json_mod.dumps(
+                {
+                    "provider": provider,
+                    "api_base": api_base,
+                    "reachable": reachable,
+                    "status_code": status_code,
+                    "error": error,
+                    "models_detected": model_count,
+                },
+                indent=2,
+                default=str,
+            )
+        )
         return
 
     _echo("")

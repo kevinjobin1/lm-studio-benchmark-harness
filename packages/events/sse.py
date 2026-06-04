@@ -310,13 +310,16 @@ class EventBusSSEServer:
         class-body closure scoping issue where ``name = name`` on the
         same line causes ``NameError``.
         """
+
         class BoundHandler(SSEHandler):
             pass
+
         BoundHandler.server_ref = self
         return BoundHandler
 
 
 # ── Serialisation helpers ───────────────────────────────────────────
+
 
 def _serialize_value(val: Any) -> Any:
     """Recursively serialise a value for JSON output."""

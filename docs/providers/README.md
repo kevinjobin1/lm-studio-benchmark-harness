@@ -44,9 +44,9 @@ python apps/cli/modellens.py run --framework general --model-name qwen3.5-9b-cod
 LM Studio uses the OpenAI-compatible `/v1/chat/completions` endpoint. Model Lens communicates with it via the `openai` Python SDK:
 
 ```python
-from core.benchmark import LMStudioClient
+from providers.openai_compatible import OpenAICompatibleProvider
 
-client = LMStudioClient(
+client = OpenAICompatibleProvider(
     base_url="http://localhost:1234/v1",
     api_key="lm-studio",
     model_name="qwen3.5-9b-coder",

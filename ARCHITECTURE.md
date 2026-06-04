@@ -8,13 +8,17 @@ apps/
   dashboard/            ← Astro + React dashboard (see DESIGN.md)
   docs/                 ← Documentation site
 packages/
+  logging.py           ← Structured logging (Rich console + file output)
   events/               ← Event bus — decoupled observability events
-    __init__.py         ←   EventBus, event types (TokenGenerated, Completion, Metric, Tool, Error)
+    __init__.py         ←   EventBus, event types (TokenGenerated, Completion, Metric, Tool, Error, RunLifecycle)
+    sse.py              ←   EventBusSSEServer — live dashboard streaming
+    replay.py           ←   EventBusReplayWriter — persists events to disk
   core/                 ← Benchmark framework + trace capture + workload evaluation
-    __init__.py         ←   Exports: BenchmarkSuite, LMStudioClient, TraceCapture, etc.
-    benchmark.py        ←   Core classes: BenchmarkSuite, LMStudioClient, MemoryMonitor
+    __init__.py         ←   Exports: BenchmarkSuite, TraceCapture, etc.
+    benchmark.py        ←   Core classes: BenchmarkSuite, Benchmark, MemoryMonitor (LMStudioClient deprecated)
     trace_capture.py    ←   TraceCapture (token-level timing context manager)
     trace_schema.py     ←   Trace, TraceEvent, TraceMetrics dataclasses
+    hardware.py         ←   Hardware detection (CPU, GPU, RAM, OS)
     workload/           ←   Workload evaluation engine (ProjectLoader, TaskGenerator, WorkloadRunner, WorkloadScorer)
     evaluators/         ←   Pluggable evaluation strategies
       agentic.py        ←     Agentic response evaluation (hallucination detection)
@@ -33,7 +37,8 @@ packages/
     workload_bench.py   ←   Workload evaluation benchmark wrapper
   providers/            ← Provider adapters (6 providers — all OpenAI-compatible /v1)
     __init__.py         ←   Exports: all provider clients + integration runners
-    base.py             ←   Abstract ProviderAdapter + shared dataclasses
+    base.py             ←   Abstract ProviderAdapter + shared dataclasses + URL utilities
+    openai_compatible.py←   OpenAICompatibleProvider — base class with event bus integration
     ollama.py           ←   OllamaClient
     openwebui.py        ←   Open WebUI client
     jan.py              ←   Jan client
@@ -100,12 +105,12 @@ The event bus (`packages/events/`) is the central nervous system of Model Lens. 
 
 | Event | Source | Consumers |
 |-------|--------|-----------|
-| `TokenGenerated` | Provider streaming | TraceCapture, Dashboard |
-| `CompletionEvent` | Provider response | MetricsEngine, ResultsCollector |
-| `MetricEvent` | Any component | Dashboard, ReplayEngine |
+| `TokenGeneratedEvent` | `OpenAICompatibleProvider` streaming | TraceCapture, Dashboard (SSE) |
+| `CompletionEvent` | `OpenAICompatibleProvider` response | MetricsEngine, ResultsCollector |
+| `MetricEvent` | `BenchmarkSuite` / any component | Dashboard, ReplayEngine |
 | `ToolCallEvent` | Skill runtime | AgenticEvaluator, TraceCapture |
 | `ErrorEvent` | Any component | Dashboard, Alerts |
-| `RunLifecycleEvent` | CLI entry point | ResultsCollector, Dashboard |
+| `RunLifecycleEvent` | CLI entry point / `BenchmarkSuite` | ResultsCollector, Dashboard |
 
 ### Why events?
 
@@ -147,15 +152,16 @@ Results + Traces → Event Bus → Dashboard (Astro + React) → Cloudflare Page
 
 ## Provider architecture
 
+LM Studio is treated as an OpenAI-compatible endpoint rather than a dedicated provider implementation.
+
 ```
 ProviderAdapter (ABC — packages/providers/base.py)
-    │
-    ├── LMStudioClient  (packages/core/benchmark.py)
-    ├── OllamaClient    (packages/providers/ollama.py)
-    ├── OpenWebUIClient (packages/providers/openwebui.py)
-    ├── JanClient       (packages/providers/jan.py)
-    ├── LlamaCppClient  (packages/providers/llamacpp.py)
-    └── VLLMClient      (packages/providers/vllm.py)
+    ├── OllamaClient
+    ├── OpenWebUIClient
+    ├── JanClient
+    ├── LlamaCppClient
+    ├── VLLMClient
+    └── OpenAICompatibleClient
 
 All use OpenAI-compatible /v1/chat/completions endpoints.
 
@@ -175,6 +181,26 @@ Shared types (packages/providers/base.py):
 | Jan | `http://localhost:1337/v1` | `/v1/models` |
 
 Auto-detection probes in order: LM Studio → Ollama → llama.cpp → vLLM → Open WebUI → Jan.
+
+---
+
+## Benchmark architecture (dual-authority)
+
+Model Lens intentionally maintains **two independent benchmark systems**:
+
+| System | File | Config | Purpose |
+|--------|------|--------|---------|
+| General suite | `apps/cli/benchmark.py` | `config.yaml` (YAML) | MMLU-Pro, GSM8K, HumanEval, SWE-Bench Lite, IF-Eval, etc. |
+| DevBench v2 | `apps/cli/bench_apple_silicon_v2.py` | `config.json` (JSON, deprecated) | TypeScript/NestJS/React evaluation, Apple Silicon optimized |
+
+Both systems are **first-class and equally authoritative** — one is not replacing the other, and they are not migration phases toward a unified pipeline. They share scoring/evaluation modules (`apps/cli/scoring.py`, `apps/cli/evaluators.py`, `apps/cli/prompt_generator.py`) but differ in:
+
+- **Config format**: YAML (nested) vs JSON (flat, deprecated)
+- **Execution pipeline**: `BenchmarkSuite` delegation vs direct `AppleSiliconBenchmarkV2`
+- **Scoring strategy**: Statistical multi-benchmark scores vs execution-grounded developer scores
+- **Hardware targeting**: Cross-platform vs Apple Silicon-specific (MPS, ANE, unified memory)
+
+**DO NOT merge these systems.** They serve different evaluation use cases and are intentionally preserved.
 
 ---
 
@@ -249,3 +275,34 @@ All dashboard UI follows the **Kinetic Logic** design system. See [DESIGN.md](DE
 | Providers | Python requests, OpenAI SDK |
 | Skills | Python ABC, JSON schemas, lockfile verification |
 | Deployment | Cloudflare Pages |
+
+
+### Replay Pipeline
+
+```mermaid
+TraceCapture
+    ↓
+Trace Events
+    ↓
+SSE Stream
+    ↓
+Dashboard Timeline
+    ↓
+Replay Viewer
+```
+
+## Workload Evaluation Architecture
+
+```mermaid
+Project
+   ↓
+Task Generation
+   ↓
+Execution
+   ↓
+Trace Capture
+   ↓
+Scoring
+   ↓
+Replayable Results
+```

@@ -1,0 +1,74 @@
+---
+title: Changelog
+description: Release history and notable changes for Model Lens.
+---
+
+import { Badge } from '@astrojs/starlight/components';
+
+## Unreleased <Badge text="current" variant="tip" />
+
+### Added
+
+#### Observability & Trace System
+
+- Execution trace capture (token-level + event-level observability)
+- Event bus wired into provider and benchmark flow: `TokenGeneratedEvent`, `CompletionEvent`, `MetricEvent`, `ErrorEvent`, `RunLifecycleEvent`
+- Thread-safe `EventBus` with `threading.Lock`
+- SSE bridge auto-started by CLI for real-time dashboard streaming (`--sse-port N`)
+- EventBus replay writer persists all events to disk
+- Trace replay engine (play, pause, step, time-scale controls)
+
+#### Developer Tooling
+
+- Pre-commit hooks: ruff lint, ruff format, mypy, file hygiene
+- CI enforcement: ruff, ruff format, mypy, and strict pytest on every push
+- Structured logging module (`packages/logging.py`) with Rich console + file output
+- URL utility helpers in `packages/providers/base.py` replacing fragile string manipulation
+- Python packaging via `pyproject.toml`
+
+#### Providers & Workloads
+
+- 6 provider adapters (LM Studio, Ollama, Open WebUI, Jan, llama.cpp, vLLM)
+- Real-project workload evaluation engine (React, NestJS, Python, Rust)
+- Auto-detection pipeline across all providers
+
+#### Skills & Prompts
+
+- Lockfile-validated skill registry with 4 built-in skills
+- Prompt packs (React, NestJS, Debugging, Agentic coding)
+- Word-boundary protected prompt mutation engine
+
+### Changed
+
+- Repo reorganized into strict monorepo (`apps/` + `packages/`)
+- `print()` → structured logging across the codebase
+- URL handling → `urllib.parse` across all providers and CLI
+- `except Exception:` → typed exception handling throughout
+- CI: strict failure mode (was forgiving `|| echo`)
+
+### Fixed
+
+- 11 pre-existing test failures (incorrect patch targets, abstract method contract)
+- Substring false-positives in scoring engine
+- Prompt mutation corruption via `.replace()` → `re.sub()` with word boundaries
+- Provider compatibility edge cases for older Ollama versions
+
+---
+
+## 0.3.0 — 2026-06-04
+
+- Modular CLI architecture
+- Multi-provider ecosystem foundation
+- Replay and observability infrastructure
+- Expanded dashboard with leaderboard, trace visualization, benchmark reporting
+- Prompt packs and workload benchmarking foundation
+
+---
+
+## 0.1.0 — Initial Release
+
+- 11 benchmark implementations (MMLU-Pro, GSM8K, HumanEval, etc.)
+- DevBench v2 (Apple Silicon optimized)
+- Astro + React dashboard
+- LM Studio provider integration
+- Cloudflare Pages deployment

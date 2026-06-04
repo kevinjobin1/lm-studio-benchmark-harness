@@ -75,43 +75,41 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt', 'pyproject.toml') }}
           restore-keys: |
             ${{ runner.os }}-pip-
 
       - name: Install dependencies
         run: |
           pip install -r requirements.txt
+          pip install ruff mypy pytest pytest-cov
 
-      - name: Validate imports
+      - name: Ruff lint
+        run: ruff check packages/ apps/cli/ tests/
+
+      - name: Ruff format check
+        run: ruff format --check --diff packages/ apps/cli/ tests/
+
+      - name: Mypy type check
+        run: MYPYPATH=packages mypy packages/ apps/cli/
+
+      - name: Validate imports (fast-fail smoke test)
         run: |
-          python -c "
-          import benchmark
-          import benchmark.core
-          import scoring
-          import evaluators
-          import config_manager
-          import reporting
-          import prompt_generator
-          import x_thread_generator
-          import results_schema
-          import skill_pack_sdk
-          import apple_silicon_monitor
-          from benchmarks import bfcl, coding, creativity, if_eval, math_benchmarks, memory, mmlu_pro, needle_haystack, speed_latency, swe_bench
-          from integrations import lm_eval_integration, openbench_integration
-          print('All modules imported successfully.')
+          PYTHONPATH=packages:$PYTHONPATH python -c "
+          from core import BenchmarkSuite, BenchmarkResult
+          from providers import OllamaClient, OpenAICompatibleProvider
+          from events import EventBus, TokenGeneratedEvent, CompletionEvent, MetricEvent
+          print('All core modules imported successfully.')
           "
 
       - name: Run Python tests
-        run: |
-          pip install pytest pytest-cov
-          pytest tests/ -v --tb=short || echo "Note: pytest run completed (some tests may be skipped if dependencies unavailable)"
+        run: pytest tests/ -v --tb=short
 
       - name: Validate config schema
         run: |
           python -c "
           import json
-          with open('config_schema.json') as f:
+          with open('apps/cli/config_schema.json') as f:
               schema = json.load(f)
           assert 'properties' in schema, 'Invalid JSON schema'
           print(f'Config schema valid. Top-level keys: {list(schema.get(\"properties\", {}).keys())}')

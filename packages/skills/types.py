@@ -15,6 +15,7 @@ import json
 
 # ── Core Types ────────────────────────────────────────────────────
 
+
 @dataclass
 class SkillContext:
     """Context passed to every skill invocation.
@@ -22,6 +23,7 @@ class SkillContext:
     Provides sandboxed access for skills. NO filesystem access
     outside the sandbox, NO network calls, NO dynamic creation.
     """
+
     # Environment info (read-only)
     working_directory: str = ""
     model_name: str = ""
@@ -36,6 +38,7 @@ class SkillContext:
     def get_sandbox_path(self, relative_path: str) -> str:
         """Resolve a path within the sandbox. All file ops are sandbox-scoped."""
         import os
+
         base = self.sandbox.get("_sandbox_root", "/tmp/lmbench_sandbox")
         return os.path.join(base, relative_path)
 
@@ -43,6 +46,7 @@ class SkillContext:
 @dataclass
 class SkillInput:
     """Validated input to a skill invocation."""
+
     raw: Dict[str, Any]
     _validated: bool = False
 
@@ -83,6 +87,7 @@ class SkillInput:
 @dataclass
 class SkillOutput:
     """Output from a skill invocation."""
+
     success: bool
     data: Any = None
     error: Optional[str] = None
@@ -100,6 +105,7 @@ class SkillOutput:
 @dataclass
 class Action:
     """A single action taken by a model during agentic evaluation."""
+
     skill: str
     input: Dict[str, Any]
     order: int = 0  # 0-based order in the sequence
@@ -123,6 +129,7 @@ class Action:
 @dataclass
 class AgenticResponse:
     """Expected model output format for agentic benchmarks."""
+
     actions: List[Action] = field(default_factory=list)
 
     @classmethod
@@ -137,9 +144,7 @@ class AgenticResponse:
         if not isinstance(raw_actions, list):
             return cls(actions=[])
 
-        return cls(
-            actions=[Action.from_dict(a, i) for i, a in enumerate(raw_actions)]
-        )
+        return cls(actions=[Action.from_dict(a, i) for i, a in enumerate(raw_actions)])
 
     def to_json(self, indent: int = 2) -> str:
         return json.dumps({"actions": [a.to_dict() for a in self.actions]}, indent=indent)
@@ -147,9 +152,11 @@ class AgenticResponse:
 
 # ── Skill Interface ───────────────────────────────────────────────
 
+
 @dataclass
 class SkillManifest:
     """Static manifest for a skill — versioned and immutable."""
+
     name: str
     version: str
     description: str
@@ -206,9 +213,11 @@ class Skill(ABC):
 
 # ── Agentic Scoring Types ─────────────────────────────────────────
 
+
 @dataclass
 class AgenticScore:
     """Scoring breakdown for agentic/tool-use evaluation."""
+
     # Validity: is the JSON well-formed, schema-compliant, using real skills?
     validity_score: float = 0.0
     json_valid: bool = False

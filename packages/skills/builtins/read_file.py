@@ -61,7 +61,7 @@ class ReadFileSkill(Skill):
                     error=f"File not found: {file_path}",
                 )
 
-            with open(full_path, 'r', encoding=encoding) as f:
+            with open(full_path, "r", encoding=encoding) as f:
                 content = f.read()
 
             return SkillOutput(

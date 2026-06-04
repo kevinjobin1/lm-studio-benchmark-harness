@@ -1,0 +1,62 @@
+---
+title: Roadmap
+description: Model Lens development roadmap — what's complete, what's in progress, and what's planned for the future.
+---
+
+## V1 — Benchmark Foundation ✅ Complete
+
+- LM Studio and Ollama providers
+- Unified `modellens` CLI (`run`, `info`, `leaderboard`, `models`)
+- 11 benchmark implementations (MMLU-Pro, GSM8K, HumanEval, etc.)
+- DevBench v2 (TypeScript/NestJS/React, statistical rigor)
+- Astro + React dashboard
+- Prompt packs (React, NestJS, debugging, agentic)
+- Hardware detection (CPU, GPU, RAM, OS)
+- Cloudflare Pages deployment
+- Community leaderboard
+
+---
+
+## V2 — Local Model Observability 🚧 In Progress
+
+- [x] Event bus — typed, thread-safe, wired into provider + benchmark flow
+- [x] SSE streaming — real-time dashboard event bridge
+- [x] Trace capture — token-level execution timeline
+- [x] Trace replay — playback controls (play, pause, step, speed)
+- [x] Event replay writer — persists all events to disk
+- [x] Workload evaluation — real projects: React, NestJS, Rust, Python
+- [ ] Side-by-side model comparison (token stream, latency diff, memory diff)
+- [ ] Snapshot system (save/share execution state via URL)
+
+---
+
+## V3 — Developer Observability 🚧 In Progress
+
+- [x] Provider expansion — all 6 providers implemented (Open WebUI, Jan, llama.cpp, vLLM)
+- [x] Skill system — types, registry, lockfile validation, built-in skills
+- [x] MCP bridge foundation
+- [x] OpenAI-compatible provider layer
+- [ ] Regression detection between model versions
+- [ ] WASM sandbox for skills
+- [ ] MCP server mode
+
+---
+
+## V4 — OpenTelemetry for Local AI 🔮 Future
+
+- Trace schema standardization
+- OpenTelemetry export
+- VS Code extension
+- IDE integrations
+- Distributed agent traces
+- Team collaboration
+
+---
+
+## Provider support timeline
+
+| Phase | Providers | Status |
+|-------|-----------|--------|
+| Phase 1 | LM Studio, Ollama | ✅ Complete |
+| Phase 2 | Open WebUI, Jan, llama.cpp, vLLM | ✅ Complete |
+| Phase 3 | LocalAI, KoboldCPP, Text Generation WebUI | 🔮 Future |

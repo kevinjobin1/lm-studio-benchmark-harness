@@ -71,10 +71,10 @@ class DiffSkill(Skill):
                 lines_b,
                 fromfile=label_a,
                 tofile=label_b,
-                lineterm='',
+                lineterm="",
             )
 
-            diff_text = '\n'.join(diff)
+            diff_text = "\n".join(diff)
 
             changes = {
                 "added": 0,
@@ -82,12 +82,12 @@ class DiffSkill(Skill):
                 "unchanged": 0,
             }
 
-            for line in diff_text.split('\n'):
-                if line.startswith('+') and not line.startswith('+++'):
+            for line in diff_text.split("\n"):
+                if line.startswith("+") and not line.startswith("+++"):
                     changes["added"] += 1
-                elif line.startswith('-') and not line.startswith('---'):
+                elif line.startswith("-") and not line.startswith("---"):
                     changes["removed"] += 1
-                elif not line.startswith(('@', '---', '+++', 'diff', 'index', 'new', 'old')):
+                elif not line.startswith(("@", "---", "+++", "diff", "index", "new", "old")):
                     if line.strip():
                         changes["unchanged"] += 1
 

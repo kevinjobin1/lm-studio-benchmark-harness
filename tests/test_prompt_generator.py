@@ -60,6 +60,7 @@ Include proper type guards for runtime validation.
 
 # ── Tests ─────────────────────────────────────────────────────────────
 
+
 class TestParaphraseEngine(unittest.TestCase):
     """Tests for PromptGenerator.paraphrase() — synonym-based rewording."""
 
@@ -78,12 +79,12 @@ class TestParaphraseEngine(unittest.TestCase):
         prompt = "Implement a function. Explain the component."
         gen = PromptGenerator(seed=123)
         result = gen.paraphrase(prompt, intensity=1.0)
-        self.assertNotEqual(result, prompt,
-                           f"intensity=1.0 should change the prompt, got identical: {result[:50]}")
+        self.assertNotEqual(
+            result, prompt, f"intensity=1.0 should change the prompt, got identical: {result[:50]}"
+        )
         # At intensity 1.0, at least one action verb should vanish
         changed = not ("Implement" in result and "Explain" in result)
-        self.assertTrue(changed,
-                        f"At intensity=1.0, at least one action verb should be replaced")
+        self.assertTrue(changed, f"At intensity=1.0, at least one action verb should be replaced")
 
     def test_intensity_one_deterministic_with_seed(self):
         """Same seed + same input = same output."""
@@ -116,8 +117,9 @@ class TestParaphraseEngine(unittest.TestCase):
         result = gen.paraphrase(prompt, intensity=1.0)
 
         # "Implement" in ACTION_SYNONYMS guarantees at least one change at intensity=1.0
-        self.assertNotEqual(result, prompt,
-                           "At intensity 1.0 with action verb, prompt should change")
+        self.assertNotEqual(
+            result, prompt, "At intensity 1.0 with action verb, prompt should change"
+        )
 
     def test_low_intensity_preserves_synonym_words(self):
         """At low intensity (0.1), words that COULD be replaced should mostly be preserved."""
@@ -130,9 +132,9 @@ class TestParaphraseEngine(unittest.TestCase):
         # At intensity 0.1, max_changes ≈ 1, so at most 1 word changes.
         # Most synonym-mapped words should survive.
         preserved = sum(1 for w in ["Implement", "component", "function", "service"] if w in result)
-        self.assertGreaterEqual(preserved, 3,
-                                f"Low intensity should preserve most words, but only {preserved}/4 remain")
-
+        self.assertGreaterEqual(
+            preserved, 3, f"Low intensity should preserve most words, but only {preserved}/4 remain"
+        )
 
     def test_no_substring_corruption_in_longer_words(self):
         """Words like 'functionality', 'serviceable', 'implementation' that
@@ -147,37 +149,45 @@ class TestParaphraseEngine(unittest.TestCase):
         result = gen.paraphrase(prompt, intensity=1.0)
 
         # Longer words containing synonym substrings should remain intact
-        self.assertIn("functionality", result,
-                      "'functionality' should NOT have 'function' replaced inside it")
-        self.assertIn("serviceable", result,
-                      "'serviceable' should NOT have 'service' replaced inside it")
-        self.assertIn("implementation", result,
-                      "'implementation' should NOT have 'implement' replaced inside it")
-        self.assertIn("microcomponent", result,
-                      "'microcomponent' should NOT have 'component' replaced inside it")
-        self.assertIn("prefix", result,
-                      "'prefix' should NOT have 'fix' replaced inside it")
-        self.assertIn("functional", result,
-                      "'functional' should NOT have 'function' replaced inside it")
+        self.assertIn(
+            "functionality", result, "'functionality' should NOT have 'function' replaced inside it"
+        )
+        self.assertIn(
+            "serviceable", result, "'serviceable' should NOT have 'service' replaced inside it"
+        )
+        self.assertIn(
+            "implementation",
+            result,
+            "'implementation' should NOT have 'implement' replaced inside it",
+        )
+        self.assertIn(
+            "microcomponent",
+            result,
+            "'microcomponent' should NOT have 'component' replaced inside it",
+        )
+        self.assertIn("prefix", result, "'prefix' should NOT have 'fix' replaced inside it")
+        self.assertIn(
+            "functional", result, "'functional' should NOT have 'function' replaced inside it"
+        )
 
     def test_mixed_long_and_short_words_no_corruption(self):
         """A prompt with BOTH standalone synonyms AND longer containing-words
         should only replace the standalone ones — longer words stay untouched.
         The prompt is 6 words, so max_changes=1 at intensity=1.0 — only the
         first action verb "Implement" fires, and "microcomponent" is preserved."""
-        prompt = (
-            "Implement a microcomponent for the service."
-        )
+        prompt = "Implement a microcomponent for the service."
         gen = PromptGenerator(seed=999)
         result = gen.paraphrase(prompt, intensity=1.0)
 
         # Standalone "Implement" should be replaced at intensity=1.0
-        self.assertNotIn("Implement", result,
-                         "Standalone 'Implement' should be replaced")
+        self.assertNotIn("Implement", result, "Standalone 'Implement' should be replaced")
 
         # "microcomponent" should NOT be corrupted
-        self.assertIn("microcomponent", result,
-                      "'microcomponent' should NOT have 'component' replaced inside it")
+        self.assertIn(
+            "microcomponent",
+            result,
+            "'microcomponent' should NOT have 'component' replaced inside it",
+        )
 
 
 class TestSubstituteVariablesEngine(unittest.TestCase):
@@ -197,8 +207,9 @@ class TestSubstituteVariablesEngine(unittest.TestCase):
         prompt = "function processData(userProfile: string) { return userProfile; }"
         gen = PromptGenerator(seed=42)
         result = gen.substitute_variables(prompt, intensity=1.0)
-        self.assertNotEqual(result, prompt,
-                           f"intensity=1.0 should change identifiers, got identical result")
+        self.assertNotEqual(
+            result, prompt, f"intensity=1.0 should change identifiers, got identical result"
+        )
 
     def test_deterministic_with_same_seed(self):
         """Re-creating generator with same seed produces same output for same input."""
@@ -208,8 +219,9 @@ class TestSubstituteVariablesEngine(unittest.TestCase):
         # Re-create with same seed — should get identical result
         gen2 = PromptGenerator(seed=77)
         result2 = gen2.substitute_variables(prompt, intensity=1.0)
-        self.assertEqual(result1, result2,
-                        f"Same seed should produce same result:\n  {result1}\n  {result2}")
+        self.assertEqual(
+            result1, result2, f"Same seed should produce same result:\n  {result1}\n  {result2}"
+        )
 
     def test_empty_prompt_returns_empty(self):
         """Empty string should remain empty."""
@@ -260,11 +272,11 @@ class TestSubstituteVariablesEngine(unittest.TestCase):
         result = self.gen.substitute_variables(prompt, intensity=1.0)
 
         # Verify no partial corruption patterns exist
-        partial_fragments = ["customerIdValidator", "orderRefValidator",
-                            "sessionTokenValidator"]
+        partial_fragments = ["customerIdValidator", "orderRefValidator", "sessionTokenValidator"]
         for frag in partial_fragments:
-            self.assertNotIn(frag, result,
-                f"'userIdValidator' must not be partially corrupted to '{frag}'")
+            self.assertNotIn(
+                frag, result, f"'userIdValidator' must not be partially corrupted to '{frag}'"
+            )
 
     def test_standalone_identifier_alongside_compound(self):
         """A prompt with both standalone 'userId' AND compound 'userIdValidator'
@@ -274,8 +286,11 @@ class TestSubstituteVariablesEngine(unittest.TestCase):
         result = self.gen.substitute_variables(prompt, intensity=1.0)
 
         # The compound should NOT become something like "customerIdValidator"
-        self.assertNotIn("customerIdValidator", result,
-                         "Standalone 'userId' replacement should not corrupt 'userIdValidator'")
+        self.assertNotIn(
+            "customerIdValidator",
+            result,
+            "Standalone 'userId' replacement should not corrupt 'userIdValidator'",
+        )
 
     def test_compound_function_name_no_partial_corruption(self):
         """A longer word like 'processDataHandler' contains 'processData'
@@ -287,10 +302,16 @@ class TestSubstituteVariablesEngine(unittest.TestCase):
 
         # 'processDataHandler' should either be preserved intact or replaced
         # as a whole — never partially corrupted
-        self.assertNotIn("handleRequestHandler", result,
-                         "'processDataHandler' not partially corrupted to 'handleRequestHandler'")
-        self.assertNotIn("fetchRecordsHandler", result,
-                         "'processDataHandler' not partially corrupted to 'fetchRecordsHandler'")
+        self.assertNotIn(
+            "handleRequestHandler",
+            result,
+            "'processDataHandler' not partially corrupted to 'handleRequestHandler'",
+        )
+        self.assertNotIn(
+            "fetchRecordsHandler",
+            result,
+            "'processDataHandler' not partially corrupted to 'fetchRecordsHandler'",
+        )
 
     def test_preserves_non_matching_text(self):
         """Common words should not be affected."""
@@ -364,14 +385,16 @@ class TestMutateContextEngine(unittest.TestCase):
         result = gen.mutate_context(prompt, framework=None)
 
         # It should differ from the original (a framework swap was applied)
-        self.assertNotEqual(result, prompt,
-                           "framework=None should produce a mutation")
+        self.assertNotEqual(result, prompt, "framework=None should produce a mutation")
 
         # At least one of the three framework terms should be replaced
         framework_terms = ["React", "NestJS", "TypeScript"]
         unchanged_count = sum(1 for t in framework_terms if t in result)
-        self.assertLess(unchanged_count, 3,
-                        f"None should mutate at least one framework term, but {unchanged_count}/3 remain")
+        self.assertLess(
+            unchanged_count,
+            3,
+            f"None should mutate at least one framework term, but {unchanged_count}/3 remain",
+        )
 
     def test_empty_prompt_returns_empty(self):
         """Empty string should remain empty."""
@@ -404,8 +427,11 @@ class TestMutateContextEngine(unittest.TestCase):
         # 1. From the original prompt ("middleware") — preserved by keyword normalization
         # 2. From the hook swap (@Injectable → "middleware")
         middleware_count = result.lower().count("middleware")
-        self.assertGreaterEqual(middleware_count, 2,
-            f"Expected 'middleware' to appear ≥2 times (original + from @Injectable swap), found {middleware_count}:\n{result}")
+        self.assertGreaterEqual(
+            middleware_count,
+            2,
+            f"Expected 'middleware' to appear ≥2 times (original + from @Injectable swap), found {middleware_count}:\n{result}",
+        )
 
         # Original decorators replaced
         self.assertNotIn("@Injectable", result)
@@ -432,12 +458,13 @@ class TestMutateContextEngine(unittest.TestCase):
         self.assertIn("watch", result)
 
         # TypeScript and NestJS terms PRESERVED (not part of react swap)
-        self.assertIn("TypeScript", result,
-                      "TypeScript should be preserved when mutating react→vue")
-        self.assertIn("NestJS", result,
-                      "NestJS should be preserved when mutating react→vue")
-        self.assertIn("@Injectable", result,
-                      "@Injectable should be preserved when mutating react→vue")
+        self.assertIn(
+            "TypeScript", result, "TypeScript should be preserved when mutating react→vue"
+        )
+        self.assertIn("NestJS", result, "NestJS should be preserved when mutating react→vue")
+        self.assertIn(
+            "@Injectable", result, "@Injectable should be preserved when mutating react→vue"
+        )
 
     def test_multiple_framework_references_nestjs_mutation(self):
         """A prompt referencing React, TypeScript, and NestJS should only
@@ -456,14 +483,16 @@ class TestMutateContextEngine(unittest.TestCase):
         self.assertNotIn("@Injectable", result)
 
         # React and TypeScript terms PRESERVED
-        self.assertIn("React", result,
-                      "React should be preserved when mutating nestjs→express")
-        self.assertIn("TypeScript", result,
-                      "TypeScript should be preserved when mutating nestjs→express")
-        self.assertIn("useState", result,
-                      "useState should be preserved when mutating nestjs→express")
-        self.assertIn("useEffect", result,
-                      "useEffect should be preserved when mutating nestjs→express")
+        self.assertIn("React", result, "React should be preserved when mutating nestjs→express")
+        self.assertIn(
+            "TypeScript", result, "TypeScript should be preserved when mutating nestjs→express"
+        )
+        self.assertIn(
+            "useState", result, "useState should be preserved when mutating nestjs→express"
+        )
+        self.assertIn(
+            "useEffect", result, "useEffect should be preserved when mutating nestjs→express"
+        )
 
     def test_multiple_framework_references_typescript_mutation(self):
         """A prompt referencing TypeScript and React should only
@@ -472,8 +501,7 @@ class TestMutateContextEngine(unittest.TestCase):
         'interface' → 'JSDoc @typedef' won't be corrupted by 'type' → 'JSDoc @type'
         since both use whole-word matching."""
         prompt = (
-            "Write TypeScript code with interface and type guard. "
-            "The React component uses props."
+            "Write TypeScript code with interface and type guard. The React component uses props."
         )
         result = self.gen.mutate_context(prompt, framework="typescript")
 
@@ -483,70 +511,70 @@ class TestMutateContextEngine(unittest.TestCase):
 
         # Hook chain should NOT corrupt: "interfaces" → "JSDoc @typedefs"
         # The "type" inside "@typedef" must NOT be matched by the next hook
-        self.assertNotIn("interface", result.lower(),
-                         "'interface' should be replaced by the hooks")
-        self.assertIn("@typedef", result,
-                      "'JSDoc @typedef' should be intact after hook chain")
+        self.assertNotIn("interface", result.lower(), "'interface' should be replaced by the hooks")
+        self.assertIn("@typedef", result, "'JSDoc @typedef' should be intact after hook chain")
 
         # 'type' as a WHOLE WORD should be replaced to 'JSDoc @type'
         # But 'type' inside 'typedef' should NOT be touched
-        self.assertNotIn(" type ", result,
-                         "standalone 'type' should be replaced")
+        self.assertNotIn(" type ", result, "standalone 'type' should be replaced")
 
         # Verify @typedef is NOT corrupted (contains "typedef" intact, not "@JSDoc @typedef")
         typedef_idx = result.find("@typedef")
-        self.assertGreaterEqual(typedef_idx, 0,
-                                "@typedef must appear in the result")
+        self.assertGreaterEqual(typedef_idx, 0, "@typedef must appear in the result")
         # Check no corruption pattern: "@JSDoc @typedef" would mean "JSDoc @JSDoc @typedef"
         # We just need to verify "@typedef" is followed by non-word char or end-of-string
         # and doesn't contain a second "@JSDoc" before it
-        self.assertNotIn("@JSDoc @typedef", result,
-                         "'@typedef' must NOT be corrupted to '@JSDoc @typedef' (hook chain bug)")
+        self.assertNotIn(
+            "@JSDoc @typedef",
+            result,
+            "'@typedef' must NOT be corrupted to '@JSDoc @typedef' (hook chain bug)",
+        )
 
         # React terms PRESERVED
-        self.assertIn("React", result,
-                      "React should be preserved when mutating typescript→javascript")
-        self.assertIn("component", result,
-                      "component should be preserved when mutating typescript→javascript")
+        self.assertIn(
+            "React", result, "React should be preserved when mutating typescript→javascript"
+        )
+        self.assertIn(
+            "component", result, "component should be preserved when mutating typescript→javascript"
+        )
 
     # ── Substring-protection tests for hooks/patterns whole-word fix ──
 
     def test_typescript_hook_no_substring_corruption(self):
         """'prototype' containing 'type' and 'subinterface' containing
         'interface' should NOT be corrupted by the typescript hook chain."""
-        prompt = (
-            "Use prototype and subinterface in this TypeScript code. "
-            "Also use genericsHandler."
-        )
+        prompt = "Use prototype and subinterface in this TypeScript code. Also use genericsHandler."
         result = self.gen.mutate_context(prompt, framework="typescript")
 
         # Longer words containing hook substrings should remain intact
-        self.assertIn("prototype", result,
-                      "'prototype' should NOT have 'type' replaced inside it")
-        self.assertIn("subinterface", result,
-                      "'subinterface' should NOT have 'interface' replaced inside it")
-        self.assertIn("genericsHandler", result,
-                      "'genericsHandler' should NOT have 'generics' replaced inside it")
+        self.assertIn("prototype", result, "'prototype' should NOT have 'type' replaced inside it")
+        self.assertIn(
+            "subinterface", result, "'subinterface' should NOT have 'interface' replaced inside it"
+        )
+        self.assertIn(
+            "genericsHandler",
+            result,
+            "'genericsHandler' should NOT have 'generics' replaced inside it",
+        )
 
         # Standalone hook words in the SAME prompt should still be replaced
-        self.assertNotIn("TypeScript", result,
-                         "Standalone 'TypeScript' should be replaced")
+        self.assertNotIn("TypeScript", result, "Standalone 'TypeScript' should be replaced")
 
     def test_typescript_pattern_no_substring_corruption(self):
         """'decoratorFactory' containing 'decorator' should NOT be corrupted
         by the typescript pattern swap."""
-        prompt = (
-            "Use a decoratorFactory in this TypeScript type guard. "
-        )
+        prompt = "Use a decoratorFactory in this TypeScript type guard. "
         result = self.gen.mutate_context(prompt, framework="typescript")
 
         # 'decorator' inside 'decoratorFactory' should NOT be matched
-        self.assertIn("decoratorFactory", result,
-                      "'decoratorFactory' should NOT have 'decorator' replaced inside it")
+        self.assertIn(
+            "decoratorFactory",
+            result,
+            "'decoratorFactory' should NOT have 'decorator' replaced inside it",
+        )
 
         # Standalone 'type guard' SHOULD be replaced
-        self.assertNotIn("type guard", result,
-                         "Standalone 'type guard' should be replaced")
+        self.assertNotIn("type guard", result, "Standalone 'type guard' should be replaced")
 
     def test_react_pattern_no_substring_corruption(self):
         """'microcomponent' containing 'component', 'JSXElement' containing
@@ -559,18 +587,19 @@ class TestMutateContextEngine(unittest.TestCase):
         result = self.gen.mutate_context(prompt, framework="react")
 
         # Longer words containing pattern substrings should remain intact
-        self.assertIn("microcomponent", result,
-                      "'microcomponent' should NOT have 'component' replaced inside it")
-        self.assertIn("JSXElement", result,
-                      "'JSXElement' should NOT have 'JSX' replaced inside it")
-        self.assertIn("propsBuilder", result,
-                      "'propsBuilder' should NOT have 'props' replaced inside it")
+        self.assertIn(
+            "microcomponent",
+            result,
+            "'microcomponent' should NOT have 'component' replaced inside it",
+        )
+        self.assertIn("JSXElement", result, "'JSXElement' should NOT have 'JSX' replaced inside it")
+        self.assertIn(
+            "propsBuilder", result, "'propsBuilder' should NOT have 'props' replaced inside it"
+        )
 
         # Standalone terms SHOULD be replaced
-        self.assertNotIn("React", result,
-                         "Standalone 'React' should be replaced")
-        self.assertNotIn("useState", result,
-                         "Standalone 'useState' should be replaced")
+        self.assertNotIn("React", result, "Standalone 'React' should be replaced")
+        self.assertNotIn("useState", result, "Standalone 'useState' should be replaced")
         self.assertIn("Vue 3", result)
         self.assertIn("ref", result)
 
@@ -585,18 +614,21 @@ class TestMutateContextEngine(unittest.TestCase):
         result = self.gen.mutate_context(prompt, framework="nestjs")
 
         # Longer words containing pattern substrings should remain intact
-        self.assertIn("guardian", result,
-                      "'guardian' should NOT have 'guard' replaced inside it")
-        self.assertIn("decoratorFactory", result,
-                      "'decoratorFactory' should NOT have 'decorator' replaced inside it")
-        self.assertIn("providerFactory", result,
-                      "'providerFactory' should NOT have 'provider' replaced inside it")
+        self.assertIn("guardian", result, "'guardian' should NOT have 'guard' replaced inside it")
+        self.assertIn(
+            "decoratorFactory",
+            result,
+            "'decoratorFactory' should NOT have 'decorator' replaced inside it",
+        )
+        self.assertIn(
+            "providerFactory",
+            result,
+            "'providerFactory' should NOT have 'provider' replaced inside it",
+        )
 
         # Standalone terms SHOULD be replaced
-        self.assertNotIn("NestJS", result,
-                         "Standalone 'NestJS' should be replaced")
-        self.assertNotIn("@Injectable", result,
-                         "Standalone '@Injectable' should be replaced")
+        self.assertNotIn("NestJS", result, "Standalone 'NestJS' should be replaced")
+        self.assertNotIn("@Injectable", result, "Standalone '@Injectable' should be replaced")
         self.assertIn("Express.js", result)
         self.assertIn("middleware", result.lower())
 
@@ -604,22 +636,28 @@ class TestMutateContextEngine(unittest.TestCase):
         """A prompt referencing ALL three frameworks with both standalone
         hooks AND longer containing-words should only replace standalone
         hooks — longer words stay untouched regardless of framework."""
-        prompt = (
-            "Use prototype, microcomponent, and guardian. "
-            "Use React, NestJS, and TypeScript."
-        )
+        prompt = "Use prototype, microcomponent, and guardian. Use React, NestJS, and TypeScript."
 
         for framework in ["react", "nestjs", "typescript"]:
             with self.subTest(framework=framework):
                 result = self.gen.mutate_context(prompt, framework=framework)
 
                 # Longer words should NEVER be corrupted
-                self.assertIn("prototype", result,
-                    f"'prototype' should NOT be corrupted when mutating {framework}")
-                self.assertIn("microcomponent", result,
-                    f"'microcomponent' should NOT be corrupted when mutating {framework}")
-                self.assertIn("guardian", result,
-                    f"'guardian' should NOT be corrupted when mutating {framework}")
+                self.assertIn(
+                    "prototype",
+                    result,
+                    f"'prototype' should NOT be corrupted when mutating {framework}",
+                )
+                self.assertIn(
+                    "microcomponent",
+                    result,
+                    f"'microcomponent' should NOT be corrupted when mutating {framework}",
+                )
+                self.assertIn(
+                    "guardian",
+                    result,
+                    f"'guardian' should NOT be corrupted when mutating {framework}",
+                )
 
     # ── Framework name substring-protection tests ──
 
@@ -631,8 +669,7 @@ class TestMutateContextEngine(unittest.TestCase):
         result = self.gen.mutate_context(prompt, framework="react")
 
         # The compound word should remain intact (no partial replacement)
-        self.assertIn("ReactComponent", result,
-                      "'ReactComponent' must not become 'Vue 3Component'")
+        self.assertIn("ReactComponent", result, "'ReactComponent' must not become 'Vue 3Component'")
 
     def test_react_framework_name_standalone_and_compound(self):
         """A prompt with both standalone 'React' and compound 'ReactComponent'
@@ -643,11 +680,13 @@ class TestMutateContextEngine(unittest.TestCase):
         # Standalone "React" was replaced to "Vue 3"
         self.assertIn("Vue 3", result)
         # "ReactComponent" is preserved — "React" remains as substring, which is expected
-        self.assertIn("ReactComponent", result,
-                      "'ReactComponent' must not be corrupted")
+        self.assertIn("ReactComponent", result, "'ReactComponent' must not be corrupted")
         # Verify standalone "React" no longer appears (it was replaced to "Vue 3")
-        self.assertNotIn("React with", result,
-                         "Standalone 'React' should be replaced (checking 'React with' as proxy)")
+        self.assertNotIn(
+            "React with",
+            result,
+            "Standalone 'React' should be replaced (checking 'React with' as proxy)",
+        )
 
     def test_nestjs_framework_name_compound_word(self):
         """'Nest' inside 'Nesting' should NOT be replaced to 'Express.js'.
@@ -655,10 +694,12 @@ class TestMutateContextEngine(unittest.TestCase):
         prompt = "The nesting behavior causes issues."
         result = self.gen.mutate_context(prompt, framework="nestjs")
 
-        self.assertNotIn("Express.js", result,
-                         "'Nesting' should NOT become 'Express.jsing' — 'Express.js' shouldn't appear at all")
-        self.assertIn("nesting", result.lower(),
-                      "'nesting' should remain intact")
+        self.assertNotIn(
+            "Express.js",
+            result,
+            "'Nesting' should NOT become 'Express.jsing' — 'Express.js' shouldn't appear at all",
+        )
+        self.assertIn("nesting", result.lower(), "'nesting' should remain intact")
 
     def test_nestjs_framework_name_standalone_and_compound(self):
         """A prompt with both standalone 'NestJS' and compound 'Nesting'
@@ -666,11 +707,9 @@ class TestMutateContextEngine(unittest.TestCase):
         prompt = "Use NestJS for the nesting logic."
         result = self.gen.mutate_context(prompt, framework="nestjs")
 
-        self.assertNotIn("NestJS", result,
-                         "Standalone 'NestJS' should be replaced")
+        self.assertNotIn("NestJS", result, "Standalone 'NestJS' should be replaced")
         self.assertIn("Express.js", result)
-        self.assertIn("nesting", result.lower(),
-                      "'Nesting' must not become 'Express.jsing'")
+        self.assertIn("nesting", result.lower(), "'Nesting' must not become 'Express.jsing'")
 
     def test_typescript_framework_name_ts_in_compound(self):
         """'TS' inside 'BITS' should NOT be replaced to 'JavaScript'.
@@ -678,10 +717,12 @@ class TestMutateContextEngine(unittest.TestCase):
         prompt = "The BITS configuration is outdated."
         result = self.gen.mutate_context(prompt, framework="typescript")
 
-        self.assertNotIn("JavaScript", result,
-                         "'BITS' contains 'TS' but should NOT trigger TypeScript→JavaScript swap")
-        self.assertIn("BITS", result,
-                      "'BITS' should remain intact")
+        self.assertNotIn(
+            "JavaScript",
+            result,
+            "'BITS' contains 'TS' but should NOT trigger TypeScript→JavaScript swap",
+        )
+        self.assertIn("BITS", result, "'BITS' should remain intact")
 
     def test_typescript_framework_name_plural_not_matched(self):
         """'TypeScripts' (plural) should NOT be replaced to 'JavaScripts'
@@ -690,8 +731,7 @@ class TestMutateContextEngine(unittest.TestCase):
         result = self.gen.mutate_context(prompt, framework="typescript")
 
         # 'TypeScripts' has 's' after 'TypeScript', so \\b after 't' fails
-        self.assertNotIn("JavaScripts", result,
-                         "'TypeScripts' should NOT become 'JavaScripts'")
+        self.assertNotIn("JavaScripts", result, "'TypeScripts' should NOT become 'JavaScripts'")
 
     def test_typescript_framework_name_standalone_and_compound(self):
         """A prompt with standalone 'TypeScript' and compound words containing
@@ -699,31 +739,34 @@ class TestMutateContextEngine(unittest.TestCase):
         prompt = "Use TypeScript with BITS."
         result = self.gen.mutate_context(prompt, framework="typescript")
 
-        self.assertNotIn("TypeScript", result,
-                         "Standalone 'TypeScript' should be replaced")
+        self.assertNotIn("TypeScript", result, "Standalone 'TypeScript' should be replaced")
         self.assertIn("JavaScript", result)
-        self.assertIn("BITS", result,
-                      "'BITS' must not become 'BIJavaScript'")
+        self.assertIn("BITS", result, "'BITS' must not become 'BIJavaScript'")
 
     def test_all_three_framework_name_compound_words(self):
         """A prompt with compound words for ALL three frameworks should
         protect all of them — 'ReactComponent', 'Nesting', 'BITS' all intact
         when mutating any framework."""
-        prompt = (
-            "The ReactComponent uses nesting with BITS metrics."
-        )
+        prompt = "The ReactComponent uses nesting with BITS metrics."
 
         for framework in ["react", "nestjs", "typescript"]:
             with self.subTest(framework=framework):
                 result = self.gen.mutate_context(prompt, framework=framework)
 
                 # All three compound/longer words should remain intact
-                self.assertIn("ReactComponent", result,
-                    f"'ReactComponent' should not be corrupted when mutating {framework}")
-                self.assertIn("nesting", result.lower(),
-                    f"'nesting' should not be corrupted when mutating {framework}")
-                self.assertIn("BITS", result,
-                    f"'BITS' should not be corrupted when mutating {framework}")
+                self.assertIn(
+                    "ReactComponent",
+                    result,
+                    f"'ReactComponent' should not be corrupted when mutating {framework}",
+                )
+                self.assertIn(
+                    "nesting",
+                    result.lower(),
+                    f"'nesting' should not be corrupted when mutating {framework}",
+                )
+                self.assertIn(
+                    "BITS", result, f"'BITS' should not be corrupted when mutating {framework}"
+                )
 
     def test_no_framework_references_at_all(self):
         """A prompt with zero React/NestJS/TypeScript references should be
@@ -733,8 +776,11 @@ class TestMutateContextEngine(unittest.TestCase):
         for framework in ["react", "nestjs", "typescript"]:
             with self.subTest(framework=framework):
                 result = self.gen.mutate_context(prompt, framework=framework)
-                self.assertEqual(result, prompt,
-                    f"Prompt with no framework terms should be unchanged for {framework}")
+                self.assertEqual(
+                    result,
+                    prompt,
+                    f"Prompt with no framework terms should be unchanged for {framework}",
+                )
 
 
 class TestGenerateVariantsIntegration(unittest.TestCase):

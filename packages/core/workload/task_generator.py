@@ -39,14 +39,15 @@ class TaskDifficulty(Enum):
 @dataclass
 class WorkloadTask:
     """A single workload evaluation task."""
+
     task_id: str
     task_type: TaskType
     difficulty: TaskDifficulty
     title: str
     description: str
-    prompt: str                     # The prompt sent to the model
-    context_files: Dict[str, str]   # File path → content for context
-    target_file: str                # The file the model should modify
+    prompt: str  # The prompt sent to the model
+    context_files: Dict[str, str]  # File path → content for context
+    target_file: str  # The file the model should modify
     language: str
     framework: str
     project_name: str
@@ -56,16 +57,16 @@ class WorkloadTask:
 
 class TaskGenerator:
     """Generates realistic coding tasks from project files.
-    
+
     Each task is designed to test practical developer skills:
     understanding existing code, making targeted changes, and
     maintaining code quality.
     """
-    
+
     def __init__(self, seed: Optional[int] = None):
         self.rng = random.Random(seed)
         self._task_counter = 0
-    
+
     def generate_tasks(
         self,
         project: Project,
@@ -74,39 +75,39 @@ class TaskGenerator:
         difficulty: Optional[TaskDifficulty] = None,
     ) -> List[WorkloadTask]:
         """Generate a batch of tasks from a project.
-        
+
         Args:
             project: The loaded project
             count: Number of tasks to generate
             types: Task types to include (default: all)
             difficulty: Difficulty filter (default: mixed)
-            
+
         Returns:
             List of WorkloadTask
         """
         available_types = types or list(TaskType)
         tasks = []
-        
+
         # Collect candidate files per type
         candidates = self._collect_candidates(project)
-        
+
         attempts = 0
         while len(tasks) < count and attempts < count * 5:
             attempts += 1
             task_type = self.rng.choice(available_types)
             generator = self._get_generator(task_type)
-            
+
             if not generator:
                 continue
-            
+
             task = generator(project, candidates)
             if task:
                 if difficulty and task.difficulty != difficulty:
                     continue
                 tasks.append(task)
-        
+
         return tasks
-    
+
     def generate_task(
         self,
         project: Project,
@@ -115,22 +116,23 @@ class TaskGenerator:
     ) -> Optional[WorkloadTask]:
         """Generate a single task."""
         tasks = self.generate_tasks(
-            project, count=1,
+            project,
+            count=1,
             types=[task_type] if task_type else None,
             difficulty=difficulty,
         )
         return tasks[0] if tasks else None
-    
+
     # ── Candidate collection ──────────────────────────────────────
-    
+
     def _collect_candidates(self, project: Project) -> Dict[str, List[ProjectFile]]:
         """Collect candidate files for each task type."""
         candidates: Dict[str, List[ProjectFile]] = {
-            "source": [],       # Source files with functions/classes
-            "test": [],         # Test files
-            "config": [],       # Config files
+            "source": [],  # Source files with functions/classes
+            "test": [],  # Test files
+            "config": [],  # Config files
         }
-        
+
         for f in project.files:
             if "/test/" in f.path or "/tests/" in f.path or f.path.startswith("test_"):
                 candidates["test"].append(f)
@@ -140,9 +142,9 @@ class TaskGenerator:
                 candidates["source"].append(f)
             else:
                 candidates["source"].append(f)
-        
+
         return candidates
-    
+
     def _get_generator(self, task_type: TaskType) -> Optional[Callable]:
         """Get the generator function for a task type."""
         generators = {
@@ -155,18 +157,18 @@ class TaskGenerator:
             TaskType.DOCUMENT: self._generate_document_task,
         }
         return generators.get(task_type)
-    
+
     # ── Individual task generators ────────────────────────────────
-    
+
     def _generate_feature_task(self, project: Project, candidates: Dict) -> Optional[WorkloadTask]:
         """Generate an implement-feature task."""
         sources = candidates["source"]
         if not sources:
             return None
-        
+
         file = self.rng.choice(sources)
         self._task_counter += 1
-        
+
         # Pick a function or class to extend
         target_name = None
         if file.classes:
@@ -174,15 +176,15 @@ class TaskGenerator:
         elif file.functions:
             fn = self.rng.choice(file.functions)
             target_name = fn["name"]
-        
+
         if not target_name:
             # Generic feature: add validation to a file
             return self._generate_validation_task(project, candidates)
-        
+
         # Build context: include related files
         context = self._get_context(project, file)
-        
-        prompt = f"""Add a new feature to the `{target_name}` {('class' if target_name in file.classes else 'function')} in `{file.path}`.
+
+        prompt = f"""Add a new feature to the `{target_name}` {("class" if target_name in file.classes else "function")} in `{file.path}`.
 
 Project: {project.name} ({project.framework})
 File: {file.path}
@@ -200,7 +202,7 @@ Task: Implement a new method or extend the existing functionality to support:
 
 Follow the existing code style and patterns in the project.
 """.strip()
-        
+
         return WorkloadTask(
             task_id=f"wl-feature-{self._task_counter:03d}",
             task_type=TaskType.IMPLEMENT_FEATURE,
@@ -215,16 +217,16 @@ Follow the existing code style and patterns in the project.
             project_name=project.name,
             expected_elements=["implementation", "error handling", "types"],
         )
-    
+
     def _generate_bugfix_task(self, project: Project, candidates: Dict) -> Optional[WorkloadTask]:
         """Generate a fix-bug task."""
         sources = candidates["source"]
         if not sources:
             return None
-        
+
         file = self.rng.choice(sources)
         self._task_counter += 1
-        
+
         # Introduce a bug description (the model needs to understand the code and find/fix it)
         bugs = [
             "off-by-one error in array indexing",
@@ -237,9 +239,9 @@ Follow the existing code style and patterns in the project.
             "type mismatch between function signature and usage",
         ]
         bug = self.rng.choice(bugs)
-        
+
         context = self._get_context(project, file)
-        
+
         prompt = f"""Fix a bug in `{file.path}`.
 
 Project: {project.name} ({project.framework})
@@ -257,7 +259,7 @@ Task:
 3. Explain what was wrong and how your fix addresses it
 4. Ensure types and existing patterns are maintained
 """.strip()
-        
+
         return WorkloadTask(
             task_id=f"wl-bugfix-{self._task_counter:03d}",
             task_type=TaskType.FIX_BUG,
@@ -272,18 +274,18 @@ Task:
             project_name=project.name,
             expected_elements=["bug identification", "fix", "explanation"],
         )
-    
+
     def _generate_refactor_task(self, project: Project, candidates: Dict) -> Optional[WorkloadTask]:
         """Generate a refactoring task."""
         sources = candidates["source"]
         if not sources:
             return None
-        
+
         file = self.rng.choice(sources)
         self._task_counter += 1
-        
+
         context = self._get_context(project, file)
-        
+
         prompt = f"""Refactor the code in `{file.path}` to improve its structure and maintainability.
 
 Project: {project.name} ({project.framework})
@@ -302,7 +304,7 @@ Refactoring goals (pick what makes sense for this code):
 
 Keep the same public API / exports. Do NOT change external behavior.
 """.strip()
-        
+
         return WorkloadTask(
             task_id=f"wl-refactor-{self._task_counter:03d}",
             task_type=TaskType.REFACTOR,
@@ -317,18 +319,18 @@ Keep the same public API / exports. Do NOT change external behavior.
             project_name=project.name,
             expected_elements=["extracted functions", "improved types", "error handling"],
         )
-    
+
     def _generate_test_task(self, project: Project, candidates: Dict) -> Optional[WorkloadTask]:
         """Generate a write-test task."""
         sources = candidates["source"]
         if not sources:
             return candidates["test"]  # Can still test existing test files
-        
+
         file = self.rng.choice(sources)
         self._task_counter += 1
-        
+
         context = self._get_context(project, file)
-        
+
         prompt = f"""Write comprehensive tests for the code in `{file.path}`.
 
 Project: {project.name} ({project.framework})
@@ -345,7 +347,7 @@ Requirements:
 4. Mock external dependencies (database, API calls)
 5. Tests should be deterministic and isolated
 """.strip()
-        
+
         return WorkloadTask(
             task_id=f"wl-test-{self._task_counter:03d}",
             task_type=TaskType.WRITE_TEST,
@@ -360,18 +362,20 @@ Requirements:
             project_name=project.name,
             expected_elements=["test cases", "edge cases", "mocks"],
         )
-    
-    def _generate_validation_task(self, project: Project, candidates: Dict) -> Optional[WorkloadTask]:
+
+    def _generate_validation_task(
+        self, project: Project, candidates: Dict
+    ) -> Optional[WorkloadTask]:
         """Generate an add-validation task."""
         sources = candidates["source"]
         if not sources:
             return None
-        
+
         file = self.rng.choice(sources)
         self._task_counter += 1
-        
+
         context = self._get_context(project, file)
-        
+
         prompt = f"""Add input validation and error handling to the code in `{file.path}`.
 
 Project: {project.name} ({project.framework})
@@ -388,7 +392,7 @@ Add:
 4. Return proper error responses instead of crashing
 5. Log errors appropriately for debugging
 """.strip()
-        
+
         return WorkloadTask(
             task_id=f"wl-validation-{self._task_counter:03d}",
             task_type=TaskType.ADD_VALIDATION,
@@ -403,18 +407,18 @@ Add:
             project_name=project.name,
             expected_elements=["validation", "error handling", "logging"],
         )
-    
+
     def _generate_optimize_task(self, project: Project, candidates: Dict) -> Optional[WorkloadTask]:
         """Generate an optimization task."""
         sources = candidates["source"]
         if not sources:
             return None
-        
+
         file = self.rng.choice(sources)
         self._task_counter += 1
-        
+
         context = self._get_context(project, file)
-        
+
         prompt = f"""Optimize the performance of the code in `{file.path}`.
 
 Project: {project.name} ({project.framework})
@@ -431,7 +435,7 @@ Optimization goals:
 4. Don't sacrifice readability or type safety for micro-optimizations
 5. Explain the performance impact of each change
 """.strip()
-        
+
         return WorkloadTask(
             task_id=f"wl-optimize-{self._task_counter:03d}",
             task_type=TaskType.OPTIMIZE,
@@ -446,18 +450,18 @@ Optimization goals:
             project_name=project.name,
             expected_elements=["bottleneck analysis", "optimized code", "explanation"],
         )
-    
+
     def _generate_document_task(self, project: Project, candidates: Dict) -> Optional[WorkloadTask]:
         """Generate a documentation task."""
         sources = candidates["source"]
         if not sources:
             return None
-        
+
         file = self.rng.choice(sources)
         self._task_counter += 1
-        
+
         context = self._get_context(project, file)
-        
+
         prompt = f"""Add comprehensive documentation to the code in `{file.path}`.
 
 Project: {project.name} ({project.framework})
@@ -477,7 +481,7 @@ Add:
 
 Follow the project's existing documentation style.
 """.strip()
-        
+
         return WorkloadTask(
             task_id=f"wl-doc-{self._task_counter:03d}",
             task_type=TaskType.DOCUMENT,
@@ -492,45 +496,47 @@ Follow the project's existing documentation style.
             project_name=project.name,
             expected_elements=["JSDoc/docstrings", "parameter docs", "examples"],
         )
-    
+
     # ── Helpers ──────────────────────────────────────────────────
-    
-    def _get_context(self, project: Project, main_file: ProjectFile, max_context_files: int = 3) -> Dict[str, str]:
+
+    def _get_context(
+        self, project: Project, main_file: ProjectFile, max_context_files: int = 3
+    ) -> Dict[str, str]:
         """Build context from related files."""
         context = {main_file.path: main_file.content}
-        
+
         # Find related files (same directory, imported modules)
         related = []
         main_dir = "/".join(main_file.path.split("/")[:-1]) if "/" in main_file.path else ""
-        
+
         for f in project.files:
             if f.path == main_file.path:
                 continue
             # Same directory
             if main_dir and f.path.startswith(main_dir):
                 related.append(f)
-        
+
         # Pick some related files
         selected = self.rng.sample(related, min(max_context_files - 1, len(related)))
         for f in selected:
             context[f.path] = f.content
-        
+
         return context
-    
+
     @staticmethod
     def _get_relevant_section(file: ProjectFile, target_name: str) -> str:
         """Extract the relevant section of a file around a target."""
         lines = file.content.split("\n")
         target_line = -1
-        
+
         for i, line in enumerate(lines):
             if target_name in line:
                 target_line = i
                 break
-        
+
         if target_line < 0:
             return file.content
-        
+
         # Return ~20 lines around the target
         start = max(0, target_line - 5)
         end = min(len(lines), target_line + 15)

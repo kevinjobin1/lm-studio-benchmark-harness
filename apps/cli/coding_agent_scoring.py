@@ -25,48 +25,138 @@ from enum import Enum
 # ── Known TypeScript/NestJS APIs ──────────────────────────────────
 
 KNOWN_NESTJS_APIS: Set[str] = {
-    "Injectable", "Controller", "Module", "Get", "Post", "Put", "Delete",
-    "Patch", "Param", "Body", "Query", "Headers", "Req", "Res", "Next",
-    "UseGuards", "UseInterceptors", "UsePipes", "UseFilters",
-    "ExecutionContext", "CallHandler", "NestInterceptor",
-    "CanActivate", "AuthGuard", "PassportStrategy",
-    "PipeTransform", "ArgumentMetadata", "BadRequestException",
-    "NotFoundException", "UnauthorizedException", "ForbiddenException",
-    "ConflictException", "InternalServerErrorException",
-    "SetMetadata", "Reflector", "ReflectMetadata",
-    "Inject", "Injectable", "forwardRef", "OnModuleInit",
-    "JwtService", "ConfigService", "PrismaService",
-    "ClientKafka", "ClientProxy", "MessagePattern", "EventPattern",
-    "Ctx", "KafkaContext", "Payload",
-    "CacheInterceptor", "CacheKey", "CacheTTL",
-    "ValidationPipe", "ParseIntPipe", "ParseUUIDPipe",
-    "ClassSerializerInterceptor", "SerializeOptions",
-    "Interceptor", "Middleware", "NestMiddleware",
+    "Injectable",
+    "Controller",
+    "Module",
+    "Get",
+    "Post",
+    "Put",
+    "Delete",
+    "Patch",
+    "Param",
+    "Body",
+    "Query",
+    "Headers",
+    "Req",
+    "Res",
+    "Next",
+    "UseGuards",
+    "UseInterceptors",
+    "UsePipes",
+    "UseFilters",
+    "ExecutionContext",
+    "CallHandler",
+    "NestInterceptor",
+    "CanActivate",
+    "AuthGuard",
+    "PassportStrategy",
+    "PipeTransform",
+    "ArgumentMetadata",
+    "BadRequestException",
+    "NotFoundException",
+    "UnauthorizedException",
+    "ForbiddenException",
+    "ConflictException",
+    "InternalServerErrorException",
+    "SetMetadata",
+    "Reflector",
+    "ReflectMetadata",
+    "Inject",
+    "Injectable",
+    "forwardRef",
+    "OnModuleInit",
+    "JwtService",
+    "ConfigService",
+    "PrismaService",
+    "ClientKafka",
+    "ClientProxy",
+    "MessagePattern",
+    "EventPattern",
+    "Ctx",
+    "KafkaContext",
+    "Payload",
+    "CacheInterceptor",
+    "CacheKey",
+    "CacheTTL",
+    "ValidationPipe",
+    "ParseIntPipe",
+    "ParseUUIDPipe",
+    "ClassSerializerInterceptor",
+    "SerializeOptions",
+    "Interceptor",
+    "Middleware",
+    "NestMiddleware",
 }
 
 KNOWN_REACT_APIS: Set[str] = {
-    "useState", "useEffect", "useCallback", "useMemo", "useRef",
-    "useContext", "useReducer", "useLayoutEffect", "useImperativeHandle",
-    "createContext", "createRef", "forwardRef", "memo",
-    "Fragment", "Suspense", "lazy", "StrictMode",
-    "Component", "PureComponent",
-    "createElement", "cloneElement", "isValidElement",
+    "useState",
+    "useEffect",
+    "useCallback",
+    "useMemo",
+    "useRef",
+    "useContext",
+    "useReducer",
+    "useLayoutEffect",
+    "useImperativeHandle",
+    "createContext",
+    "createRef",
+    "forwardRef",
+    "memo",
+    "Fragment",
+    "Suspense",
+    "lazy",
+    "StrictMode",
+    "Component",
+    "PureComponent",
+    "createElement",
+    "cloneElement",
+    "isValidElement",
 }
 
 KNOWN_TYPESCRIPT_APIS: Set[str] = {
-    "Partial", "Required", "Readonly", "Record", "Pick", "Omit",
-    "Exclude", "Extract", "NonNullable", "ReturnType", "Parameters",
-    "ConstructorParameters", "InstanceType", "Awaited",
-    "Promise", "Array", "Map", "Set", "WeakMap", "WeakSet",
-    "async", "await", "Promise.all", "Promise.allSettled", "Promise.race",
-    "console.log", "console.error", "console.warn",
-    "JSON.parse", "JSON.stringify",
-    "fetch", "Response", "Request", "Headers",
-    "Error", "TypeError", "RangeError", "SyntaxError",
+    "Partial",
+    "Required",
+    "Readonly",
+    "Record",
+    "Pick",
+    "Omit",
+    "Exclude",
+    "Extract",
+    "NonNullable",
+    "ReturnType",
+    "Parameters",
+    "ConstructorParameters",
+    "InstanceType",
+    "Awaited",
+    "Promise",
+    "Array",
+    "Map",
+    "Set",
+    "WeakMap",
+    "WeakSet",
+    "async",
+    "await",
+    "Promise.all",
+    "Promise.allSettled",
+    "Promise.race",
+    "console.log",
+    "console.error",
+    "console.warn",
+    "JSON.parse",
+    "JSON.stringify",
+    "fetch",
+    "Response",
+    "Request",
+    "Headers",
+    "Error",
+    "TypeError",
+    "RangeError",
+    "SyntaxError",
 }
 
 
 # ── Types ──────────────────────────────────────────────────────────
+
 
 class ImportCategory(Enum):
     CORRECT = "correct"
@@ -79,6 +169,7 @@ class ImportCategory(Enum):
 @dataclass
 class ImportCheck:
     """Result of checking a single import."""
+
     name: str
     from_path: str
     category: ImportCategory
@@ -88,6 +179,7 @@ class ImportCheck:
 @dataclass
 class RefactoringMetrics:
     """Metrics for refactoring quality."""
+
     lines_added: int = 0
     lines_removed: int = 0
     complexity_before: int = 0
@@ -193,6 +285,7 @@ class CodingAgentScore:
 
 # ── Evaluator ──────────────────────────────────────────────────────
 
+
 class CodingAgentEvaluator:
     """Evaluates coding agent responses with developer-utility-focused scoring.
 
@@ -236,9 +329,7 @@ class CodingAgentEvaluator:
 
         # 3. Refactoring Quality
         if original_code:
-            score.refactoring_score = self._check_refactoring(
-                original_code, generated_code, score
-            )
+            score.refactoring_score = self._check_refactoring(original_code, generated_code, score)
 
         # 4. Diff Accuracy
         if original_code:
@@ -261,16 +352,14 @@ class CodingAgentEvaluator:
 
     # ── 1. API Hallucination ─────────────────────────────────────────
 
-    def _check_api_hallucination(
-        self, code: str, language: str, score: CodingAgentScore
-    ) -> float:
+    def _check_api_hallucination(self, code: str, language: str, score: CodingAgentScore) -> float:
         """Detect hallucinated API calls. Heavily penalized."""
         import re
 
         # Extract identifiers that look like API calls
         # Pattern: PascalCase functions or camelCase methods on objects
-        api_patterns = re.findall(r'\b([A-Z][a-zA-Z]+)\b', code)
-        method_patterns = re.findall(r'\.(\w+)\s*\(', code)
+        api_patterns = re.findall(r"\b([A-Z][a-zA-Z]+)\b", code)
+        method_patterns = re.findall(r"\.(\w+)\s*\(", code)
 
         all_calls = set(api_patterns + method_patterns)
         score.total_apis_used = len(all_calls)
@@ -325,18 +414,22 @@ class CodingAgentEvaluator:
             # Check expected imports
             for exp in expected:
                 if exp in code or any(exp in imp for imp in import_lines):
-                    checks.append(ImportCheck(
-                        name=exp,
-                        from_path="",
-                        category=ImportCategory.CORRECT,
-                    ))
+                    checks.append(
+                        ImportCheck(
+                            name=exp,
+                            from_path="",
+                            category=ImportCategory.CORRECT,
+                        )
+                    )
                 else:
-                    checks.append(ImportCheck(
-                        name=exp,
-                        from_path="",
-                        category=ImportCategory.MISSING,
-                        suggestion=f"Add import for {exp}",
-                    ))
+                    checks.append(
+                        ImportCheck(
+                            name=exp,
+                            from_path="",
+                            category=ImportCategory.MISSING,
+                            suggestion=f"Add import for {exp}",
+                        )
+                    )
 
             # Check for hallucinated imports (packages that don't exist)
             suspicious_patterns = [
@@ -346,12 +439,14 @@ class CodingAgentEvaluator:
             for pattern in suspicious_patterns:
                 matches = re.findall(pattern, code)
                 for m in matches:
-                    checks.append(ImportCheck(
-                        name=m,
-                        from_path=m,
-                        category=ImportCategory.HALLUCINATED,
-                        suggestion=f"Remove non-existent import: {m}",
-                    ))
+                    checks.append(
+                        ImportCheck(
+                            name=m,
+                            from_path=m,
+                            category=ImportCategory.HALLUCINATED,
+                            suggestion=f"Remove non-existent import: {m}",
+                        )
+                    )
 
         score.imports_checked = checks
         total_checks = len(checks)
@@ -363,9 +458,7 @@ class CodingAgentEvaluator:
 
     # ── 3. Refactoring Quality ───────────────────────────────────────
 
-    def _check_refactoring(
-        self, original: str, generated: str, score: CodingAgentScore
-    ) -> float:
+    def _check_refactoring(self, original: str, generated: str, score: CodingAgentScore) -> float:
         """Check if the refactoring improved code quality."""
         import difflib
 
@@ -373,10 +466,10 @@ class CodingAgentEvaluator:
         gen_lines = generated.splitlines()
 
         # Compute diff
-        diff = list(difflib.unified_diff(orig_lines, gen_lines, lineterm=''))
+        diff = list(difflib.unified_diff(orig_lines, gen_lines, lineterm=""))
 
-        added = sum(1 for l in diff if l.startswith('+') and not l.startswith('+++'))
-        removed = sum(1 for l in diff if l.startswith('-') and not l.startswith('---'))
+        added = sum(1 for l in diff if l.startswith("+") and not l.startswith("+++"))
+        removed = sum(1 for l in diff if l.startswith("-") and not l.startswith("---"))
 
         score.refactoring = RefactoringMetrics(
             lines_added=added,
@@ -398,31 +491,24 @@ class CodingAgentEvaluator:
 
     # ── 4. Diff Accuracy ─────────────────────────────────────────────
 
-    def _check_diff_accuracy(
-        self, original: str, generated: str, score: CodingAgentScore
-    ) -> float:
+    def _check_diff_accuracy(self, original: str, generated: str, score: CodingAgentScore) -> float:
         """Check diff is focused and minimal."""
         import difflib
 
         # Check for noise: whitespace-only changes, formatting only
-        orig_normalized = '\n'.join(l.rstrip() for l in original.splitlines())
-        gen_normalized = '\n'.join(l.rstrip() for l in generated.splitlines())
+        orig_normalized = "\n".join(l.rstrip() for l in original.splitlines())
+        gen_normalized = "\n".join(l.rstrip() for l in generated.splitlines())
 
         if orig_normalized == gen_normalized:
-            score.diff_noise_lines = abs(
-                len(original.splitlines()) - len(generated.splitlines())
-            )
+            score.diff_noise_lines = abs(len(original.splitlines()) - len(generated.splitlines()))
             return 0.0  # Only whitespace changes
 
-        diff = list(difflib.unified_diff(
-            original.splitlines(), generated.splitlines(), lineterm=''
-        ))
+        diff = list(
+            difflib.unified_diff(original.splitlines(), generated.splitlines(), lineterm="")
+        )
 
         score.diff_total_lines = len(diff)
-        noise = sum(
-            1 for l in diff
-            if l.startswith(('+', '-')) and l[1:].strip() == ''
-        )
+        noise = sum(1 for l in diff if l.startswith(("+", "-")) and l[1:].strip() == "")
         score.diff_noise_lines = noise
 
         if score.diff_total_lines == 0:
@@ -438,13 +524,15 @@ class CodingAgentEvaluator:
         import re
 
         # Count 'any' types
-        any_in_types = len(re.findall(r':\s*any\b', code))
-        any_in_generics = len(re.findall(r'<any>', code))
-        any_in_casts = len(re.findall(r'as\s+any\b', code))
-        implicit_any = len(re.findall(
-            r'(?:function|const|let|var)\s+\w+\s*\([^)]*\)\s*(?::\s*\w+)?\s*{',
-            code,
-        ))
+        any_in_types = len(re.findall(r":\s*any\b", code))
+        any_in_generics = len(re.findall(r"<any>", code))
+        any_in_casts = len(re.findall(r"as\s+any\b", code))
+        implicit_any = len(
+            re.findall(
+                r"(?:function|const|let|var)\s+\w+\s*\([^)]*\)\s*(?::\s*\w+)?\s*{",
+                code,
+            )
+        )
 
         score.any_types_found = any_in_types + any_in_generics + any_in_casts
         score.implicit_any_count = implicit_any
@@ -463,13 +551,11 @@ class CodingAgentEvaluator:
         """Check for proper error handling patterns."""
         import re
 
-        score.has_try_catch = bool(re.search(r'try\s*{', code))
-        score.has_error_boundary = bool(re.search(
-            r'componentDidCatch|getDerivedStateFromError|ErrorBoundary', code
-        ))
-        score.has_validation = bool(re.search(
-            r'validate|isValid|check\w+|assert\w+|guard\b', code
-        ))
+        score.has_try_catch = bool(re.search(r"try\s*{", code))
+        score.has_error_boundary = bool(
+            re.search(r"componentDidCatch|getDerivedStateFromError|ErrorBoundary", code)
+        )
+        score.has_validation = bool(re.search(r"validate|isValid|check\w+|assert\w+|guard\b", code))
 
         score_val = 0.0
         if score.has_try_catch:
@@ -487,16 +573,12 @@ class CodingAgentEvaluator:
         """Check if code is structured for easy testing."""
         import re
 
-        score.has_dependency_injection = bool(re.search(
-            r'constructor\s*\(.*private\s+\w+', code
-        ))
-        score.has_interfaces = bool(re.search(
-            r'(?:interface|type)\s+\w+\s*{', code
-        ))
+        score.has_dependency_injection = bool(re.search(r"constructor\s*\(.*private\s+\w+", code))
+        score.has_interfaces = bool(re.search(r"(?:interface|type)\s+\w+\s*{", code))
 
         # Check for pure functions
         functions = re.findall(
-            r'(?:export\s+)?(?:async\s+)?function\s+(\w+)',
+            r"(?:export\s+)?(?:async\s+)?function\s+(\w+)",
             code,
         )
         score.total_functions = len(functions)
@@ -505,7 +587,7 @@ class CodingAgentEvaluator:
         pure_count = 0
         for func in functions:
             func_body = self._extract_function_body(code, func)
-            if func_body and 'this.' not in func_body:
+            if func_body and "this." not in func_body:
                 pure_count += 1
         score.functions_are_pure = pure_count
 
@@ -523,7 +605,8 @@ class CodingAgentEvaluator:
     def _extract_function_body(code: str, func_name: str) -> Optional[str]:
         """Extract body of a named function."""
         import re
-        pattern = rf'(?:export\s+)?(?:async\s+)?function\s+{func_name}\s*\([^)]*\)\s*{{([^}}]*(?:{{[^}}]*}}[^}}]*)*)}}'
+
+        pattern = rf"(?:export\s+)?(?:async\s+)?function\s+{func_name}\s*\([^)]*\)\s*{{([^}}]*(?:{{[^}}]*}}[^}}]*)*)}}"
         match = re.search(pattern, code, re.DOTALL)
         return match.group(1) if match else None
 
@@ -543,9 +626,7 @@ def evaluate_coding_agent(
 ) -> CodingAgentScore:
     """Convenience function to evaluate coding agent output."""
     evaluator = CodingAgentEvaluator()
-    return evaluator.evaluate(
-        generated_code, original_code, expected_imports, language
-    )
+    return evaluator.evaluate(generated_code, original_code, expected_imports, language)
 
 
 if __name__ == "__main__":

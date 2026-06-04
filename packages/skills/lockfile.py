@@ -19,6 +19,7 @@ from dataclasses import dataclass, field
 @dataclass
 class LockEntry:
     """Single skill entry in the lockfile."""
+
     name: str
     version: str
     checksum: str = ""
@@ -84,7 +85,7 @@ class SkillLockFile:
             },
             "mode": self.mode,
         }
-        with open(path, 'w') as f:
+        with open(path, "w") as f:
             json.dump(data, f, indent=2)
 
     def verify(self, skill_manifest: Dict[str, str]) -> List[str]:

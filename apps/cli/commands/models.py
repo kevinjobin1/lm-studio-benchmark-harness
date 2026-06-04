@@ -21,15 +21,21 @@ from .utils import (
 
 
 @click.command()
-@click.option("--api-base", default=None, show_default=False,
-              help="Provider base URL (auto-detected for known providers)")
+@click.option(
+    "--api-base",
+    default=None,
+    show_default=False,
+    help="Provider base URL (auto-detected for known providers)",
+)
 @click.option("--api-key", default=None, show_default=False)
-@click.option("--provider", "-p",
-              type=click.Choice(["lm-studio", "ollama", "open-webui", "jan", "llama.cpp", "vllm"]),
-              default=None,
-              help="Provider to query (auto-detected if omitted)")
-@click.option("--json", "json_output", is_flag=True,
-              help="Output as JSON")
+@click.option(
+    "--provider",
+    "-p",
+    type=click.Choice(["lm-studio", "ollama", "open-webui", "jan", "llama.cpp", "vllm"]),
+    default=None,
+    help="Provider to query (auto-detected if omitted)",
+)
+@click.option("--json", "json_output", is_flag=True, help="Output as JSON")
 def models(api_base, api_key, provider, json_output):
     """List available models from the connected provider.
 
@@ -52,6 +58,7 @@ def models(api_base, api_key, provider, json_output):
     # Validate connection
     try:
         import requests
+
         # api_base already contains the correct prefix for all providers
         check_url = f"{api_base}/models"
         resp = requests.get(check_url, timeout=3)
@@ -73,11 +80,17 @@ def models(api_base, api_key, provider, json_output):
         return
 
     if json_output:
-        click.echo(json.dumps({
-            "provider": provider,
-            "count": len(model_list),
-            "models": model_list,
-        }, indent=2, default=str))
+        click.echo(
+            json.dumps(
+                {
+                    "provider": provider,
+                    "count": len(model_list),
+                    "models": model_list,
+                },
+                indent=2,
+                default=str,
+            )
+        )
         return
 
     _echo("")

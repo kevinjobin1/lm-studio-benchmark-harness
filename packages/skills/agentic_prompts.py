@@ -16,6 +16,7 @@ from dataclasses import dataclass
 @dataclass
 class AgenticPrompt:
     """A prompt for agentic/tool-use evaluation."""
+
     task: str
     description: str
     available_skills: List[str]
@@ -151,7 +152,9 @@ class AgenticPromptGenerator:
                 rc = random.random()
                 if rc < difficulty_distribution.get("easy", 0.33):
                     difficulty = "easy"
-                elif rc < difficulty_distribution.get("easy", 0.33) + difficulty_distribution.get("medium", 0.34):
+                elif rc < difficulty_distribution.get("easy", 0.33) + difficulty_distribution.get(
+                    "medium", 0.34
+                ):
                     difficulty = "medium"
                 else:
                     difficulty = "hard"
@@ -194,6 +197,7 @@ Respond with ONLY the JSON. No markdown fences. No additional text."""
 
 
 # ── Convenience Functions ─────────────────────────────────────────
+
 
 def generate_agentic_prompts(count: int = 5) -> List[AgenticPrompt]:
     """Generate a batch of agentic tool-use prompts."""

@@ -13,15 +13,22 @@ import tempfile
 from pathlib import Path
 
 from core.workload import (
-    ProjectLoader, ProjectFile, Project,
-    TaskGenerator, WorkloadTask, TaskDifficulty, TaskType,
-    WorkloadScorer, WorkloadScore,
+    ProjectLoader,
+    ProjectFile,
+    Project,
+    TaskGenerator,
+    WorkloadTask,
+    TaskDifficulty,
+    TaskType,
+    WorkloadScorer,
+    WorkloadScore,
 )
 
 
 # ═════════════════════════════════════════════════════════════════════
 #  PROJECT LOADER TESTS
 # ═════════════════════════════════════════════════════════════════════
+
 
 class TestProjectLoaderBuiltin(unittest.TestCase):
     """Tests for loading built-in sample projects."""
@@ -121,6 +128,7 @@ class TestProjectLoaderLocal(unittest.TestCase):
 
     def tearDown(self):
         import shutil
+
         shutil.rmtree(str(self.tmpdir), ignore_errors=True)
 
     def _create_sample_files(self):
@@ -263,6 +271,7 @@ class TestProjectLoaderGitUrlDetection(unittest.TestCase):
 #  TASK GENERATOR TESTS
 # ═════════════════════════════════════════════════════════════════════
 
+
 class TestTaskGenerator(unittest.TestCase):
     """Tests for TaskGenerator — task generation and type distribution."""
 
@@ -310,13 +319,14 @@ class TestTaskGenerator(unittest.TestCase):
         tasks = self.generator.generate_tasks(self.project, count=15)
         types_found = set(t.task_type for t in tasks)
         # With 15 tasks across 7 types, we should see at least 3 different types
-        self.assertGreaterEqual(len(types_found), 3,
-                                f"Expected diverse types, got: {types_found}")
+        self.assertGreaterEqual(len(types_found), 3, f"Expected diverse types, got: {types_found}")
 
     def test_single_task_type_filter(self):
         """Filtering by a single task type should produce only that type."""
         tasks = self.generator.generate_tasks(
-            self.project, count=5, types=[TaskType.FIX_BUG],
+            self.project,
+            count=5,
+            types=[TaskType.FIX_BUG],
         )
         for t in tasks:
             self.assertEqual(t.task_type, TaskType.FIX_BUG)
@@ -324,7 +334,9 @@ class TestTaskGenerator(unittest.TestCase):
     def test_single_difficulty_filter(self):
         """Filtering by difficulty should produce only that difficulty."""
         tasks = self.generator.generate_tasks(
-            self.project, count=5, difficulty=TaskDifficulty.EASY,
+            self.project,
+            count=5,
+            difficulty=TaskDifficulty.EASY,
         )
         for t in tasks:
             self.assertEqual(t.difficulty, TaskDifficulty.EASY)
@@ -341,7 +353,8 @@ class TestTaskGenerator(unittest.TestCase):
     def test_generate_task_with_type(self):
         """generate_task with specific type should return that type."""
         task = self.generator.generate_task(
-            self.project, task_type=TaskType.DOCUMENT,
+            self.project,
+            task_type=TaskType.DOCUMENT,
         )
         if task is not None:
             self.assertEqual(task.task_type, TaskType.DOCUMENT)
@@ -398,7 +411,8 @@ class TestTaskGeneratorOnPythonProject(unittest.TestCase):
     def test_generates_python_doc_task(self):
         """Document task for Python should mention docstrings."""
         task = self.generator.generate_task(
-            self.project, task_type=TaskType.DOCUMENT,
+            self.project,
+            task_type=TaskType.DOCUMENT,
         )
         if task is not None:
             self.assertIn("docstring", task.prompt.lower())
@@ -423,6 +437,7 @@ class TestTaskGeneratorOnRustProject(unittest.TestCase):
 # ═════════════════════════════════════════════════════════════════════
 #  WORKLOAD SCORER TESTS
 # ═════════════════════════════════════════════════════════════════════
+
 
 class TestWorkloadScorer(unittest.TestCase):
     """Tests for WorkloadScorer — scoring model responses."""
@@ -459,7 +474,7 @@ export class UsersService {
 This implements the create method with proper validation and error handling.
 """
         score = self.scorer.score(task, response)
-        
+
         self.assertIsInstance(score, WorkloadScore)
         self.assertGreaterEqual(score.overall, 0.3)  # Should score decently
         self.assertGreaterEqual(score.correctness, 0.3)
@@ -470,7 +485,7 @@ This implements the create method with proper validation and error handling.
         """Empty response should score very low."""
         task = self.tasks[0]
         score = self.scorer.score(task, "")
-        
+
         self.assertLess(score.overall, 0.3)
         self.assertIn("empty_response", score.failures)
 
@@ -479,13 +494,14 @@ This implements the create method with proper validation and error handling.
         task = self.tasks[0]
         response = "I think the best approach is to add validation here."
         score = self.scorer.score(task, response)
-        
+
         self.assertLess(score.code_quality, 0.3)
         self.assertIn("no_code_blocks", score.failures)
 
     def test_score_identifies_hallucinated_imports(self):
         """Scorer should detect hallucinated imports."""
         from core.workload.task_generator import WorkloadTask
+
         task = WorkloadTask(
             task_id="test-001",
             task_type=TaskType.IMPLEMENT_FEATURE,
@@ -510,6 +526,7 @@ import { Something } from '@nestjs/fake-lib/made-up';
     def test_score_identifies_any_type(self):
         """Scorer should flag 'any' type usage in TypeScript."""
         from core.workload.task_generator import WorkloadTask
+
         task = WorkloadTask(
             task_id="test-002",
             task_type=TaskType.IMPLEMENT_FEATURE,
@@ -536,6 +553,7 @@ function process(data: any): any {
     def test_score_identifies_strengths(self):
         """Scorer should detect strengths in typed, error-handled code."""
         from core.workload.task_generator import WorkloadTask
+
         task = WorkloadTask(
             task_id="test-003",
             task_type=TaskType.IMPLEMENT_FEATURE,
@@ -589,7 +607,7 @@ export class UserService {
         task = self.tasks[0]
         response = "```typescript\nexport function test() { return 42; }\n```"
         score = self.scorer.score(task, response)
-        
+
         self.assertGreaterEqual(score.overall, 0.0)
         self.assertLessEqual(score.overall, 1.0)
         self.assertGreaterEqual(score.correctness, 0.0)
@@ -616,11 +634,12 @@ class TestWorkloadScorerPython(unittest.TestCase):
     def test_score_python_response(self):
         """Python response with code should score reasonably."""
         task = self.generator.generate_task(
-            self.project, task_type=TaskType.DOCUMENT,
+            self.project,
+            task_type=TaskType.DOCUMENT,
         )
         if task is None:
             self.skipTest("No task generated")
-        
+
         response = """\
 Here's the documented version:
 
@@ -653,6 +672,7 @@ class TestWorkloadScorerRust(unittest.TestCase):
     def test_score_rust_response(self):
         """Rust response with proper struct should score well."""
         from core.workload.task_generator import WorkloadTask
+
         task = WorkloadTask(
             task_id="rust-test",
             task_type=TaskType.IMPLEMENT_FEATURE,
@@ -686,6 +706,7 @@ class TestWorkloadScorerEdgeCases(unittest.TestCase):
 
     def setUp(self):
         from core.workload.task_generator import WorkloadTask
+
         self.task = WorkloadTask(
             task_id="edge-test",
             task_type=TaskType.REFACTOR,
@@ -693,7 +714,7 @@ class TestWorkloadScorerEdgeCases(unittest.TestCase):
             title="Edge test",
             description="Edge test",
             prompt="Refactor this code",
-            context_files={"test.ts": 'export function foo() { return 1; }'},
+            context_files={"test.ts": "export function foo() { return 1; }"},
             target_file="test.ts",
             language="typescript",
             framework="nestjs",
@@ -739,72 +760,55 @@ y = 2
     def test_has_valid_code_structure_ts(self):
         """TypeScript code should be recognized as valid."""
         code = "export function foo() { return 1; }"
-        self.assertTrue(
-            self.scorer._has_valid_code_structure(code, "typescript")
-        )
+        self.assertTrue(self.scorer._has_valid_code_structure(code, "typescript"))
 
     def test_has_valid_code_structure_python(self):
         """Python code should be recognized as valid."""
         code = "def foo():\n    return 1"
-        self.assertTrue(
-            self.scorer._has_valid_code_structure(code, "python")
-        )
+        self.assertTrue(self.scorer._has_valid_code_structure(code, "python"))
 
     def test_has_valid_code_structure_rust(self):
         """Rust code should be recognized as valid."""
         code = "pub fn foo() -> i32 { 1 }"
-        self.assertTrue(
-            self.scorer._has_valid_code_structure(code, "rust")
-        )
+        self.assertTrue(self.scorer._has_valid_code_structure(code, "rust"))
 
     def test_has_valid_code_structure_invalid(self):
         """Non-code text should NOT be recognized as valid."""
         code = "This is just a paragraph of text."
-        self.assertFalse(
-            self.scorer._has_valid_code_structure(code, "typescript")
-        )
+        self.assertFalse(self.scorer._has_valid_code_structure(code, "typescript"))
 
     def test_has_imports_ts(self):
         """TypeScript code with import should be detected."""
         code = "import { Injectable } from '@nestjs/common';"
-        self.assertTrue(
-            self.scorer._has_imports(code, "typescript")
-        )
+        self.assertTrue(self.scorer._has_imports(code, "typescript"))
 
     def test_has_imports_python(self):
         """Python code with import should be detected."""
         code = "import os\nfrom typing import List"
-        self.assertTrue(
-            self.scorer._has_imports(code, "python")
-        )
+        self.assertTrue(self.scorer._has_imports(code, "python"))
 
     def test_has_imports_none(self):
         """Code without imports should return False."""
         code = "const x = 1;"
-        self.assertFalse(
-            self.scorer._has_imports(code, "typescript")
-        )
+        self.assertFalse(self.scorer._has_imports(code, "typescript"))
 
     def test_has_explanation_short(self):
         """Very short response without code should NOT have explanation."""
         response = "Short text."
         blocks = []
-        self.assertFalse(
-            self.scorer._has_explanation(response, blocks)
-        )
+        self.assertFalse(self.scorer._has_explanation(response, blocks))
 
     def test_has_explanation_long(self):
         """Longer response with explanation text should be detected."""
         response = "I implemented the feature by adding validation logic and error handling. " * 5
         blocks = []
-        self.assertTrue(
-            self.scorer._has_explanation(response, blocks)
-        )
+        self.assertTrue(self.scorer._has_explanation(response, blocks))
 
 
 # ═════════════════════════════════════════════════════════════════════
 #  INTEGRATION TESTS
 # ═════════════════════════════════════════════════════════════════════
+
 
 class TestProjectTaskScorerIntegration(unittest.TestCase):
     """End-to-end integration: load project → generate task → score response."""
@@ -818,11 +822,12 @@ class TestProjectTaskScorerIntegration(unittest.TestCase):
     def test_full_pipeline_feature_task(self):
         """Full pipeline with a feature task should work end-to-end."""
         task = self.generator.generate_task(
-            self.project, task_type=TaskType.IMPLEMENT_FEATURE,
+            self.project,
+            task_type=TaskType.IMPLEMENT_FEATURE,
         )
         if task is None:
             self.skipTest("No task generated")
-        
+
         # Simulate a reasonable model response
         response = """\
 I implemented the feature by adding a new method to handle search functionality:
@@ -865,13 +870,13 @@ export function useSearch(query: string) {
 This adds a search hook with proper types, async/await, loading states, and error handling.
 """
         score = self.scorer.score(task, response)
-        
+
         # Should score well across all dimensions
         self.assertGreater(score.overall, 0.4)
         self.assertGreater(score.correctness, 0.3)
         self.assertGreater(score.completeness, 0.3)
         self.assertGreater(score.code_quality, 0.3)
-        
+
         # Should detect strengths
         self.assertIn("typed_interfaces", score.strengths)
         self.assertIn("error_handling", score.strengths)
@@ -880,11 +885,12 @@ This adds a search hook with proper types, async/await, loading states, and erro
     def test_full_pipeline_bugfix_task(self):
         """Bugfix task pipeline should work."""
         task = self.generator.generate_task(
-            self.project, task_type=TaskType.FIX_BUG,
+            self.project,
+            task_type=TaskType.FIX_BUG,
         )
         if task is None:
             self.skipTest("No task generated")
-        
+
         response = """\
 I identified the bug: there's a missing null check before accessing the `name` property.
 
@@ -898,7 +904,7 @@ function getName(user: User | null): string {
 The fix adds a guard clause to handle the null case.
 """
         score = self.scorer.score(task, response)
-        
+
         self.assertGreater(score.overall, 0.3)
         self.assertGreaterEqual(score.correctness, 0.3)
 
@@ -909,13 +915,14 @@ class TestAllBuiltinProjectsGenerateTasks(unittest.TestCase):
     def test_all_projects_produce_tasks(self):
         loader = ProjectLoader()
         generator = TaskGenerator(seed=42)
-        
+
         for name in ["nestjs-api", "react-app", "python-cli", "rust-server"]:
             with self.subTest(project=name):
                 project = loader.load_builtin(name)
                 tasks = generator.generate_tasks(project, count=3)
                 self.assertEqual(
-                    len(tasks), 3,
+                    len(tasks),
+                    3,
                     f"{name} should produce 3 tasks, got {len(tasks)}",
                 )
 

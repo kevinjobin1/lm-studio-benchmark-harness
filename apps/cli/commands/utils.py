@@ -6,6 +6,7 @@ from typing import List, Optional
 import click
 
 from packages.logging import get_logger
+from providers.base import get_root_url
 
 logger = get_logger(__name__)
 
@@ -110,7 +111,9 @@ def _list_provider_models(provider: str, api_base: str, api_key: str) -> List[st
             if resp.status_code == 200:
                 return [m.get("id", "") for m in resp.json().get("data", [])]
         elif provider == "ollama":
-            ollama_base = api_base.removesuffix("/v1").removesuffix("/")
+            # Ollama's native API is at the server root, not /v1.
+            # Extract scheme+netloc from api_base to construct the right URL.
+            ollama_base = get_root_url(api_base)
             resp = requests.get(f"{ollama_base}/api/tags", timeout=5)
             if resp.status_code == 200:
                 return [m.get("name", "") for m in resp.json().get("models", [])]
@@ -147,7 +150,9 @@ def _list_models_detailed(provider: str, api_base: str, api_key: str) -> list:
                         }
                     )
         elif provider == "ollama":
-            ollama_base = api_base.removesuffix("/v1").removesuffix("/")
+            # Ollama's native API is at the server root, not /v1.
+            # Extract scheme+netloc from api_base to construct the right URL.
+            ollama_base = get_root_url(api_base)
             resp = requests.get(f"{ollama_base}/api/tags", timeout=5)
             if resp.status_code == 200:
                 for m in resp.json().get("models", []):
@@ -181,12 +186,8 @@ def _list_models_detailed(provider: str, api_base: str, api_key: str) -> list:
                             "id": mid,
                             "name": mid,
                             "provider": provider,
-                            "parameters": m.get("metadata", {}).get(
-                                "parameter_count", "unknown"
-                            ),
-                            "quantization": m.get("metadata", {}).get(
-                                "quantization", "unknown"
-                            ),
+                            "parameters": m.get("metadata", {}).get("parameter_count", "unknown"),
+                            "quantization": m.get("metadata", {}).get("quantization", "unknown"),
                             "size_bytes": m.get("metadata", {}).get("model_size", 0),
                         }
                     )

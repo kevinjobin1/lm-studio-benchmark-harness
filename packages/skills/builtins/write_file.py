@@ -67,7 +67,7 @@ class WriteFileSkill(Skill):
             parent = os.path.dirname(full_path)
             os.makedirs(parent, exist_ok=True)
 
-            with open(full_path, 'w', encoding=encoding) as f:
+            with open(full_path, "w", encoding=encoding) as f:
                 f.write(content)
 
             file_size = os.path.getsize(full_path)

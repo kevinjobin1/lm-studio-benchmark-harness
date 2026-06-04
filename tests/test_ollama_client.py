@@ -8,6 +8,7 @@ from unittest.mock import patch, MagicMock
 
 # Mock external deps before importing OllamaClient to avoid real API calls
 import sys
+
 sys.modules["openai"] = MagicMock()
 sys.modules["requests"] = MagicMock()
 
@@ -29,9 +30,7 @@ class TestOllamaClientHealthCheck(unittest.TestCase):
         result = client.health_check()
 
         self.assertTrue(result)
-        mock_get.assert_called_once_with(
-            "http://localhost:11434/v1/models", timeout=5
-        )
+        mock_get.assert_called_once_with("http://localhost:11434/v1/models", timeout=5)
 
     @patch("providers.ollama.requests.get")
     def test_health_check_fallback_to_api_tags(self, mock_get):
@@ -46,12 +45,8 @@ class TestOllamaClientHealthCheck(unittest.TestCase):
 
         self.assertTrue(result)
         self.assertEqual(mock_get.call_count, 2)
-        mock_get.assert_any_call(
-            "http://localhost:11434/v1/models", timeout=5
-        )
-        mock_get.assert_any_call(
-            "http://localhost:11434/api/tags", timeout=5
-        )
+        mock_get.assert_any_call("http://localhost:11434/v1/models", timeout=5)
+        mock_get.assert_any_call("http://localhost:11434/api/tags", timeout=5)
 
     @patch("providers.ollama.requests.get")
     def test_health_check_both_fail(self, mock_get):
@@ -86,9 +81,7 @@ class TestOllamaClientHealthCheck(unittest.TestCase):
         result = client.health_check()
 
         self.assertTrue(result)
-        mock_get.assert_called_once_with(
-            "http://192.168.1.100:11434/v1/models", timeout=5
-        )
+        mock_get.assert_called_once_with("http://192.168.1.100:11434/v1/models", timeout=5)
 
 
 class TestOllamaClientListModels(unittest.TestCase):
@@ -135,9 +128,7 @@ class TestOllamaClientListModels(unittest.TestCase):
         client = OllamaClient()
         models = client.list_models()
 
-        mock_get.assert_called_once_with(
-            "http://localhost:11434/api/tags", timeout=10
-        )
+        mock_get.assert_called_once_with("http://localhost:11434/api/tags", timeout=10)
 
         self.assertEqual(len(models), 3)
         self.assertTrue(all(isinstance(m, Model) for m in models))
@@ -181,9 +172,7 @@ class TestOllamaClientListModels(unittest.TestCase):
         client = OllamaClient()
         models = client.list_models()
 
-        mock_get.assert_called_once_with(
-            "http://localhost:11434/api/tags", timeout=10
-        )
+        mock_get.assert_called_once_with("http://localhost:11434/api/tags", timeout=10)
 
         self.assertEqual(len(models), 1)
         self.assertEqual(models[0].id, "codellama")
@@ -208,9 +197,7 @@ class TestOllamaClientListModels(unittest.TestCase):
         client = OllamaClient()
         models = client.list_models()
 
-        mock_get.assert_called_once_with(
-            "http://localhost:11434/api/tags", timeout=10
-        )
+        mock_get.assert_called_once_with("http://localhost:11434/api/tags", timeout=10)
 
         self.assertEqual(len(models), 1)
         self.assertEqual(models[0].quantization, "unknown")
@@ -227,9 +214,7 @@ class TestOllamaClientListModels(unittest.TestCase):
         client = OllamaClient()
         models = client.list_models()
 
-        mock_get.assert_called_once_with(
-            "http://localhost:11434/api/tags", timeout=10
-        )
+        mock_get.assert_called_once_with("http://localhost:11434/api/tags", timeout=10)
 
         self.assertEqual(models, [])
 
@@ -243,9 +228,7 @@ class TestOllamaClientListModels(unittest.TestCase):
         client = OllamaClient()
         models = client.list_models()
 
-        mock_get.assert_called_once_with(
-            "http://localhost:11434/api/tags", timeout=10
-        )
+        mock_get.assert_called_once_with("http://localhost:11434/api/tags", timeout=10)
 
         self.assertEqual(models, [])
 
@@ -257,9 +240,7 @@ class TestOllamaClientListModels(unittest.TestCase):
         client = OllamaClient()
         models = client.list_models()
 
-        mock_get.assert_called_once_with(
-            "http://localhost:11434/api/tags", timeout=10
-        )
+        mock_get.assert_called_once_with("http://localhost:11434/api/tags", timeout=10)
 
         self.assertEqual(models, [])
 
@@ -282,9 +263,7 @@ class TestOllamaClientListModels(unittest.TestCase):
         client = OllamaClient()
         models = client.list_models()
 
-        mock_get.assert_called_once_with(
-            "http://localhost:11434/api/tags", timeout=10
-        )
+        mock_get.assert_called_once_with("http://localhost:11434/api/tags", timeout=10)
 
         self.assertEqual(len(models), 1)
         self.assertEqual(models[0].id, "registry.example.com/team/model:latest")

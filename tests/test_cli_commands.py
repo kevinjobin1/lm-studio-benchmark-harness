@@ -66,6 +66,7 @@ class TestModellensCLI(unittest.TestCase):
         result = self.runner.invoke(cli, ["info", "--json", "--provider", "lm-studio"])
         self.assertEqual(result.exit_code, 0)
         import json
+
         data = json.loads(result.output)
         self.assertIn("provider", data)
         self.assertIn("hardware", data)
@@ -120,6 +121,7 @@ class TestModellensCLI(unittest.TestCase):
         self.assertEqual(result.exit_code, 0, msg=result.output)
 
         import json
+
         data = json.loads(result.output)
 
         # Top-level structure
@@ -156,15 +158,21 @@ class TestModellensCLI(unittest.TestCase):
 
     def test_health_unreachable_provider(self):
         """Health check on unreachable provider should exit with error."""
-        result = self.runner.invoke(cli, ["health", "--provider", "lm-studio", "--api-base", "http://127.0.0.1:65432/v1"])
+        result = self.runner.invoke(
+            cli, ["health", "--provider", "lm-studio", "--api-base", "http://127.0.0.1:65432/v1"]
+        )
         self.assertNotEqual(result.exit_code, 0)
         self.assertIn("unreachable", result.output.lower())
 
     def test_health_json_unreachable(self):
         """Health --json on unreachable provider should still output JSON."""
-        result = self.runner.invoke(cli, ["health", "--provider", "vllm", "--api-base", "http://127.0.0.1:65432/v1", "--json"])
+        result = self.runner.invoke(
+            cli,
+            ["health", "--provider", "vllm", "--api-base", "http://127.0.0.1:65432/v1", "--json"],
+        )
         self.assertEqual(result.exit_code, 0)
         import json
+
         data = json.loads(result.output)
         self.assertEqual(data["provider"], "vllm")
         self.assertFalse(data["reachable"])
