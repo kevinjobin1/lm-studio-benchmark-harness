@@ -17,12 +17,15 @@ import uuid
 from typing import Dict, List, Optional, Generator, Any
 from contextlib import contextmanager
 
+from packages.logging import get_logger
 from .trace_schema import (
     Trace,
     TraceEvent,
     TraceMetrics,
     TraceArtifacts,
 )
+
+logger = get_logger(__name__)
 
 
 class TraceCapture:
@@ -205,8 +208,10 @@ class TraceCapture:
             import psutil
             process = psutil.Process()
             memory_pressure_mb = process.memory_info().rss / 1024 / 1024
-        except Exception:
-            pass
+        except (ImportError, ModuleNotFoundError):
+            pass  # psutil not installed
+        except Exception as e:
+            logger.debug("Could not capture memory pressure: %s", e)
 
         # Record reasoning event (aggregate analysis)
         tps_display = f"{tokens_per_second:.1f}" if tokens_per_second > 0 else "N/A"

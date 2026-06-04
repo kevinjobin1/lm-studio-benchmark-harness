@@ -99,15 +99,14 @@ try {
     {
         results.length === 0 ? (
             <div class="empty-state">
-                <p>
-                    No benchmark results found. Run the benchmark suite to
-                    populate data.
+                <span class="material-symbols-outlined empty-state-icon">lab_profile</span>
+                <h3>No benchmark results found</h3>
+                <p class="text-balance">
+                    Run the benchmark suite from your terminal to populate data and visualize model performance.
                 </p>
-                <p style="margin-top: 8px; font-size: 0.85rem;">
-                    <code style="background: var(--bg-low); padding: 4px 10px; border-radius: var(--radius-sm); font-family: var(--font-mono);">
-                        python3 cli.py run --models qwen3.5-9b-coder
-                    </code>
-                </p>
+                <code class="inline-code">
+                    python3 cli.py run --models qwen3.5-9b-coder
+                </code>
             </div>
         ) : (
             <DashboardShell

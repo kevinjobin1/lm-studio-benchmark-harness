@@ -49,7 +49,7 @@ export default function TracesTabs({ traces, results, initialTraceId }: TracesTa
   return (
     <div className="traces-tabs-layout">
       {/* Tab bar */}
-      <div className="traces-tabs-bar">
+      <div className="traces-tabs-bar" role="tablist">
         {TABS.map((tab) => (
           <button
             key={tab.id}
@@ -58,7 +58,7 @@ export default function TracesTabs({ traces, results, initialTraceId }: TracesTa
             aria-selected={activeTab === tab.id}
             role="tab"
           >
-            <span className="material-symbols-outlined traces-tab-icon">{tab.icon}</span>
+            <span className="material-symbols-outlined traces-tab-icon" aria-hidden="true">{tab.icon}</span>
             <div className="traces-tab-info">
               <span className="traces-tab-label">{tab.label}</span>
               <span className="traces-tab-desc">{tab.description}</span>

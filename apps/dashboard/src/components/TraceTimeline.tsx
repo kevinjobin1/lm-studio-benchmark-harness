@@ -119,11 +119,15 @@ function buildTraceRuns(results: BenchmarkResult[]): TraceRun[] {
     model: r.model,
     pack: r.packs_used[0] || "default",
     prompt: `benchmark/${r.model}`,
+    // Use UTC timezone so SSR (Node.js) and client hydration (browser)
+    // produce the same timestamp string — preventing React hydration errors
+    // (#418, #423, #425) caused by timezone-dependent formatting.
     timestamp: new Date(r.timestamp).toLocaleDateString("en-US", {
       month: "short",
       day: "numeric",
       hour: "numeric",
       minute: "2-digit",
+      timeZone: "UTC",
     }),
     totalTimeMs: r.performance.total_latency_ms,
     status:
@@ -264,39 +268,27 @@ export default function TraceTimeline({ traces, results, initialTraceId }: Trace
   const tracesFromResults =
     results && results.length > 0 ? buildTraceRuns(results) : null;
 
-  const initialTraces: TraceRun[] =
-    (() => {
-      // Load playground-captured traces from localStorage (V2)
-      const localTraces = loadPlaygroundTraces();
+  // Determine the base traces (without localStorage) — must be deterministic
+  // between SSR and client hydration to avoid React hydration errors (#418, #423, #425).
+  const baseTraces: TraceRun[] =
+    traces && traces.length > 0
+      ? traces
+      : tracesFromResults && tracesFromResults.length > 0
+        ? tracesFromResults
+        : generateDemoTraces();
 
-      const base =
-        traces && traces.length > 0
-          ? traces
-          : tracesFromResults && tracesFromResults.length > 0
-            ? tracesFromResults
-            : generateDemoTraces();
-
-      // Merge: prepend local traces, skip duplicates by ID
-      const baseIds = new Set(base.map((t) => t.id));
-      const newLocal = localTraces.filter((t) => !baseIds.has(t.id));
-      if (newLocal.length > 0) {
-        return [...newLocal, ...base];
-      }
-      return base;
-    })();
-
-  // Determine the initial selected run ID:
-  // 1. If initialTraceId is provided and exists in the traces, use it
-  // 2. Otherwise use the first trace
+  // Determine the initial selected run ID from base traces only
   const resolvedInitialId = (() => {
     if (initialTraceId) {
-      const match = initialTraces.find(t => t.id === initialTraceId);
+      const match = baseTraces.find(t => t.id === initialTraceId);
       if (match) return match.id;
     }
-    return initialTraces[0]?.id ?? null;
+    return baseTraces[0]?.id ?? null;
   })();
 
-  const [allTraces, setAllTraces] = useState<TraceRun[]>(initialTraces);
+  // Start with base traces — localStorage playground traces are loaded
+  // after hydration in a useEffect to keep SSR ↔ client HTML identical.
+  const [allTraces, setAllTraces] = useState<TraceRun[]>(baseTraces);
   const allTracesRef = useRef(allTraces);
   allTracesRef.current = allTraces;
 
@@ -729,6 +721,51 @@ export default function TraceTimeline({ traces, results, initialTraceId }: Trace
     [showToast],
   );
 
+  // ── Load localStorage playground traces after hydration ─────
+  //
+  // We avoid calling loadPlaygroundTraces() during SSR because localStorage
+  // is not available in Node.js — use a one-time effect so that base HTML
+  // is identical between server and client, preventing React hydration errors.
+  useEffect(() => {
+    const localTraces = loadPlaygroundTraces();
+    if (localTraces.length === 0) return;
+
+    // Merge: prepend local traces, skip duplicates by ID
+    setAllTraces((prev) => {
+      const prevIds = new Set(prev.map((t) => t.id));
+      const newLocal = localTraces.filter((t) => !prevIds.has(t.id));
+      if (newLocal.length === 0) return prev;
+      return [...newLocal, ...prev];
+    });
+  }, []);
+
+  // ── Re-select initialTraceId after localStorage traces load ──
+  //
+  // Handles the edge case where ?trace_id= points to a trace that only
+  // exists in localStorage (e.g., captured from the Playground). During
+  // SSR, initialTraceId won't be found in baseTraces, so selectedRunId
+  // falls back to baseTraces[0]. Once playground traces load, we check
+  // again and re-select if the target trace is now available.
+  //
+  // A ref gates the effect to one attempt — after the initial hydration
+  // handshake, subsequent allTraces changes (e.g., from import) won't
+  // override the user's manual selection.
+  const reSelectAttempted = useRef(false);
+  useEffect(() => {
+    if (!initialTraceId || reSelectAttempted.current) return;
+    if (selectedRunId === initialTraceId) {
+      reSelectAttempted.current = true;
+      return;
+    }
+
+    const match = allTraces.find(t => t.id === initialTraceId);
+    if (match) {
+      reSelectAttempted.current = true;
+      setSelectedRunId(initialTraceId);
+      setCurrentStepIndex(0);
+    }
+  }, [allTraces]);
+
   // Clean up toast timer on unmount
   useEffect(() => {
     return () => {
@@ -761,7 +798,7 @@ export default function TraceTimeline({ traces, results, initialTraceId }: Trace
               onClick={handleImportTraces}
               aria-label="Import traces"
             >
-              <span className="material-symbols-outlined">file_upload</span>
+              <span className="material-symbols-outlined" aria-hidden="true">file_upload</span>
             </button>
             <button
               className="traces-sidebar-export"
@@ -769,7 +806,7 @@ export default function TraceTimeline({ traces, results, initialTraceId }: Trace
               onClick={handleExportAllTraces}
               aria-label="Export all traces"
             >
-              <span className="material-symbols-outlined">archive</span>
+              <span className="material-symbols-outlined" aria-hidden="true">archive</span>
             </button>
             <span className="material-symbols-outlined traces-filter-icon">
               filter_list
@@ -777,15 +814,16 @@ export default function TraceTimeline({ traces, results, initialTraceId }: Trace
           </div>
         </div>
         <div className="traces-filter">
-          <span className="material-symbols-outlined traces-filter-search-icon">search</span>
-          <input
-            className="traces-filter-input"
-            type="text"
-            placeholder="Filter by model, pack, or status…"
-            value={filterText}
-            onChange={(e) => setFilterText(e.target.value)}
-            aria-label="Filter traces"
-          />
+          <span className="material-symbols-outlined traces-filter-search-icon">search</span>            <input
+              className="traces-filter-input"
+              type="text"
+              name="trace-filter"
+              id="trace-filter"
+              placeholder="Filter by model, pack, or status…"
+              value={filterText}
+              onChange={(e) => setFilterText(e.target.value)}
+              aria-label="Filter traces"
+            />
           {filterText && (
             <button
               className="traces-filter-clear"
@@ -793,7 +831,7 @@ export default function TraceTimeline({ traces, results, initialTraceId }: Trace
               aria-label="Clear filter"
               title="Clear filter"
             >
-              <span className="material-symbols-outlined">close</span>
+              <span className="material-symbols-outlined" aria-hidden="true">close</span>
             </button>
           )}
         </div>
@@ -852,7 +890,7 @@ export default function TraceTimeline({ traces, results, initialTraceId }: Trace
                   onClick={handleCopyJSON}
                   aria-label="Copy trace JSON"
                 >
-                  <span className="material-symbols-outlined">
+                  <span className="material-symbols-outlined" aria-hidden="true">
                     {toastMessage === "Copied to clipboard" ? "check" : "content_copy"}
                   </span>
                 </button>
@@ -863,7 +901,7 @@ export default function TraceTimeline({ traces, results, initialTraceId }: Trace
                   disabled={isSavingSnapshot}
                   aria-label="Save snapshot"
                 >
-                  <span className="material-symbols-outlined">
+                  <span className="material-symbols-outlined" aria-hidden="true">
                     {isSavingSnapshot ? "sync" : "camera"}
                   </span>
                 </button>
@@ -873,7 +911,7 @@ export default function TraceTimeline({ traces, results, initialTraceId }: Trace
                   onClick={handleCopySnapshotLink}
                   aria-label="Copy snapshot link"
                 >
-                  <span className="material-symbols-outlined">link</span>
+                  <span className="material-symbols-outlined" aria-hidden="true">link</span>
                 </button>
                 <button
                   className="traces-tl-export"
@@ -881,7 +919,7 @@ export default function TraceTimeline({ traces, results, initialTraceId }: Trace
                   onClick={handleDownloadTrace}
                   aria-label="Download trace JSON"
                 >
-                  <span className="material-symbols-outlined">download</span>
+                  <span className="material-symbols-outlined" aria-hidden="true">download</span>
                 </button>
                 <div className="traces-tl-total">
                   <span className="mono-label">Total Time</span>

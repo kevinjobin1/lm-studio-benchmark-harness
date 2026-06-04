@@ -5,6 +5,8 @@ Focused on TypeScript/NestJS/React with statistical rigor and execution-grounded
 """
 
 import json
+import os
+import sys
 import time
 import psutil
 import asyncio
@@ -16,6 +18,15 @@ import matplotlib.pyplot as plt
 import numpy as np
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import statistics
+
+# Ensure packages/ and apps/cli/ are discoverable when the script is run
+# directly instead of via the installed console script entry point.
+_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+_PACKAGES_DIR = os.path.join(os.path.dirname(os.path.dirname(_SCRIPT_DIR)), "packages")
+if _PACKAGES_DIR not in sys.path:
+    sys.path.insert(0, _PACKAGES_DIR)
+if _SCRIPT_DIR not in sys.path:
+    sys.path.insert(0, _SCRIPT_DIR)
 
 from scoring import (
     ComprehensiveEvaluator,
@@ -38,7 +49,6 @@ try:
 except ImportError:
     TraceCapture = None  # type: ignore
     wrap_stream = None    # type: ignore
-    import sys
     print("[devbench] Trace capture not available — traces disabled.", file=sys.stderr)
 
 # ── Event Bus ───────────────────────────────────────────────────

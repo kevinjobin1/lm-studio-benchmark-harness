@@ -34,6 +34,9 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Set
 
 from events import EventBus, default_bus
+from packages.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 # ── Serialization helpers (shared logic with sse.py) ──────────────
@@ -267,11 +270,12 @@ class EventBusReplayWriter:
             with open(tmp_path, "w") as f:
                 json.dump(replay_data, f, indent=2, default=str)
             os.replace(tmp_path, file_path)
-        except Exception:
+        except (OSError, IOError, json.JSONDecodeError) as e:
+            logger.error("Failed to write replay file %s: %s", filename, e)
             # Clean up temp file on failure
             try:
                 tmp_path.unlink(missing_ok=True)
-            except Exception:
+            except OSError:
                 pass
             raise
 
@@ -297,8 +301,8 @@ class EventBusReplayWriter:
                 with open(index_path) as f:
                     existing = json.load(f)
                     index["replays"] = existing.get("replays", [])
-            except Exception:
-                pass
+            except (json.JSONDecodeError, OSError, IOError) as e:
+                logger.warning("Could not read replay index, starting fresh: %s", e)
 
         # Replace entry if run_id already exists, otherwise append
         entry = session.to_index_entry(filename)
@@ -316,10 +320,11 @@ class EventBusReplayWriter:
             with open(tmp_path, "w") as f:
                 json.dump(index, f, indent=2, default=str)
             os.replace(tmp_path, index_path)
-        except Exception:
+        except (OSError, IOError, json.JSONDecodeError) as e:
+            logger.error("Failed to write replay index: %s", e)
             try:
                 tmp_path.unlink(missing_ok=True)
-            except Exception:
+            except OSError:
                 pass
             raise
 
@@ -362,10 +367,7 @@ def run_replay_writer(
     """
     writer = EventBusReplayWriter(bus=default_bus, output_dir=output_dir)
     writer.start()
-    print(
-        f"Model Lens replay writer started → {writer.output_dir}/",
-        flush=True,
-    )
+    logger.info("Model Lens replay writer started → %s/", writer.output_dir)
     try:
         while True:
             time.sleep(3600)

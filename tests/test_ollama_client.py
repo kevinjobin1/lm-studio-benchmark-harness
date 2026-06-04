@@ -3,17 +3,11 @@ Unit tests for OllamaClient — health_check() and list_models().
 Uses unittest.mock to simulate HTTP responses without a running Ollama server.
 """
 
-import sys
-import os
 import unittest
 from unittest.mock import patch, MagicMock
 
-# Add project root and packages/ to path so imports work from the tests/ directory
-_project_root = os.path.join(os.path.dirname(__file__), "..")
-sys.path.insert(0, _project_root)
-sys.path.insert(0, os.path.join(_project_root, "packages"))
-
 # Mock external deps before importing OllamaClient to avoid real API calls
+import sys
 sys.modules["openai"] = MagicMock()
 sys.modules["requests"] = MagicMock()
 

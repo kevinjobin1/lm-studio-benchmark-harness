@@ -13,14 +13,14 @@ const { title, subtitle } = Astro.props;
         <p class="dashboard-subtitle">{subtitle}</p>
     </div>
     <div class="dashboard-actions">
-        <button class="btn-outline">
-            <span class="material-symbols-outlined" style="font-size:18px"
+        <button class="btn-outline btn-disabled" disabled aria-disabled="true" title="Filter — coming soon">
+            <span class="material-symbols-outlined icon-18"
                 >filter_list</span
             >
             <span>Filter</span>
         </button>
-        <button class="btn-outline">
-            <span class="material-symbols-outlined" style="font-size:18px"
+        <button class="btn-outline btn-disabled" disabled aria-disabled="true" title="Export CSV — coming soon">
+            <span class="material-symbols-outlined icon-18"
                 >file_download</span
             >
             <span>Export CSV</span>

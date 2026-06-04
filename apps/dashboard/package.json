@@ -16,11 +16,12 @@
     "generate-sample-traces": "python3 scripts/generate_sample_traces.py",
     "prebuild": "npm run generate-real && npm run generate-trace-index && npm run generate-snapshot-index && npm run generate-workload-index",
     "typecheck": "tsc --noEmit",
-    "deploy": "npm run build && node dist/server/entry.mjs",
+    "deploy": "astro build && npx purgecss --config purgecss.config.cjs --output dist/client/assets/ && node -e \"const f=require('fs');const j=JSON.parse(f.readFileSync('dist/server/wrangler.json','utf-8'));['assets','main','rules','images','previews'].forEach(k=>delete j[k]);f.writeFileSync('dist/server/wrangler.json',JSON.stringify(j,null,2));\" && wrangler pages deploy dist --project-name modellens",
     "cf-build": "astro build",
     "test": "vitest run"
   },
   "dependencies": {
+    "@astrojs/cloudflare": "^13.6.1",
     "@astrojs/node": "^10.1.2",
     "@astrojs/react": "5.0.6",
     "astro": "6.4.2",
@@ -38,6 +39,7 @@
     "@types/react-dom": "^18.3.0",
     "eventsource": "^4.1.0",
     "jsdom": "^29.1.1",
+    "purgecss": "^8.0.0",
     "typescript": "^5.5.4",
     "vitest": "^4.1.8"
   }

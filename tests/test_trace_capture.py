@@ -4,14 +4,6 @@ Tests for trace capture (V2).
 Run with: python3 -m pytest tests/test_trace_capture.py -v
 """
 
-import sys
-from pathlib import Path
-
-# Ensure packages/ is on sys.path for core.* imports
-_packages_dir = Path(__file__).resolve().parent.parent / "packages"
-if str(_packages_dir) not in sys.path:
-    sys.path.insert(0, str(_packages_dir))
-
 import json
 import pytest
 from core.trace_schema import (

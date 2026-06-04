@@ -43,24 +43,25 @@ class MCPBridge:
         """Register all skills as MCP tools."""
         for skill in self.registry.list_all():
             manifest = skill.manifest
-
-            async def make_handler(s: Skill):
-                async def handler(input_data: Dict[str, Any]) -> Dict[str, Any]:
-                    ctx = SkillContext(
-                        working_directory=".",
-                        sandbox={},
-                    )
-                    inp = SkillInput(raw=input_data)
-                    result = await s.run(inp, ctx)
-                    return result.to_dict()
-                return handler
-
+            # Bind the skill instance to a closure now to avoid late-binding
             self._tools[manifest.name] = MCPToolDefinition(
                 name=manifest.name,
                 description=manifest.description,
                 input_schema=manifest.input_schema,
-                handler=make_handler(skill),
+                handler=self._make_handler(skill),
             )
+
+    def _make_handler(self, skill: Skill) -> Callable:
+        """Create a handler closure bound to a specific skill instance."""
+        async def handler(input_data: Dict[str, Any]) -> Dict[str, Any]:
+            ctx = SkillContext(
+                working_directory=".",
+                sandbox={},
+            )
+            inp = SkillInput(raw=input_data)
+            result = await skill.run(inp, ctx)
+            return result.to_dict()
+        return handler
 
     def list_tools(self) -> List[Dict[str, Any]]:
         """List all available MCP tools."""

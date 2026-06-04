@@ -8,16 +8,9 @@ Uses built-in sample projects (no git/local dependencies) and deterministic
 seeds for reproducible test results.
 """
 
-import sys
-import os
 import unittest
 import tempfile
 from pathlib import Path
-
-# Add packages/ to path
-_project_root = os.path.join(os.path.dirname(__file__), "..")
-sys.path.insert(0, _project_root)
-sys.path.insert(0, os.path.join(_project_root, "packages"))
 
 from core.workload import (
     ProjectLoader, ProjectFile, Project,

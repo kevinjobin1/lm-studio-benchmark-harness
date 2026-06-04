@@ -26,7 +26,9 @@ function formatMs(ms: number): string {
 function formatTimestamp(iso: string): string {
   try {
     const d = new Date(iso);
-    return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", second: "2-digit" });
+    // Use UTC timezone so SSR (Node.js) and client hydration (browser)
+    // produce the same timestamp string — preventing React hydration errors.
+    return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", second: "2-digit", timeZone: "UTC" });
   } catch {
     return iso;
   }

@@ -1,4 +1,6 @@
 # Model Lens Benchmark Configuration
+# Unified YAML for both general benchmarks and DevBench v2.
+# The old config.json (DevBench-only, flat JSON) is deprecated.
 
 api:
   base_url: "http://localhost:1234/v1"
@@ -15,46 +17,130 @@ model:
 benchmarks:
   samples_per_benchmark: 100  # Number of samples for each benchmark
   quick_mode_samples: 10      # Reduced samples for quick mode
-  
+
   mmlu_pro:
     enabled: true
     subjects: ["math", "physics", "chemistry", "biology", "computer_science"]
-    
+
   gsm8k:
     enabled: true
-    
+
   aime:
     enabled: true
-    
+
   humaneval:
     enabled: true
-    
+
   swe_bench_lite:
     enabled: true
     max_tasks: 20
-    
+
   ifeval:
     enabled: true
-    
+
   needle_in_haystack:
     enabled: true
     context_lengths: [4000, 8000, 16000, 32000]
-    
+
   bfcl:
     enabled: true
     categories: ["simple", "multi_turn", "parallel"]
-    
+
   speed_latency:
     enabled: true
     prompt_lengths: [100, 500, 1000, 2000]
-    
+
   memory:
     enabled: true
     monitor_interval: 1.0
-    
+
   creativity:
     enabled: true
     prompts_file: "data/creativity_prompts.json"
+
+devbench:
+  description: "DevBench v2 — TypeScript/NestJS/React evaluation"
+  models:
+    auto_detect: true
+    metadata_fields: ["size", "quantization", "parameters"]
+  endpoint:
+    base_url: "http://localhost:1234/v1"
+    api_key: "lm-studio"
+    timeout: 30
+  generation:
+    temperature: 0.2
+    max_tokens: 1000
+    top_p: 0.9
+    stream: true
+  prompts:
+    generator: auto
+    total_count: 20
+    categories:
+      code:
+        enabled: true
+        weight: 0.4
+        count: 8
+        subcategories: ["nestjs", "react", "typescript"]
+      frontend:
+        enabled: true
+        weight: 0.2
+        count: 4
+        subcategories: ["react", "threejs", "tailwind"]
+      reasoning:
+        enabled: true
+        weight: 0.15
+        count: 3
+        subcategories: ["architecture", "system_design"]
+      math:
+        enabled: true
+        weight: 0.15
+        count: 3
+        subcategories: ["developer_math"]
+      instruction:
+        enabled: true
+        weight: 0.05
+        count: 1
+        subcategories: ["json", "formatting"]
+      debugging:
+        enabled: true
+        weight: 0.05
+        count: 1
+        subcategories: ["race_condition", "di_bug", "stale_closure"]
+    difficulty_distribution:
+      easy: 0.3
+      medium: 0.5
+      hard: 0.2
+  evaluation:
+    runs_per_prompt: 5
+    parallel_execution: true
+    max_workers: 3
+    execution_grounded:
+      enabled: true
+      ts_node: true
+      tsc: true
+      eslint: true
+    statistical:
+      confidence_interval: 0.95
+      outlier_detection: true
+      outlier_method: iqr
+  metrics:
+    track_latency: true
+    track_memory: true
+    track_thermal: false
+    tokenization_aware: true
+    normalization_reference_length: 100
+  output:
+    directory: devbench_results
+    formats: [json, csv, markdown]
+    charts: [radar, leaderboard]
+  hardware:
+    target: apple_silicon
+    memory_gb: 18
+    architecture: arm64
+  reproducibility:
+    seed: null
+    deterministic: false
+    version_prompts: true
 
 output:
   directory: "results"

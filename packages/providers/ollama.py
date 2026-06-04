@@ -13,6 +13,7 @@ from typing import Dict, List, Optional, Tuple
 
 from openai import OpenAI
 
+from packages.logging import get_logger
 from .base import (
     ProviderAdapter,
     Model,
@@ -21,6 +22,8 @@ from .base import (
     ProviderMetrics,
     APICallMetrics,
 )
+
+logger = get_logger(__name__)
 
 
 DEFAULT_OLLAMA_URL = "http://localhost:11434"
@@ -66,13 +69,17 @@ class OllamaClient(ProviderAdapter):
             resp = requests.get(f"{self.v1_url}/models", timeout=5)
             if resp.status_code == 200:
                 return True
-        except Exception:
+        except (requests.ConnectionError, requests.Timeout):
             pass
         # Fall back to native endpoint for older Ollama (< 0.1.28)
         try:
             resp = requests.get(f"{self.base_url}/api/tags", timeout=5)
             return resp.status_code == 200
-        except Exception:
+        except (requests.ConnectionError, requests.Timeout) as e:
+            logger.debug("Ollama health check failed (connection/timeout): %s", e)
+            return False
+        except requests.RequestException as e:
+            logger.warning("Ollama health check failed: %s", e)
             return False
 
     def list_models(self) -> List[Model]:
@@ -100,8 +107,10 @@ class OllamaClient(ProviderAdapter):
                         ),
                         size_bytes=m.get("size", 0),
                     ))
-        except Exception as e:
-            print(f"[ollama] Error listing models: {e}")
+        except (requests.ConnectionError, requests.Timeout) as e:
+            logger.debug("Ollama list_models failed (connection/timeout): %s", e)
+        except (requests.RequestException, ValueError, KeyError) as e:
+            logger.warning("Ollama error listing models: %s", e)
 
         return models
 

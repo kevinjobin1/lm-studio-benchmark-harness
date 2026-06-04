@@ -22,6 +22,10 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Dict, Optional
 
+from packages.logging import get_logger
+
+logger = get_logger(__name__)
+
 
 @dataclass
 class HardwareInfo:
@@ -118,7 +122,8 @@ def _macos_cpu_model() -> str:
             timeout=5,
         )
         return result.stdout.strip()
-    except Exception:
+    except (subprocess.TimeoutExpired, FileNotFoundError, OSError) as e:
+        logger.debug("Could not detect macOS CPU model: %s", e)
         return ""
 
 
@@ -133,7 +138,8 @@ def _macos_cpu_freq() -> float:
         )
         hz = int(result.stdout.strip())
         return round(hz / 1_000_000, 1)
-    except Exception:
+    except (subprocess.TimeoutExpired, FileNotFoundError, OSError, ValueError) as e:
+        logger.debug("Could not detect macOS CPU frequency: %s", e)
         return 0.0
 
 
@@ -151,7 +157,8 @@ def _macos_gpu_model() -> str:
             if stripped.startswith("Chipset Model:"):
                 return stripped.split(":", 1)[1].strip()
         return ""
-    except Exception:
+    except (subprocess.TimeoutExpired, FileNotFoundError, OSError) as e:
+        logger.debug("Could not detect macOS GPU model: %s", e)
         return ""
 
 
@@ -174,7 +181,8 @@ def _macos_gpu_vram() -> float:
                 if match:
                     return float(match.group(1))
         return 0.0
-    except Exception:
+    except (subprocess.TimeoutExpired, FileNotFoundError, OSError) as e:
+        logger.debug("Could not detect macOS GPU VRAM: %s", e)
         return 0.0
 
 
@@ -186,7 +194,8 @@ def _linux_cpu_model() -> str:
                 if line.startswith("model name"):
                     return line.split(":", 1)[1].strip()
         return ""
-    except Exception:
+    except (FileNotFoundError, PermissionError, OSError) as e:
+        logger.debug("Could not detect Linux CPU model: %s", e)
         return ""
 
 
@@ -203,7 +212,8 @@ def _linux_gpu_model() -> str:
             if "VGA" in line or "3D" in line or "Display" in line:
                 return line.split(":", 2)[-1].strip()
         return ""
-    except Exception:
+    except (subprocess.TimeoutExpired, FileNotFoundError, OSError) as e:
+        logger.debug("Could not detect Linux GPU model: %s", e)
         return ""
 
 
@@ -237,8 +247,10 @@ def detect_hardware() -> HardwareInfo:
         hw.ram_available_mb = round(mem.available / (1024 * 1024), 1)
         swap = psutil.swap_memory()
         hw.swap_total_mb = round(swap.total / (1024 * 1024), 1)
-    except Exception:
-        pass
+    except (ImportError, ModuleNotFoundError):
+        pass  # psutil not installed — skip CPU/memory detection
+    except Exception as e:
+        logger.debug("Could not detect CPU/memory via psutil: %s", e)
 
     # ── GPU ───────────────────────────────────────────────────────
     if hw.os_name == "Darwin":

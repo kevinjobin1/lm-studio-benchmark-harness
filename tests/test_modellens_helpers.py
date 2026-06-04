@@ -3,18 +3,11 @@ Unit tests for modellens CLI helpers: _resolve_provider, _list_models_detailed, 
 Uses unittest.mock to simulate HTTP responses and provider detection.
 """
 
-import sys
-import os
 import unittest
 from unittest.mock import patch, MagicMock
 
-# Add project root and packages/ to path
-_project_root = os.path.join(os.path.dirname(__file__), "..")
-sys.path.insert(0, _project_root)
-sys.path.insert(0, os.path.join(_project_root, "packages"))
-sys.path.insert(0, os.path.join(_project_root, "apps", "cli"))
-
 # Mock external deps before importing modellens helpers
+import sys
 sys.modules["openai"] = MagicMock()
 sys.modules["requests"] = MagicMock()
 sys.modules["click"] = MagicMock()

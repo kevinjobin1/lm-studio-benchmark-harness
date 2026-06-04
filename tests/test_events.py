@@ -16,15 +16,8 @@ Covers:
   - Concrete event types (TokenGeneratedEvent, CompletionEvent, MetricEvent, ErrorEvent, RunLifecycleEvent)
 """
 
-import sys
-import os
 import asyncio
 import unittest
-
-# Add packages/ to path
-_project_root = os.path.join(os.path.dirname(__file__), "..")
-sys.path.insert(0, _project_root)
-sys.path.insert(0, os.path.join(_project_root, "packages"))
 
 from events import (
     EventBus,

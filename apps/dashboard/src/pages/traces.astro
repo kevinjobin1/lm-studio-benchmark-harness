@@ -1,6 +1,7 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
 import TracesTabs from "../components/TracesTabs";
+import ErrorBoundary from "../components/ErrorBoundary";
 import type { TraceRun } from "../lib/traceTypes";
 import { loadResults } from "../lib/loadResults";
 import { loadTraceManifest, loadTrace, mapTraceToRun } from "../lib/loadTraces";
@@ -54,12 +55,13 @@ const totalTraceCount = realTraces.length > 0 ? realTraces.length : results.leng
         </div>
     </div>
 
-    <TracesTabs
-        client:load
-        traces={realTraces.length > 0 ? realTraces : undefined}
-        results={results.length > 0 ? results : undefined}
-        initialTraceId={preSelectTraceId}
-    />
+    <ErrorBoundary client:load>
+        <TracesTabs
+            traces={realTraces.length > 0 ? realTraces : undefined}
+            results={results.length > 0 ? results : undefined}
+            initialTraceId={preSelectTraceId}
+        />
+    </ErrorBoundary>
 </BaseLayout>
 
 <style is:global>

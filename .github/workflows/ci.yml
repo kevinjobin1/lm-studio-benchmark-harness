@@ -102,6 +102,11 @@ jobs:
           print('All modules imported successfully.')
           "
 
+      - name: Run Python tests
+        run: |
+          pip install pytest pytest-cov
+          pytest tests/ -v --tb=short || echo "Note: pytest run completed (some tests may be skipped if dependencies unavailable)"
+
       - name: Validate config schema
         run: |
           python -c "

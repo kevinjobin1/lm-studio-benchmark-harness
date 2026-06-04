@@ -1,6 +1,7 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
 import PlaygroundApp from "../components/PlaygroundApp.tsx";
+import ErrorBoundary from "../components/ErrorBoundary";
 ---
 
 <BaseLayout
@@ -21,6 +22,8 @@ import PlaygroundApp from "../components/PlaygroundApp.tsx";
     </div>
 
     <div class="card" style="padding: 2rem; margin-bottom: 2rem;">
-        <PlaygroundApp client:load />
+        <ErrorBoundary client:load>
+            <PlaygroundApp />
+        </ErrorBoundary>
     </div>
 </BaseLayout>

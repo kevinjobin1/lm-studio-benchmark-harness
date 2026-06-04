@@ -1,6 +1,7 @@
 """Provider adapters and framework integrations for Model Lens."""
 
 from .base import ProviderAdapter, Model, RunRequest, RunResult, ProviderMetrics, APICallMetrics
+from .openai_compatible import OpenAICompatibleProvider
 
 # Lazy-load provider clients — fails gracefully if deps are missing
 try:
@@ -59,6 +60,7 @@ def run_openbench_benchmarks(base_url, model_name, benchmark_names, limit=None, 
 
 __all__ = [
     "ProviderAdapter",
+    "OpenAICompatibleProvider",
     "APICallMetrics",
     "Model",
     "RunRequest",

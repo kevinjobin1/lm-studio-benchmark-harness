@@ -325,6 +325,7 @@ export default function PlaygroundApp() {
         )}
 
         <textarea
+          id="playground-prompt"
           className="prompt-input"
           value={prompt}
           onChange={(e) => {

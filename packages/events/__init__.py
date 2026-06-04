@@ -20,6 +20,7 @@ Usage:
 import time
 import uuid
 import asyncio
+import threading
 from enum import Enum
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Any, Callable, Awaitable, Type, Set, Union
@@ -235,6 +236,7 @@ class EventBus:
         self._all_handlers: List[Union[EventHandler, SyncEventHandler]] = []
         self._run_scoped: Dict[str, List[Type]] = {}  # run_id -> subscribed event types
         self._enabled: bool = True
+        self._lock = threading.Lock()
     
     # ── Subscription ──────────────────────────────────────────────
     
@@ -249,34 +251,39 @@ class EventBus:
         If run_id is provided, the subscription is auto-removed when
         the run completes (via unsubscribe_run).
         """
-        if event_type not in self._handlers:
-            self._handlers[event_type] = []
-        self._handlers[event_type].append(handler)
-        
-        if run_id:
-            if run_id not in self._run_scoped:
-                self._run_scoped[run_id] = []
-            self._run_scoped[run_id].append(event_type)
+        with self._lock:
+            if event_type not in self._handlers:
+                self._handlers[event_type] = []
+            self._handlers[event_type].append(handler)
+            
+            if run_id:
+                if run_id not in self._run_scoped:
+                    self._run_scoped[run_id] = []
+                self._run_scoped[run_id].append(event_type)
     
     def subscribe_all(self, handler: Union[EventHandler, SyncEventHandler]):
         """Subscribe to ALL events (wildcard handler)."""
-        self._all_handlers.append(handler)
+        with self._lock:
+            self._all_handlers.append(handler)
     
     def unsubscribe(self, event_type: Type, handler: Union[EventHandler, SyncEventHandler]):
         """Remove a specific handler for an event type."""
-        if event_type in self._handlers:
-            self._handlers[event_type] = [
-                h for h in self._handlers[event_type] if h is not handler
-            ]
+        with self._lock:
+            if event_type in self._handlers:
+                self._handlers[event_type] = [
+                    h for h in self._handlers[event_type] if h is not handler
+                ]
     
     def unsubscribe_all(self, handler: Union[EventHandler, SyncEventHandler]):
         """Remove a wildcard handler."""
-        self._all_handlers = [h for h in self._all_handlers if h is not handler]
+        with self._lock:
+            self._all_handlers = [h for h in self._all_handlers if h is not handler]
     
     def unsubscribe_run(self, run_id: str):
         """Remove all subscriptions scoped to a run."""
-        if run_id in self._run_scoped:
-            del self._run_scoped[run_id]
+        with self._lock:
+            if run_id in self._run_scoped:
+                del self._run_scoped[run_id]
         # Also remove from _handlers — we track which types were added per run
         # but the individual handlers are cleaned up by the subscriber
     
@@ -296,13 +303,12 @@ class EventBus:
         
         event_type = type(event)
         
-        # Collect all matching handlers
-        handlers: List[Union[EventHandler, SyncEventHandler]] = []
-        if event_type in self._handlers:
-            handlers.extend(self._handlers[event_type])
-        handlers.extend(self._all_handlers)
+        # Snapshot handlers under lock to allow concurrent mutation
+        with self._lock:
+            typed_handlers = list(self._handlers.get(event_type, []))
+            all_handlers = list(self._all_handlers)
         
-        for handler in handlers:
+        for handler in typed_handlers + all_handlers:
             try:
                 if asyncio.iscoroutinefunction(handler):
                     await handler(event)
@@ -313,18 +319,22 @@ class EventBus:
                 pass
     
     def emit_sync(self, event: Any):
-        """Synchronous version of emit for non-async contexts."""
+        """Synchronous version of emit for non-async contexts.
+
+        Thread-safe: snapshots handler lists under a lock, then iterates
+        the copy so concurrent subscribe/unsubscribe won't cause errors.
+        """
         if not self._enabled:
             return
         
         event_type = type(event)
         
-        handlers: List[Union[EventHandler, SyncEventHandler]] = []
-        if event_type in self._handlers:
-            handlers.extend(self._handlers[event_type])
-        handlers.extend(self._all_handlers)
+        # Snapshot handlers under lock to allow concurrent mutation
+        with self._lock:
+            typed_handlers = list(self._handlers.get(event_type, []))
+            all_handlers = list(self._all_handlers)
         
-        for handler in handlers:
+        for handler in typed_handlers + all_handlers:
             try:
                 handler(event)
             except Exception:
@@ -357,9 +367,10 @@ class EventBus:
     
     def clear(self):
         """Remove all subscriptions."""
-        self._handlers.clear()
-        self._all_handlers.clear()
-        self._run_scoped.clear()
+        with self._lock:
+            self._handlers.clear()
+            self._all_handlers.clear()
+            self._run_scoped.clear()
 
 
 # ── Publish Context ────────────────────────────────────────────────

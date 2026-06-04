@@ -1,11 +1,11 @@
 import { defineConfig } from "astro/config";
 import react from "@astrojs/react";
-import node from "@astrojs/node";
+import cloudflare from "@astrojs/cloudflare";
 
 export default defineConfig({
   integrations: [react()],
   output: "server",
-  adapter: node({ mode: "standalone" }),
+  adapter: cloudflare({ mode: "pages" }),
   site: "https://modellens.pages.dev",
   base: "/",
   build: {

@@ -28,11 +28,6 @@ class WorkloadBenchmark(Benchmark):
     
     def run(self, samples: int = 100) -> List[BenchmarkResult]:
         """Run the workload evaluation benchmark."""
-        import sys
-        import os
-        # Ensure the workload package is importable
-        sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "core"))
-        
         from core.workload import (
             ProjectLoader, TaskGenerator, WorkloadRunner, WorkloadScorer,
         )

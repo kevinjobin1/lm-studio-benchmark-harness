@@ -27,6 +27,7 @@ interface PackData {
 
 interface PackCardProps {
   packs: PackData[];
+  loading?: boolean;
 }
 
 const ALL_TAGS = [
@@ -44,7 +45,9 @@ const ALL_TAGS = [
 ];
 const DIFFICULTIES = ["all", "easy", "medium", "hard"];
 
-export default function PackCard({ packs }: PackCardProps) {
+const SKELETON_PACKS = 3;
+
+export default function PackCard({ packs, loading }: PackCardProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [activeTag, setActiveTag] = useState("all");
   const [activeDifficulty, setActiveDifficulty] = useState("all");
@@ -62,6 +65,50 @@ export default function PackCard({ packs }: PackCardProps) {
   const toggleExpand = (id: string) => {
     setExpandedId(expandedId === id ? null : id);
   };
+
+  if (loading) {
+    return (
+      <div className="packs-layout">
+        {/* Filter Sidebar Skeleton */}
+        <aside className="packs-sidebar">
+          {[1, 2].map((section) => (
+            <div key={section} className="packs-filter-section">
+              <div className="skeleton-pulse" style={{ width: 80, height: 10, borderRadius: 'var(--radius-sm)', marginBottom: 10 }} />
+              <div className="packs-filter-chips">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <span
+                    key={i}
+                    className="skeleton-pulse"
+                    style={{ display: 'inline-block', width: `${[60, 72, 48, 80, 56][i]}px`, height: 22, borderRadius: 'var(--radius-sm)' }}
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
+          <div className="skeleton-pulse" style={{ width: 100, height: 12, borderRadius: 'var(--radius-sm)', marginTop: 8 }} />
+        </aside>
+
+        {/* Pack Cards Skeleton */}
+        <section className="packs-content">
+          {Array.from({ length: SKELETON_PACKS }).map((_, i) => (
+            <div key={i} className="pack-card" style={{ padding: '1.25rem' }}>
+              <div className="pack-card-title-row" style={{ marginBottom: 8 }}>
+                <div className="skeleton-pulse" style={{ width: 180, height: 16, borderRadius: 'var(--radius-sm)' }} />
+                <div className="skeleton-pulse" style={{ width: 40, height: 16, borderRadius: 'var(--radius-sm)' }} />
+              </div>
+              <div className="skeleton-pulse" style={{ width: '85%', height: 12, borderRadius: 'var(--radius-sm)', marginBottom: 6 }} />
+              <div className="skeleton-pulse" style={{ width: '60%', height: 12, borderRadius: 'var(--radius-sm)', marginBottom: 12 }} />
+              <div className="skeleton-row">
+                {[80, 60, 90].map((w, j) => (
+                  <div key={j} className="skeleton-pulse" style={{ width: w, height: 12, borderRadius: 'var(--radius-sm)' }} />
+                ))}
+              </div>
+            </div>
+          ))}
+        </section>
+      </div>
+    );
+  }
 
   return (
     <div className="packs-layout">

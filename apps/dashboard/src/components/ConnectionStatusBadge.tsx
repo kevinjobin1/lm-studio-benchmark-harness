@@ -30,6 +30,7 @@ function fmtHardware(hw: StatusResponse["hardware"]): string {
 }
 
 export default function ConnectionStatusBadge() {
+  const [loading, setLoading] = useState(true);
   const [connected, setConnected] = useState(false);
   const [models, setModels] = useState<string[]>([]);
   const [provider, setProvider] = useState("");
@@ -47,12 +48,14 @@ export default function ConnectionStatusBadge() {
           setModels(data.models || []);
           setProvider(data.provider || "");
           setHardware(data.hardware);
+          setLoading(false);
         }
       } catch {
         if (mounted) {
           setConnected(false);
           setModels([]);
           setProvider("");
+          setLoading(false);
         }
       }
     }
@@ -71,14 +74,33 @@ export default function ConnectionStatusBadge() {
       ? `${models[0].split("/").pop() || models[0]}${provider ? ` • ${provider}` : ""}`
       : `${models.length} models${provider ? ` • ${provider}` : ""}`
     : "Disconnected";
-  const title = [label, hwLabel].filter(Boolean).join(" | ");
+  const title = connected
+    ? [label, hwLabel].filter(Boolean).join(" | ")
+    : "No connection — start LM Studio or Ollama to run benchmarks";
+
+  if (loading) {
+    return (
+      <div className="connection-badge" title="Connecting…">
+        <span className="skeleton-dot skeleton-pulse" />
+        <span className="skeleton-badge skeleton-pulse" />
+      </div>
+    );
+  }
 
   return (
-    <div className="connection-badge" title={title}>
+    <div
+      className={`connection-badge ${!connected ? "connection-badge-disconnected" : ""}`}
+      title={title}
+    >
       <span className={`connection-dot ${connected ? "connected" : "disconnected"}`} />
       <span className="connection-label">
         {label}
-        {hwLabel && <span className="connection-hw"> • {hwLabel}</span>}
+        {!connected && (
+          <span className="connection-hw connection-hint">
+            {" "}— start provider to connect
+          </span>
+        )}
+        {connected && hwLabel && <span className="connection-hw"> • {hwLabel}</span>}
       </span>
     </div>
   );

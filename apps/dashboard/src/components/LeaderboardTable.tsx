@@ -3,6 +3,7 @@ import type { ModelSummary } from "../lib/loadResults";
 
 interface LeaderboardTableProps {
   models: ModelSummary[];
+  loading?: boolean;
 }
 
 type SortKey = "overall" | "coding" | "throughput";
@@ -22,7 +23,9 @@ function getRankMedal(index: number): { emoji: string; cls: string } {
   return { emoji: String(index + 1).padStart(2, "0"), cls: "" };
 }
 
-export default function LeaderboardTable({ models }: LeaderboardTableProps) {
+const SKELETON_ROWS = 5;
+
+export default function LeaderboardTable({ models, loading }: LeaderboardTableProps) {
   const [sortKey, setSortKey] = useState<SortKey>("overall");
 
   const sorted = useMemo(() => {
@@ -43,6 +46,70 @@ export default function LeaderboardTable({ models }: LeaderboardTableProps) {
     return arr;
   }, [models, sortKey]);
 
+  if (loading) {
+    return (
+      <div className="leaderboard-table-wrapper">
+        <div className="table-header">
+          <h3>Rankings</h3>
+          <div className="table-sort">
+            <span className="sort-label">SORT BY:</span>
+            <span className="skeleton-pulse" style={{ display: 'inline-block', width: 100, height: 14, borderRadius: 'var(--radius-sm)' }} />
+          </div>
+        </div>
+        <table className="leaderboard-table">
+          <thead>
+            <tr>
+              <th className="lb-th-rank">#</th>
+              <th className="lb-th-model">Model</th>
+              <th className="lb-th-bar">Overall</th>
+              <th className="lb-th-score">Coding</th>
+              <th className="lb-th-score">Speed</th>
+              <th className="lb-th-tier">Tier</th>
+            </tr>
+          </thead>
+          <tbody>
+            {Array.from({ length: SKELETON_ROWS }).map((_, i) => (
+              <tr key={i}>
+                <td className="lb-td-rank">
+                  <span className="skeleton-pulse" style={{ display: 'inline-block', width: 20, height: 16, borderRadius: 'var(--radius-sm)' }} />
+                </td>
+                <td className="lb-td-model">
+                  <div className="skeleton-row">
+                    <div className="skeleton-pulse" style={{ width: 120, height: 14, borderRadius: 'var(--radius-sm)' }} />
+                    <div className="skeleton-pulse" style={{ width: 40, height: 10, borderRadius: 'var(--radius-sm)', opacity: 0.5 }} />
+                  </div>
+                </td>
+                <td className="lb-td-bar">
+                  <div className="lb-bar-container">
+                    <div className="skeleton-pulse" style={{ width: 50, height: 12, borderRadius: 'var(--radius-sm)' }} />
+                    <div className="lb-bar-track">
+                      <div
+                        className="lb-bar-fill skeleton-pulse"
+                        style={{ width: `${[85, 72, 60, 45, 30][i]}%`, background: 'var(--bg-bright)' }}
+                      />
+                    </div>
+                  </div>
+                </td>
+                <td className="lb-td-score">
+                  <span className="skeleton-pulse" style={{ display: 'inline-block', width: 40, height: 16, borderRadius: 'var(--radius-sm)' }} />
+                </td>
+                <td className="lb-td-speed">
+                  <span className="skeleton-pulse" style={{ display: 'inline-block', width: 50, height: 14, borderRadius: 'var(--radius-sm)' }} />
+                </td>
+                <td className="lb-td-tier">
+                  <span className="skeleton-pulse" style={{ display: 'inline-block', width: 56, height: 14, borderRadius: 'var(--radius-sm)' }} />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <div className="lb-footnote">
+          <span className="skeleton-pulse" style={{ display: 'inline-block', width: 200, height: 12, borderRadius: 'var(--radius-sm)' }} />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="leaderboard-table-wrapper">
       {/* Sort controls */}
@@ -50,7 +117,9 @@ export default function LeaderboardTable({ models }: LeaderboardTableProps) {
         <h3>Rankings</h3>
         <div className="table-sort">
           <span className="sort-label">SORT BY:</span>
+          <label htmlFor="leaderboard-sort" className="sr-only">Sort by:</label>
           <select
+            id="leaderboard-sort"
             className="sort-select"
             value={sortKey}
             onChange={(e) => setSortKey(e.target.value as SortKey)}

@@ -5,6 +5,36 @@ import { loadWorkloadResults, groupByModel, groupByProject } from "../../lib/loa
 const index = await loadWorkloadResults();
 const modelSummaries = groupByModel(index);
 const projectSummaries = groupByProject(index);
+
+// Pre-compute aggregate data per model to avoid inline IIFEs in templates
+const enrichedModels = modelSummaries.map(ms => {
+  const taskTypeEntries = Object.entries(
+    ms.results.reduce((acc, r) => {
+      for (const [tt, count] of Object.entries(r.task_types)) {
+        acc[tt] = (acc[tt] || 0) + count;
+      }
+      return acc;
+    }, {})
+  );
+
+  const allFailures = {};
+  for (const r of ms.results) {
+    for (const [f, c] of Object.entries(r.failures)) {
+      allFailures[f] = (allFailures[f] || 0) + c;
+    }
+  }
+  const sortedFailures = Object.entries(allFailures).sort((a, b) => b[1] - a[1]);
+
+  const allStrengths = {};
+  for (const r of ms.results) {
+    for (const [s, c] of Object.entries(r.strengths)) {
+      allStrengths[s] = (allStrengths[s] || 0) + c;
+    }
+  }
+  const sortedStrengths = Object.entries(allStrengths).sort((a, b) => b[1] - a[1]);
+
+  return { ...ms, taskTypeEntries, sortedFailures, sortedStrengths };
+});
 ---
 
 <BaseLayout
@@ -90,7 +120,7 @@ const projectSummaries = groupByProject(index);
 
           <div class="wl-models-list">
             {
-              modelSummaries.map((ms, i) => (
+              enrichedModels.map((ms, i) => (
                 <div class="card wl-model-card">
                   <div class="wl-model-header">
                     <div class="wl-model-info">
@@ -147,7 +177,7 @@ const projectSummaries = groupByProject(index);
                     <details>
                       <summary class="wl-details-summary">
                         <span class="material-symbols-outlined">bubble_chart</span>
-                        Task type distribution &amp; failure analysis
+                        Task type distribution and failure analysis
                       </summary>
                       <div class="wl-details-body">
                         <!-- Task type chips -->
@@ -155,12 +185,7 @@ const projectSummaries = groupByProject(index);
                           <div class="wl-details-label">Task types</div>
                           <div class="wl-task-chips">
                             {
-                              Object.entries(ms.results.reduce<Record<string, number>>((acc, r) => {
-                                for (const [tt, count] of Object.entries(r.task_types)) {
-                                  acc[tt] = (acc[tt] || 0) + count;
-                                }
-                                return acc;
-                              }, {})).map(([tt, count]) => (
+                              ms.taskTypeEntries.map(([tt, count]) => (
                                 <span class="chip chip-primary">
                                   {tt.replace(/_/g, ' ')}: {count}
                                 </span>
@@ -173,24 +198,15 @@ const projectSummaries = groupByProject(index);
                         <div class="wl-details-section">
                           <div class="wl-details-label">Common failures</div>
                           {
-                            (() => {
-                              const allFailures: Record<string, number> = {};
-                              for (const r of ms.results) {
-                                for (const [f, c] of Object.entries(r.failures)) {
-                                  allFailures[f] = (allFailures[f] || 0) + c;
-                                }
-                              }
-                              const sorted = Object.entries(allFailures).sort((a, b) => b[1] - a[1]);
-                              return sorted.length > 0 ? (
-                                <div class="wl-failure-chips">
-                                  {sorted.map(([f, c]) => (
-                                    <span class="chip chip-error">{f.replace(/_/g, ' ')}: {c}</span>
-                                  ))}
-                                </div>
-                              ) : (
-                                <p class="wl-no-data">No failures recorded</p>
-                              );
-                            })()
+                            ms.sortedFailures.length > 0 ? (
+                              <div class="wl-failure-chips">
+                                {ms.sortedFailures.map(([f, c]) => (
+                                  <span class="chip chip-error">{f.replace(/_/g, ' ')}: {c}</span>
+                                ))}
+                              </div>
+                            ) : (
+                              <p class="wl-no-data">No failures recorded</p>
+                            )
                           }
                         </div>
 
@@ -198,24 +214,15 @@ const projectSummaries = groupByProject(index);
                         <div class="wl-details-section">
                           <div class="wl-details-label">Notable strengths</div>
                           {
-                            (() => {
-                              const allStrengths: Record<string, number> = {};
-                              for (const r of ms.results) {
-                                for (const [s, c] of Object.entries(r.strengths)) {
-                                  allStrengths[s] = (allStrengths[s] || 0) + c;
-                                }
-                              }
-                              const sorted = Object.entries(allStrengths).sort((a, b) => b[1] - a[1]);
-                              return sorted.length > 0 ? (
-                                <div class="wl-strength-chips">
-                                  {sorted.map(([s, c]) => (
-                                    <span class="chip chip-success">{s.replace(/_/g, ' ')}: {c}</span>
-                                  ))}
-                                </div>
-                              ) : (
-                                <p class="wl-no-data">No notable strengths detected</p>
-                              );
-                            })()
+                            ms.sortedStrengths.length > 0 ? (
+                              <div class="wl-strength-chips">
+                                {ms.sortedStrengths.map(([s, c]) => (
+                                  <span class="chip chip-success">{s.replace(/_/g, ' ')}: {c}</span>
+                                ))}
+                              </div>
+                            ) : (
+                              <p class="wl-no-data">No notable strengths detected</p>
+                            )
                           }
                         </div>
                       </div>

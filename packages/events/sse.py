@@ -32,6 +32,9 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 from typing import Any, Dict, Optional, Set, List
 
 from events import EventBus, default_bus
+from packages.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 # ── SSE HTTP Handler ────────────────────────────────────────────────
@@ -204,7 +207,7 @@ class EventBusSSEServer:
         for conn in list(self._connections):
             try:
                 conn.wfile.close()
-            except Exception:
+            except (BrokenPipeError, ConnectionResetError, OSError):
                 pass
         self._connections.clear()
 
@@ -343,7 +346,7 @@ def run_sse_server(port: int = 9090, host: str = "127.0.0.1") -> EventBusSSEServ
     """
     server = EventBusSSEServer(bus=default_bus, port=port, host=host)
     actual_port = server.start()
-    print(f"Model Lens SSE server started on http://{host}:{actual_port}/events", flush=True)
+    logger.info("Model Lens SSE server started on http://%s:%s/events", host, actual_port)
     try:
         while True:
             time.sleep(3600)

@@ -59,14 +59,14 @@ try {
             </p>
         </div>
         <div class="dashboard-actions">
-            <button class="btn-outline">
-                <span class="material-symbols-outlined" style="font-size:18px"
+            <button class="btn-outline btn-disabled" disabled aria-disabled="true" title="Refresh — coming soon">
+                <span class="material-symbols-outlined icon-18"
                     >refresh</span
                 >
                 <span>Refresh</span>
             </button>
-            <button class="btn-outline">
-                <span class="material-symbols-outlined" style="font-size:18px"
+            <button class="btn-outline btn-disabled" disabled aria-disabled="true" title="Export CSV — coming soon">
+                <span class="material-symbols-outlined icon-18"
                     >file_download</span
                 >
                 <span>Export CSV</span>
@@ -77,7 +77,11 @@ try {
     {
         results.length === 0 ? (
             <div class="empty-state">
-                <p>No benchmark runs yet. Run the suite to populate history.</p>
+                <span class="material-symbols-outlined empty-state-icon">history</span>
+                <h3>No benchmark history yet</h3>
+                <p class="text-balance">
+                    Run the benchmark suite to start tracking performance over time.
+                </p>
             </div>
         ) : (
             <section class="dashboard-table">
@@ -120,8 +124,7 @@ try {
                                             <td class="td-model">
                                                 <div class="model-cell">
                                                     <code
-                                                        class="mono-data"
-                                                        style="font-size:11px; color: var(--text-tertiary);"
+                                                        class="mono-data text-tertiary font-small"
                                                     >
                                                         {r.run_id}
                                                     </code>
@@ -151,8 +154,7 @@ try {
                                                         {pct}%
                                                     </span>
                                                     <span
-                                                        class={`tier-badge ${tierCls}`}
-                                                        style="margin-top:2px;"
+                                                        class={`tier-badge ${tierCls} mt-tiny`}
                                                     >
                                                         {parseFloat(pct) >= 90
                                                             ? "S"
@@ -233,8 +235,7 @@ try {
                                                 )}
                                             </td>
                                             <td
-                                                class="td-score mono-data"
-                                                style="font-size:11px; color: var(--text-tertiary);"
+                                                class="td-score mono-data text-tertiary font-small"
                                             >
                                                 {new Date(
                                                     r.timestamp,

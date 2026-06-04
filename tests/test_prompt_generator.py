@@ -5,14 +5,7 @@ paraphrase, substitute_variables, mutate_context.
 Uses deterministic seeds to verify behavior despite internal randomness.
 """
 
-import sys
-import os
 import unittest
-
-# Add project root and apps/cli to path
-_project_root = os.path.join(os.path.dirname(__file__), "..")
-sys.path.insert(0, _project_root)
-sys.path.insert(0, os.path.join(_project_root, "apps", "cli"))
 
 from prompt_generator import PromptGenerator, GeneratedPrompt, PromptCategory
 
