@@ -14,7 +14,6 @@ from .utils import (
     _fmt_size,
     _list_models_detailed,
     _resolve_provider,
-    PROVIDER_CONFIG,
     RICH_AVAILABLE,
     console,
 )
@@ -51,9 +50,11 @@ def models(api_base, api_key, provider, json_output):
         api_base = api_base or detected_base
         api_key = api_key or detected_key
     else:
-        cfg = PROVIDER_CONFIG.get(provider, PROVIDER_CONFIG["lm-studio"])
-        api_base = api_base or cfg["url"]
-        api_key = api_key or cfg["key"]
+        from providers import get_provider_config
+
+        url, key = get_provider_config(provider)
+        api_base = api_base or url
+        api_key = api_key or key
 
     # Validate connection
     try:

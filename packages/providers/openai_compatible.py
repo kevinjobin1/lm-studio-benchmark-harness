@@ -321,4 +321,19 @@ class OpenAICompatibleProvider(ProviderAdapter):
         return response_text, metrics
 
 
-__all__ = ["OpenAICompatibleProvider"]
+class LMStudioProvider(OpenAICompatibleProvider):
+    """LM Studio provider adapter.
+
+    LM Studio exposes a standard OpenAI-compatible API at localhost:1234/v1.
+    This subclass exists so the entry-point registry can provide the correct
+    default port (1234) and API key (``lm-studio``) without hardcoding them
+    elsewhere.
+    """
+
+    name = "lm-studio"
+    default_port = 1234
+    default_url = "http://localhost:1234/v1"
+    default_api_key = "lm-studio"
+
+
+__all__ = ["OpenAICompatibleProvider", "LMStudioProvider"]

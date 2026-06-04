@@ -267,4 +267,28 @@ def detect_hardware() -> HardwareInfo:
     return hw
 
 
+# ── CLI entry point ─────────────────────────────────────────────────
+
+if __name__ == "__main__":
+    import argparse
+    import json
+
+    parser = argparse.ArgumentParser(description="Model Lens hardware detection")
+    parser.add_argument("--json", action="store_true", help="Output hardware info as JSON")
+    args = parser.parse_args()
+
+    hw = detect_hardware()
+
+    if args.json:
+        print(json.dumps(hw.to_dict(), indent=2))
+    else:
+        print(f"CPU:      {hw.cpu_model}")
+        print(f"Cores:    {hw.cpu_cores_physical}P / {hw.cpu_cores_logical}L")
+        print(f"RAM:      {hw.ram_total_mb:.0f} MB")
+        print(f"GPU:      {hw.gpu_model or 'N/A'}")
+        print(f"OS:       {hw.os_name} {hw.os_version}")
+        print(f"Arch:     {hw.architecture}")
+        print(f"Apple Silicon: {hw.is_apple_silicon}")
+
+
 __all__ = ["HardwareInfo", "detect_hardware"]

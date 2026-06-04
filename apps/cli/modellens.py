@@ -37,6 +37,9 @@ from apps.cli.commands.health import health
 from apps.cli.commands.publish import publish
 from apps.cli.commands.leaderboard import leaderboard
 from apps.cli.commands.workload import workload
+from apps.cli.commands.migrate import migrate
+from apps.cli.commands.auth import auth
+from apps.cli.commands.sse import sse
 
 
 @click.group()
@@ -58,6 +61,9 @@ cli.add_command(health)
 cli.add_command(publish)
 cli.add_command(leaderboard)
 cli.add_command(workload)
+cli.add_command(migrate)
+cli.add_command(auth)
+cli.add_command(sse)
 
 
 def main():

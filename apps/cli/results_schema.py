@@ -407,7 +407,44 @@ class ResultsCollector:
             )
         paths["latest"] = str(latest_path)
 
+        # Also persist to SQLite if available
+        self._save_to_db()
+
         return paths
+
+    def _save_to_db(self) -> None:
+        """Persist all collected results to the SQLite database.
+
+        This is a best-effort operation — if the database is unavailable
+        (e.g., ``core.results_store`` not imported or sqlite3 broken),
+        it degrades silently.  JSON files remain the canonical on-disk
+        format.
+        """
+        try:
+            from core.results_store import ResultsStore
+
+            store = ResultsStore(str(self.output_dir / "runs.db"))
+            for result in self.results:
+                store.upsert(
+                    id=result.run_id,
+                    model_id=result.model,
+                    provider=result.model_metadata.get("provider") or "unknown",
+                    workload_type="benchmark",
+                    workload_name=",".join(result.packs_used) if result.packs_used else "devbench",
+                    overall_score=result.metrics.overall_score,
+                    tokens_per_sec=result.performance.tokens_per_sec,
+                    ttft_ms=result.performance.ttft_ms,
+                    memory_mb=result.performance.memory_pressure_mb,
+                    status="completed",
+                    config_json=json.dumps(result.config_snapshot) if result.config_snapshot else None,
+                    trace_path=result.trace_file,
+                    created_at=result.timestamp,
+                    git_sha=result.git_sha,
+                    git_branch=result.git_branch,
+                )
+            store.close()
+        except Exception:
+            pass  # Best-effort — JSON files remain the source of truth
 
     def _aggregate(self) -> Dict[str, Any]:
         """Aggregate all results into a summary."""

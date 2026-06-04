@@ -8,7 +8,7 @@ API names without imports still correctly trigger.
 
 import unittest
 
-from scoring import CodeScorer, FailureType
+from apps.cli.scoring import CodeScorer, FailureType
 
 
 class TestDetectFailuresHallucinatedAPIs(unittest.TestCase):
@@ -513,7 +513,7 @@ class TestInstructionScorerNoMarkdown(unittest.TestCase):
     """
 
     def setUp(self):
-        from scoring import InstructionScorer
+        from apps.cli.scoring import InstructionScorer
 
         self.scorer = InstructionScorer()
 

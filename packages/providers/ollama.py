@@ -40,6 +40,8 @@ class OllamaClient(ProviderAdapter):
 
     name = "ollama"
     default_port = 11434
+    default_url = "http://localhost:11434/v1"
+    default_api_key = "ollama"
 
     def __init__(
         self,

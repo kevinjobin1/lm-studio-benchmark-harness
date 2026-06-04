@@ -41,6 +41,14 @@ dev = [
 [project.scripts]
 modellens = "apps.cli.modellens:cli"
 
+[project.entry-points."modellens.providers"]
+lm-studio = "providers.openai_compatible:LMStudioProvider"
+ollama = "providers.ollama:OllamaClient"
+open-webui = "providers.openwebui:OpenWebUIClient"
+jan = "providers.jan:JanClient"
+llama.cpp = "providers.llamacpp:LlamaCppClient"
+vllm = "providers.vllm:VLLMClient"
+
 [project.urls]
 Homepage = "https://github.com/kevinjobin1/model-lens"
 Repository = "https://github.com/kevinjobin1/model-lens"
@@ -85,7 +93,11 @@ known-first-party = ["core", "benchmarks", "providers", "skills", "apps"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["packages", "."]
-addopts = "-v --tb=short"
+addopts = "-v --tb=short -p no:cacheprovider"
+markers = [
+    "integration: marks tests that require a running provider or external service",
+    "slow: marks tests that take longer than 10 seconds",
+]
 
 # ── Mypy configuration ────────────────────────────────────────────
 [tool.mypy]

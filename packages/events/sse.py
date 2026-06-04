@@ -66,11 +66,52 @@ class SSEHandler(BaseHTTPRequestHandler):
             self._send_json(200, {"status": "ok"})
             return
 
-        if self.path != "/events":
+        if self.path != "/events" and not self.path.startswith("/events?"):
             self._send_json(404, {"error": "not found"})
             return
 
+        # Validate ?token= for SSE connections when a MODELLENS_SECRET is configured.
+        # When the secret IS set, a valid token is REQUIRED (reject anonymous connections).
+        # When no secret is configured (local dev), allow all connections.
+        token = self._extract_token()
+        if not self._allow_anonymous():
+            if not token:
+                self._send_json(401, {"error": "missing_token", "message": "Token required"})
+                return
+            if not self._verify_token(token):
+                self._send_json(401, {"error": "invalid_token", "message": "Invalid or expired token"})
+                return
+
         self._handle_sse()
+
+    def _extract_token(self) -> Optional[str]:
+        """Extract token from ?token= query parameter."""
+        parsed = urllib.parse.urlparse(self.path)
+        params = urllib.parse.parse_qs(parsed.query)
+        tokens = params.get("token", [])
+        return tokens[0] if tokens else None
+
+    def _allow_anonymous(self) -> bool:
+        """Whether anonymous SSE connections are allowed (local dev mode).
+
+        Returns ``True`` when no MODELLENS_SECRET is configured, meaning
+        anyone can connect without a token.  Returns ``False`` when a
+        production secret is set — a valid JWT is required.
+        """
+        from core.jwt_utils import get_secret
+
+        return get_secret() is None
+
+    def _verify_token(self, token: str) -> bool:
+        """Verify a JWT against the configured MODELLENS_SECRET."""
+        from core.jwt_utils import get_secret, verify_jwt
+
+        secret = get_secret()
+        if not secret:
+            return True  # No secret — any token passes (local dev)
+
+        payload = verify_jwt(token, secret)
+        return payload is not None
 
     # ── SSE connection lifecycle ────────────────────────────────────
 
@@ -175,6 +216,7 @@ class EventBusSSEServer:
         port: int = 9090,
         host: str = "127.0.0.1",
         worker_url: Optional[str] = None,
+        subscribe_existing: bool = True,
     ):
         self.bus = bus or default_bus
         self.port = port
@@ -184,12 +226,22 @@ class EventBusSSEServer:
         self._thread: Optional[threading.Thread] = None
         self._connections: Set[SSEHandler] = set()
         self._worker_forwarder: Optional[ThreadPoolExecutor] = None
+        self._subscribed: bool = False
 
         if self.worker_url:
             self._worker_forwarder = ThreadPoolExecutor(
                 max_workers=2,
                 thread_name_prefix="sse-fwd",
             )
+            # Auto-subscribe to events for forwarding-only mode.
+            # When ``subscribe_existing=False``, subscription is deferred
+            # until start() is called (useful for standalone sse serve).
+            # start() also calls subscribe_all, but that also starts
+            # a local HTTP server.  Users who need forwarding without
+            # a local SSE server should not be required to call start().
+            if subscribe_existing:
+                self.bus.subscribe_all(self._on_event)
+                self._subscribed = True
 
     # ── Lifecycle ──────────────────────────────────────────────────
 
@@ -203,8 +255,11 @@ class EventBusSSEServer:
         self._server = HTTPServer((self.host, port), self._make_handler())
         self.port = port
 
-        # Subscribe to all EventBus events
-        self.bus.subscribe_all(self._on_event)
+        # Subscribe to all EventBus events (only if not already
+        # subscribed via __init__'s forwarding-only auto-subscribe).
+        if not self._subscribed:
+            self.bus.subscribe_all(self._on_event)
+            self._subscribed = True
 
         self._thread = threading.Thread(
             target=self._server.serve_forever,
@@ -217,7 +272,9 @@ class EventBusSSEServer:
 
     def stop(self) -> None:
         """Stop the SSE server and unsubscribe from events."""
-        self.bus.unsubscribe_all(self._on_event)
+        if self._subscribed:
+            self.bus.unsubscribe_all(self._on_event)
+            self._subscribed = False
 
         # Shut down worker forwarder thread pool
         if self._worker_forwarder:

@@ -7,7 +7,7 @@ Uses deterministic seeds to verify behavior despite internal randomness.
 
 import unittest
 
-from prompt_generator import PromptGenerator, GeneratedPrompt, PromptCategory
+from apps.cli.prompt_generator import PromptGenerator, GeneratedPrompt, PromptCategory
 
 
 # ── Shared fixtures ───────────────────────────────────────────────────

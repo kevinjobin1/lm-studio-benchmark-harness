@@ -58,9 +58,66 @@ export interface EventStreamState {
 
 const MAX_BUFFERED_EVENTS = 5000;
 
-const SSE_WORKER_URL = import.meta.env.PUBLIC_SSE_WORKER_URL || "/api/events";
+/** Cloudflare Worker SSE Bridge (production / remote access). */
+const SSE_WORKER_URL =
+  import.meta.env.PUBLIC_SSE_WORKER_URL ||
+  "https://modellens-sse-bridge.kevin-jobin-1.workers.dev";
 
-export function useEventStream(url: string = SSE_WORKER_URL): EventStreamState {
+/** Local SSE relay (preferred for low-latency local dev). */
+const LOCAL_SSE_URL = "http://localhost:9090";
+
+/**
+ * Resolve the best SSE endpoint for the current environment.
+ *
+ * Tries to reach the local SSE relay (``modellens sse serve``) first.
+ * If reachable, uses it for sub-millisecond event latency.  Falls back
+ * to the Cloudflare Worker SSE Bridge for remote/production use.
+ *
+ * The resolved URL is cached in a module-level variable so subsequent
+ * calls (reconnects) use the same endpoint.
+ */
+let _resolvedSseUrl: string | null = null;
+
+async function resolveSseUrl(): Promise<string> {
+  // Capture into a local const so TypeScript can narrow the type
+  // (mutable module-level let variables can't be narrowed).
+  const cached = _resolvedSseUrl;
+  if (cached) return cached;
+
+  // Try local SSE relay first (fast health check)
+  if (typeof window !== "undefined") {
+    try {
+      const resp = await fetch(`${LOCAL_SSE_URL}/health`, {
+        signal: AbortSignal.timeout(1000),
+      });
+      if (resp.ok) {
+        const url = `${LOCAL_SSE_URL}/events`;
+        _resolvedSseUrl = url;
+        return url;
+      }
+    } catch {
+      // Local relay not running — fall through to bridge
+    }
+  }
+
+  // Fall back to Cloudflare Worker SSE Bridge
+  _resolvedSseUrl = SSE_WORKER_URL;
+  return SSE_WORKER_URL;
+}
+
+function getEventSourceUrl(baseUrl: string): string {
+  // Append ?token= for SSE connections (EventSource can't set headers)
+  if (typeof window !== "undefined") {
+    const token = window.localStorage.getItem("modellens-token");
+    if (token) {
+      const sep = baseUrl.includes("?") ? "&" : "?";
+      return `${baseUrl}${sep}token=${encodeURIComponent(token)}`;
+    }
+  }
+  return baseUrl;
+}
+
+export function useEventStream(url?: string): EventStreamState {
   const [connected, setConnected] = useState(false);
   const [events, setEvents] = useState<SSEEvent[]>([]);
   const eventSourceRef = useRef<EventSource | null>(null);
@@ -68,13 +125,21 @@ export function useEventStream(url: string = SSE_WORKER_URL): EventStreamState {
   useEffect(() => {
     let mounted = true;
 
-    function connect() {
+    async function connect() {
       if (!mounted) return;
       if (eventSourceRef.current) {
         eventSourceRef.current.close();
       }
 
-      const es = new EventSource(url);
+      // Resolve the best SSE endpoint: local relay or Cloudflare bridge
+      let resolvedUrl: string;
+      if (url) {
+        resolvedUrl = url;
+      } else {
+        resolvedUrl = await resolveSseUrl();
+      }
+
+      const es = new EventSource(getEventSourceUrl(resolvedUrl));
       eventSourceRef.current = es;
 
       // ── Unnamed events handler ─────────────────────────────
@@ -104,9 +169,23 @@ export function useEventStream(url: string = SSE_WORKER_URL): EventStreamState {
         }
       };
 
-      // Connection lost — EventSource will auto-reconnect
+      // Connection lost — EventSource will auto-reconnect.
+      // If the token has expired, reconnection fails with 401.
+      // After 5 seconds of CLOSED state, redirect to /login
+      // (the token may have expired but still be in localStorage).
       es.onerror = () => {
-        if (mounted) setConnected(false);
+        if (mounted) {
+          setConnected(false);
+          setTimeout(() => {
+            if (mounted && es.readyState === EventSource.CLOSED) {
+              // Clear cached URL so next reconnect re-probes local relay
+              _resolvedSseUrl = null;
+              // Token is expired or invalid — redirect to re-auth
+              window.localStorage.removeItem("modellens-token");
+              window.location.href = "/login";
+            }
+          }, 5000);
+        }
       };
     }
 

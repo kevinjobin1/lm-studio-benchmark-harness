@@ -8,11 +8,27 @@ Defines the schema for recording model execution timelines:
 
 Mirrors the dashboard TraceTimeline component's data model (TraceRun, TraceStep)
 so captured traces can be rendered directly without transformation.
+
+Schema versioning uses semantic versioning (``MAJOR.MINOR.PATCH``):
+  - MAJOR: breaking changes (field removals, type changes)
+  - MINOR: new optional fields (backward-compatible additions)
+  - PATCH: documentation fixes, no structural change
 """
 
+from __future__ import annotations
+
+import json
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Any, Literal
 from datetime import datetime
+from typing import Any, Dict, List, Literal, Optional
+
+
+# ── Current schema version ────────────────────────────────────────
+
+CURRENT_TRACE_VERSION = "1.0.0"
+
+
+# ── Dataclasses ───────────────────────────────────────────────────
 
 
 @dataclass
@@ -81,6 +97,12 @@ class Trace:
     model: str
     provider: str
     prompt: str
+
+    # Schema version — for forward-compatible migrations.
+    # Always write the current version when serializing; the dashboard
+    # and migration tools use this to detect and upgrade older schemas.
+    version: str = CURRENT_TRACE_VERSION
+
     system_prompt: Optional[str] = None
     events: List[TraceEvent] = field(default_factory=list)
     metrics: TraceMetrics = field(default_factory=TraceMetrics)
@@ -93,6 +115,7 @@ class Trace:
     def to_dict(self) -> Dict[str, Any]:
         """Serialize to a JSON-compatible dict matching the dashboard TraceRun model."""
         return {
+            "version": self.version,
             "trace_id": self.trace_id,
             "run_id": self.run_id,
             "model": self.model,
@@ -144,9 +167,88 @@ class Trace:
 
     def to_json(self, indent: int = 2) -> str:
         """Serialize to JSON string."""
-        import json
-
         return json.dumps(self.to_dict(), indent=indent, default=str, ensure_ascii=False)
+
+
+# ── Schema migration ──────────────────────────────────────────────
+
+# Registry of migration functions, keyed by source version.
+# Each function receives the trace dict and returns it upgraded to the
+# next version (or the current version if no intermediate steps exist).
+_MIGRATIONS: Dict[str, Any] = {}
+
+
+def migrate_trace(trace_dict: Dict[str, Any]) -> Dict[str, Any]:
+    """Migrate a trace dict from its current version to the latest schema.
+
+    Detects the schema version from ``trace_dict["version"]``, applies
+    any registered migration functions in order, and returns the
+    upgraded dict.  If the version is missing, assumes ``"1.0.0"``
+    (the version field was added in 1.0.0, so pre-version traces
+    become 1.0.0 implicitly).
+
+    Args:
+        trace_dict: A trace dict as returned by ``Trace.to_dict()``.
+
+    Returns:
+        The migrated dict, now at ``CURRENT_TRACE_VERSION``.
+
+    Example:
+        >>> old = {"trace_id": "x", "version": "1.0.0"}
+        >>> new = migrate_trace(old)
+        >>> new["version"]
+        '1.0.0'
+    """
+    version = trace_dict.get("version", "1.0.0")
+
+    # Pre-1.0.0 traces have no version field — set it now so migration
+    # callbacks always see a populated version key.
+    trace_dict.setdefault("version", version)
+
+    # Apply migrations sequentially until we reach the current version.
+    # Cap iterations at len(_MIGRATIONS) + 1 to guard against
+    # inadvertently infinite loops from migration functions that
+    # forget to bump the version.
+    for _ in range(len(_MIGRATIONS) + 1):
+        version = trace_dict.get("version", "1.0.0")
+        if version == CURRENT_TRACE_VERSION:
+            break
+        migration = _MIGRATIONS.get(version)
+        if migration is None:
+            # No migration path — set version and break to avoid
+            # infinite loop on unknown versions
+            trace_dict["version"] = CURRENT_TRACE_VERSION
+            break
+        trace_dict = migration(trace_dict)
+    else:
+        # Safeguard tripped — a migration didn't advance the version
+        raise RuntimeError(
+            f"Migration loop detected for trace {trace_dict.get('trace_id', 'unknown')}. "
+            f"Check that every migration in _MIGRATIONS advances the version."
+        )
+
+    return trace_dict
+
+
+def _register_migration(source_version: str):
+    """Decorator to register a migration function for a source version."""
+
+    def decorator(fn):
+        _MIGRATIONS[source_version] = fn
+        return fn
+
+    return decorator
+
+
+# ── Future migration example (uncomment when needed) ──────────────
+#
+# @_register_migration("1.0.0")
+# def _migrate_1_0_to_1_1(trace_dict: Dict[str, Any]) -> Dict[str, Any]:
+#     \"\"\"Migrate from 1.0.0 to 1.1.0.\"\"\"
+#     # Example: add a new optional field
+#     trace_dict.setdefault("tags", [])
+#     trace_dict["version"] = "1.1.0"
+#     return trace_dict
 
 
 __all__ = [
@@ -155,4 +257,6 @@ __all__ = [
     "TraceMetrics",
     "TraceArtifacts",
     "Trace",
+    "CURRENT_TRACE_VERSION",
+    "migrate_trace",
 ]

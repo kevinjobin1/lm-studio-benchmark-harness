@@ -11,7 +11,6 @@ import click
 from .utils import (
     _echo,
     _resolve_provider,
-    PROVIDER_CONFIG,
 )
 from providers.base import get_root_url
 
@@ -45,8 +44,10 @@ def health(provider, api_base, json_output):
         provider, detected_base, _ = _resolve_provider()
         api_base = api_base or detected_base
     else:
-        cfg = PROVIDER_CONFIG.get(provider, PROVIDER_CONFIG["lm-studio"])
-        api_base = api_base or cfg["url"]
+        from providers import get_provider_config
+
+        url, _ = get_provider_config(provider)
+        api_base = api_base or url
 
     # ── Health check ────────────────────────────────────────────
     import requests

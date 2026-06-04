@@ -14,13 +14,31 @@ from typing import Optional
 
 from click.testing import CliRunner
 
+import pytest
+
 from providers.base import Model
-from providers.openai_compatible import OpenAICompatibleProvider
 from providers.openwebui import OpenWebUIClient
 from providers.jan import JanClient
 from providers.llamacpp import LlamaCppClient
 from providers.vllm import VLLMClient
-from providers.ollama import OllamaClient
+
+# Both OpenAICompatibleProvider and OllamaClient require the 'openai' package.
+# When it's not installed (e.g. in CI), treat them as unavailable and skip the
+# tests that exercise their chat_completion / run_prompt methods.
+OPENAI_AVAILABLE = False
+try:
+    from openai import OpenAI  # noqa: F401
+
+    OPENAI_AVAILABLE = True
+except ImportError:
+    pass
+
+if OPENAI_AVAILABLE:
+    from providers.openai_compatible import OpenAICompatibleProvider
+    from providers.ollama import OllamaClient
+else:
+    OpenAICompatibleProvider = None  # type: ignore
+    OllamaClient = None  # type: ignore
 from apps.cli.modellens import cli
 from apps.cli.commands.utils import (
     _list_provider_models,
@@ -210,6 +228,7 @@ def start_health_only_server():
 # ── Integration Tests ───────────────────────────────────────────
 
 
+@pytest.mark.integration
 class TestProviderIntegration(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -223,10 +242,12 @@ class TestProviderIntegration(unittest.TestCase):
 
     # ── Base class ──────────────────────────────────────────────
 
+    @unittest.skipUnless(OPENAI_AVAILABLE, "openai package not installed")
     def test_openai_compatible_health_check(self):
         p = OpenAICompatibleProvider(base_url=self.base_url)
         self.assertTrue(p.health_check())
 
+    @unittest.skipUnless(OPENAI_AVAILABLE, "openai package not installed")
     def test_openai_compatible_list_models(self):
         p = OpenAICompatibleProvider(base_url=self.base_url)
         models = p.list_models()
@@ -236,6 +257,7 @@ class TestProviderIntegration(unittest.TestCase):
         self.assertEqual(models[0].quantization, "Q4_K_M")
         self.assertEqual(models[0].size_bytes, 4000000000)
 
+    @unittest.skipUnless(OPENAI_AVAILABLE, "openai package not installed")
     def test_openai_compatible_chat_completion(self):
         """Test chat_completion talks to the real mock server."""
         p = OpenAICompatibleProvider(base_url=self.base_url, model_name="mock-model")
@@ -249,6 +271,7 @@ class TestProviderIntegration(unittest.TestCase):
         self.assertEqual(metrics.total_tokens, 15)
         self.assertGreater(metrics.tokens_per_second, 0)
 
+    @unittest.skipUnless(OPENAI_AVAILABLE, "openai package not installed")
     def test_openai_compatible_chat_completion_streaming(self):
         """Test streaming chat_completion against the mock SSE server."""
         p = OpenAICompatibleProvider(base_url=self.base_url, model_name="mock-model")
@@ -260,6 +283,7 @@ class TestProviderIntegration(unittest.TestCase):
         self.assertEqual(metrics.completion_tokens, 3)
         self.assertGreater(metrics.tokens_per_second, 0)
 
+    @unittest.skipUnless(OPENAI_AVAILABLE, "openai package not installed")
     def test_openai_compatible_run_prompt(self):
         """Test run_prompt end-to-end against the mock server."""
         from providers.base import RunRequest
@@ -324,6 +348,7 @@ class TestProviderIntegration(unittest.TestCase):
 
     # ── Ollama ──────────────────────────────────────────────────
 
+    @unittest.skipUnless(OPENAI_AVAILABLE, "openai package not installed")
     def test_ollama_list_models(self):
         c = OllamaClient(base_url=f"http://127.0.0.1:{self.port}")
         models = c.list_models()
@@ -333,10 +358,12 @@ class TestProviderIntegration(unittest.TestCase):
         self.assertEqual(models[0].parameters, "latest")
         self.assertEqual(models[0].quantization, "Q4_0")
 
+    @unittest.skipUnless(OPENAI_AVAILABLE, "openai package not installed")
     def test_ollama_health_check(self):
         c = OllamaClient(base_url=f"http://127.0.0.1:{self.port}")
         self.assertTrue(c.health_check())
 
+    @unittest.skipUnless(OPENAI_AVAILABLE, "openai package not installed")
     def test_ollama_chat_completion(self):
         """OllamaClient has its own chat_completion — test it against the mock server."""
         c = OllamaClient(base_url=f"http://127.0.0.1:{self.port}", model_name="mock-model")
@@ -348,6 +375,7 @@ class TestProviderIntegration(unittest.TestCase):
         self.assertEqual(metrics.prompt_tokens, 10)
         self.assertEqual(metrics.completion_tokens, 5)
 
+    @unittest.skipUnless(OPENAI_AVAILABLE, "openai package not installed")
     def test_ollama_chat_completion_streaming(self):
         c = OllamaClient(base_url=f"http://127.0.0.1:{self.port}", model_name="mock-model")
         text, metrics = c.chat_completion(
@@ -358,6 +386,7 @@ class TestProviderIntegration(unittest.TestCase):
         self.assertEqual(metrics.completion_tokens, 3)
         self.assertGreater(metrics.tokens_per_second, 0)
 
+    @unittest.skipUnless(OPENAI_AVAILABLE, "openai package not installed")
     def test_ollama_run_prompt(self):
         from providers.base import RunRequest
 
@@ -368,12 +397,14 @@ class TestProviderIntegration(unittest.TestCase):
         self.assertEqual(result.prompt_tokens, 10)
         self.assertEqual(result.completion_tokens, 5)
 
+    @unittest.skipUnless(OPENAI_AVAILABLE, "openai package not installed")
     def test_offline_health_check(self):
         """health_check should return False when the server is offline."""
         c = OpenAICompatibleProvider(base_url="http://127.0.0.1:65432/v1")
         self.assertFalse(c.health_check())
 
 
+@pytest.mark.integration
 class TestHealthCLIIntegration(unittest.TestCase):
     """Integration tests for the `modellens health` CLI command against a mock server."""
 
@@ -476,6 +507,7 @@ class TestHealthCLIIntegration(unittest.TestCase):
             srv.shutdown()
 
 
+@pytest.mark.integration
 class TestProviderUtilsIntegration(unittest.TestCase):
     """Integration tests for CLI utility functions against a mock server."""
 

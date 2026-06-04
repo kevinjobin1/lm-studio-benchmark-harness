@@ -55,7 +55,8 @@ Status: **In Progress** (providers expanded, skills foundation laid)
 |-------|-----------|
 | **Phase 1 ✅** | LM Studio, Ollama |
 | **Phase 2 ✅** | Open WebUI, Jan, llama.cpp, vLLM |
-| **Phase 3** | LocalAI, KoboldCPP, Text Generation WebUI |
+| **Phase 3 ✅** | OpenAI-compatible generic layer |
+| **Phase 4** | LocalAI, KoboldCPP, Text Generation WebUI |
 
 ---
 
@@ -82,19 +83,21 @@ Status: **In Progress** (providers expanded, skills foundation laid)
 - Skill system (types, registry, lockfile) ✅
 - Provider expansion (6 providers) ✅
 - MCP bridge ✅
+- SSE Bridge Worker (Cloudflare Durable Objects) ✅
+- SSE forwarding (ThreadPoolExecutor, User-Agent, URL edge cases) ✅
 - WASM sandbox
 - Workload evaluation ✅
 - Regression detection
 
-### V4 — OpenTelemetry for Local AI 🔮 Future
-
-Potential initiatives:
-- Trace schema standardization
-- OpenTelemetry export
-- VS Code extension
-- IDE integrations
-- Distributed agent traces
-- Team collaboration
+### V4 🚧 (Phase 1: Foundation & Immediate Fixes)
+- Dashboard authentication
+- SQLite results storage
+- Standalone SSE server
+- Cached hardware detection
+- Trace schema versioning
+- Unified config validation
+- Provider plugin registration
+- Test stability
 
 ---
 
@@ -144,21 +147,27 @@ Model Lens now includes:
 - [x] vLLM
 - [x] MCP bridge foundation
 - [x] OpenAI-compatible provider layer
+- [x] SSE Bridge Worker — Cloudflare Durable Objects for production SSE
+- [x] SSE forwarding — ThreadPoolExecutor, User-Agent, URL edge cases
+- [x] E2E SSE bridge tests (unit + live integration)
 - [ ] Regression detection
 - [ ] Skills runtime
 - [ ] Skill registry
 - [ ] WASM isolation
 - [ ] MCP server mode
 
-### V4 — OpenTelemetry for Local AI 🔮 Future
+### V4 — Foundation & Structural Optimization 🚧 In Progress
 
-Potential initiatives:
-- Trace schema standardization
-- OpenTelemetry export
-- VS Code extension
-- IDE integrations
-- Distributed agent traces
-- Team collaboration
+See [docs/specs/v4-plan.md](docs/specs/v4-plan.md) for detailed implementation plan.
+
+- [ ] Dashboard authentication (JWT)
+- [ ] SQLite results storage (replaces flat-file `runs_index.json`)
+- [ ] Standalone SSE server (`modellens sse serve`)
+- [ ] Cached hardware detection in dashboard
+- [ ] Trace schema versioning + migration
+- [ ] Unified config validation (YAML + JSON → single schema)
+- [ ] Provider plugin registration (entry points)
+- [ ] Test stability fixes
 
 ---
 

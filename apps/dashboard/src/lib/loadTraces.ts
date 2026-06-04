@@ -40,6 +40,8 @@ export interface TraceArtifacts {
 }
 
 export interface TraceData {
+  /** Schema version for forward-compatible migrations. */
+  version?: string;
   trace_id: string;
   run_id: string;
   model: string;

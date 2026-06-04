@@ -20,6 +20,7 @@ export function fmtUptime(totalSeconds: number): string {
 export default function ServerUptimeBadge() {
   const [uptime, setUptime] = useState<string>("");
   const [startedAt, setStartedAt] = useState<string>("");
+  const [hwCacheFresh, setHwCacheFresh] = useState<boolean | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -34,6 +35,17 @@ export default function ServerUptimeBadge() {
         }
       } catch {
         if (mounted) setUptime("");
+      }
+
+      // Also check hardware cache freshness from /api/status
+      try {
+        const statusResp = await fetch("/api/status");
+        const statusData = await statusResp.json();
+        if (mounted && statusData.hardware_cache) {
+          setHwCacheFresh(statusData.hardware_cache.fresh);
+        }
+      } catch {
+        // best-effort
       }
     }
 
@@ -54,6 +66,16 @@ export default function ServerUptimeBadge() {
     >
       <span className="material-symbols-outlined uptime-icon">schedule</span>
       <span className="uptime-label">{uptime}</span>
+      {hwCacheFresh !== null && (
+        <span
+          className={`hw-cache-indicator ${hwCacheFresh ? "fresh" : "stale"}`}
+          title={hwCacheFresh ? "Hardware cache fresh" : "Hardware cache stale — refreshing"}
+        >
+          <span className="material-symbols-outlined">
+            {hwCacheFresh ? "memory" : "sync"}
+          </span>
+        </span>
+      )}
     </span>
   );
 }

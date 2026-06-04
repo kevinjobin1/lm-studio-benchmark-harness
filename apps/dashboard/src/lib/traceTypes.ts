@@ -20,6 +20,8 @@ export interface TraceStep {
 
 /** A complete execution trace run. */
 export interface TraceRun {
+  /** Schema version (semver). Dashboard reads this for forward-compat migrations. */
+  version?: string;
   id: string;
   model: string;
   pack: string;

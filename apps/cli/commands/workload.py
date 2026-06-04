@@ -14,7 +14,6 @@ from rich.table import Table
 from .utils import (
     _echo,
     _resolve_provider,
-    PROVIDER_CONFIG,
     RICH_AVAILABLE,
     console,
 )
@@ -67,7 +66,7 @@ def workload_list_projects():
 @click.option("--model", "-m", required=True, help="Model name to evaluate (required)")
 @click.option(
     "--project",
-    "-p",
+    "-P",
     "project_name",
     default="nestjs-api",
     help="Built-in project name (default: nestjs-api)",
@@ -117,9 +116,11 @@ def run(
         api_base = api_base or detected_base
         api_key = api_key or detected_key
     else:
-        cfg = PROVIDER_CONFIG.get(provider, PROVIDER_CONFIG["lm-studio"])
-        api_base = api_base or cfg["url"]
-        api_key = api_key or cfg["key"]
+        from providers import get_provider_config
+
+        url, key = get_provider_config(provider)
+        api_base = api_base or url
+        api_key = api_key or key
 
     # Validate connection
     import requests
@@ -145,12 +146,25 @@ def run(
     _echo(f"   Tasks to generate: {tasks}", "dim")
     _echo("")
 
+    # ── Event bus infrastructure ─────────────────────────────────
+    try:
+        from events import default_bus
+        from events.sse import EventBusSSEServer
+        from events.replay import EventBusReplayWriter
+        from core.metrics_store import subscribe_to_event_bus
+
+        subscribe_to_event_bus(default_bus)
+        _EVENTS_AVAILABLE = True
+    except ImportError:
+        default_bus = None
+        EventBusSSEServer = None
+        EventBusReplayWriter = None
+        _EVENTS_AVAILABLE = False
+
     # ── SSE Bridge ──────────────────────────────────────────────
     sse_server = None
-    if sse_port is not None and sse_port > 0:
+    if _EVENTS_AVAILABLE and sse_port is not None and sse_port > 0:
         try:
-            from events.sse import EventBusSSEServer
-
             sse_server = EventBusSSEServer(port=sse_port)
             actual_port = sse_server.start()
             print(f"SSE_PORT:{actual_port}", flush=True)
@@ -161,17 +175,16 @@ def run(
 
     # ── Replay Writer ──────────────────────────────────────────
     replay_writer = None
-    try:
-        from events.replay import EventBusReplayWriter
-
-        replay_writer = EventBusReplayWriter(
-            output_dir=str(Path(output_dir) / "replays"),
-        )
-        replay_writer.start()
-    except ImportError:
-        pass  # events.replay not available — replay disabled
-    except Exception as e:
-        _echo(f"⚠ Replay writer failed to start: {e}", "yellow")
+    if _EVENTS_AVAILABLE:
+        try:
+            replay_writer = EventBusReplayWriter(
+                output_dir=str(Path(output_dir) / "replays"),
+            )
+            replay_writer.start()
+        except ImportError:
+            pass  # events.replay not available — replay disabled
+        except Exception as e:
+            _echo(f"⚠ Replay writer failed to start: {e}", "yellow")
 
     # Import workload packages
     from core.workload import ProjectLoader, TaskGenerator, WorkloadRunner, WorkloadScorer

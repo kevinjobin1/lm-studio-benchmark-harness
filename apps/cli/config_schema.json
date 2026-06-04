@@ -1,279 +1,298 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "LM Studio DevBench Configuration Schema",
+  "title": "Model Lens Unified Configuration Schema",
+  "description": "Validates config.yaml for both the general benchmark suite and DevBench v2. The old config.json (DevBench-only flat JSON) is deprecated.",
   "type": "object",
-  "required": ["version", "endpoint", "generation", "evaluation", "output"],
-  
+  "required": ["version"],
   "properties": {
     "version": {
       "type": "string",
       "pattern": "^\\d+\\.\\d+\\.\\d+$",
-      "description": "Semantic version of the benchmark configuration"
+      "description": "Semantic version of the config schema"
     },
-    
-    "benchmark_name": {
-      "type": "string",
-      "description": "Name of the benchmark suite"
-    },
-    
-    "description": {
-      "type": "string",
-      "description": "Description of the benchmark"
-    },
-    
-    "models": {
+    "api": {
       "type": "object",
-      "properties": {
-        "auto_detect": {
-          "type": "boolean",
-          "description": "Auto-detect models from LM Studio"
-        },
-        "specific_models": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "description": "List of specific model names to benchmark"
-        },
-        "metadata_fields": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "description": "Model metadata fields to track"
-        }
-      }
-    },
-    
-    "endpoint": {
-      "type": "object",
-      "required": ["base_url"],
+      "description": "Shared API connection settings (general + devbench)",
       "properties": {
         "base_url": {
           "type": "string",
           "format": "uri",
-          "description": "LM Studio API base URL"
+          "description": "Provider API base URL"
         },
         "api_key": {
           "type": "string",
           "description": "API key for authentication"
         },
+        "model_name": {
+          "type": "string",
+          "description": "Default model name"
+        },
         "timeout": {
           "type": "number",
           "minimum": 1,
           "description": "Request timeout in seconds"
+        },
+        "max_retries": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Maximum retry attempts"
         }
       }
     },
-    
-    "generation": {
+    "model": {
       "type": "object",
-      "required": ["temperature", "max_tokens"],
+      "description": "Model generation parameters shared across benchmarks",
       "properties": {
         "temperature": {
           "type": "number",
           "minimum": 0,
-          "maximum": 2,
-          "description": "Sampling temperature"
+          "maximum": 2
         },
         "max_tokens": {
           "type": "integer",
-          "minimum": 1,
-          "description": "Maximum tokens to generate"
+          "minimum": 1
         },
         "top_p": {
           "type": "number",
           "minimum": 0,
-          "maximum": 1,
-          "description": "Nucleus sampling parameter"
-        },
-        "stream": {
-          "type": "boolean",
-          "description": "Enable streaming responses"
+          "maximum": 1
         }
       }
     },
-    
-    "prompts": {
+    "general": {
       "type": "object",
-      "required": ["generator", "total_count", "categories"],
+      "description": "General benchmark suite (MMLU-Pro, GSM8K, HumanEval, etc.)",
+      "required": ["benchmarks"],
       "properties": {
-        "generator": {
-          "type": "string",
-          "enum": ["auto", "static", "hybrid"],
-          "description": "Prompt generation strategy"
-        },
-        "total_count": {
+        "samples_per_benchmark": {
           "type": "integer",
           "minimum": 1,
-          "description": "Total number of prompts to generate"
+          "description": "Default number of samples for each benchmark"
         },
-        "categories": {
-          "type": "object",
-          "description": "Prompt category configuration"
+        "quick_mode_samples": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Reduced sample count for quick mode"
         },
-        "difficulty_distribution": {
+        "benchmarks": {
           "type": "object",
+          "description": "Per-benchmark configuration",
           "properties": {
-            "easy": {
-              "type": "number",
-              "minimum": 0,
-              "maximum": 1
+            "mmlu_pro": {
+              "type": "object",
+              "properties": {
+                "enabled": { "type": "boolean" },
+                "subjects": {
+                  "type": "array",
+                  "items": { "type": "string" }
+                }
+              }
             },
-            "medium": {
-              "type": "number",
-              "minimum": 0,
-              "maximum": 1
+            "gsm8k": {
+              "type": "object",
+              "properties": {
+                "enabled": { "type": "boolean" }
+              }
             },
-            "hard": {
-              "type": "number",
-              "minimum": 0,
-              "maximum": 1
+            "aime": {
+              "type": "object",
+              "properties": {
+                "enabled": { "type": "boolean" }
+              }
+            },
+            "humaneval": {
+              "type": "object",
+              "properties": {
+                "enabled": { "type": "boolean" }
+              }
+            },
+            "swe_bench_lite": {
+              "type": "object",
+              "properties": {
+                "enabled": { "type": "boolean" },
+                "max_tasks": { "type": "integer", "minimum": 1 }
+              }
+            },
+            "ifeval": {
+              "type": "object",
+              "properties": {
+                "enabled": { "type": "boolean" }
+              }
+            },
+            "needle_in_haystack": {
+              "type": "object",
+              "properties": {
+                "enabled": { "type": "boolean" },
+                "context_lengths": {
+                  "type": "array",
+                  "items": { "type": "integer", "minimum": 1 }
+                }
+              }
+            },
+            "bfcl": {
+              "type": "object",
+              "properties": {
+                "enabled": { "type": "boolean" },
+                "categories": {
+                  "type": "array",
+                  "items": { "type": "string" }
+                }
+              }
+            },
+            "speed_latency": {
+              "type": "object",
+              "properties": {
+                "enabled": { "type": "boolean" },
+                "prompt_lengths": {
+                  "type": "array",
+                  "items": { "type": "integer", "minimum": 1 }
+                }
+              }
+            },
+            "memory": {
+              "type": "object",
+              "properties": {
+                "enabled": { "type": "boolean" },
+                "monitor_interval": { "type": "number", "minimum": 0 }
+              }
+            },
+            "creativity": {
+              "type": "object",
+              "properties": {
+                "enabled": { "type": "boolean" },
+                "prompts_file": { "type": "string" }
+              }
             }
           }
         }
       }
     },
-    
-    "evaluation": {
+    "devbench": {
       "type": "object",
-      "required": ["runs_per_prompt"],
+      "description": "DevBench v2 — TypeScript/NestJS/React evaluation on Apple Silicon",
       "properties": {
-        "runs_per_prompt": {
-          "type": "integer",
-          "minimum": 1,
-          "description": "Number of runs per prompt for variance"
-        },
-        "parallel_execution": {
-          "type": "boolean",
-          "description": "Enable parallel execution"
-        },
-        "max_workers": {
-          "type": "integer",
-          "minimum": 1,
-          "description": "Maximum parallel workers"
-        },
-        "execution_grounded": {
+        "description": { "type": "string" },
+        "models": {
           "type": "object",
           "properties": {
-            "enabled": {
-              "type": "boolean"
-            },
-            "ts_node": {
-              "type": "boolean"
-            },
-            "tsc": {
-              "type": "boolean"
-            },
-            "eslint": {
-              "type": "boolean"
+            "auto_detect": { "type": "boolean" },
+            "metadata_fields": {
+              "type": "array",
+              "items": { "type": "string" }
             }
           }
         },
-        "statistical": {
+        "endpoint": {
           "type": "object",
           "properties": {
-            "confidence_interval": {
-              "type": "number",
-              "minimum": 0,
-              "maximum": 1
-            },
-            "outlier_detection": {
-              "type": "boolean"
-            },
-            "outlier_method": {
-              "type": "string",
-              "enum": ["iqr", "zscore", "isolation"]
+            "base_url": { "type": "string", "format": "uri" },
+            "api_key": { "type": "string" },
+            "timeout": { "type": "number", "minimum": 1 }
+          }
+        },
+        "generation": {
+          "type": "object",
+          "properties": {
+            "temperature": { "type": "number", "minimum": 0, "maximum": 2 },
+            "max_tokens": { "type": "integer", "minimum": 1 },
+            "top_p": { "type": "number", "minimum": 0, "maximum": 1 },
+            "stream": { "type": "boolean" }
+          }
+        },
+        "prompts": {
+          "type": "object",
+          "properties": {
+            "generator": { "type": "string", "enum": ["auto", "static", "hybrid"] },
+            "total_count": { "type": "integer", "minimum": 1 },
+            "categories": { "type": "object" },
+            "difficulty_distribution": {
+              "type": "object",
+              "properties": {
+                "easy": { "type": "number", "minimum": 0, "maximum": 1 },
+                "medium": { "type": "number", "minimum": 0, "maximum": 1 },
+                "hard": { "type": "number", "minimum": 0, "maximum": 1 }
+              }
             }
+          }
+        },
+        "evaluation": {
+          "type": "object",
+          "properties": {
+            "runs_per_prompt": { "type": "integer", "minimum": 1 },
+            "parallel_execution": { "type": "boolean" },
+            "max_workers": { "type": "integer", "minimum": 1 },
+            "execution_grounded": {
+              "type": "object",
+              "properties": {
+                "enabled": { "type": "boolean" },
+                "ts_node": { "type": "boolean" },
+                "tsc": { "type": "boolean" },
+                "eslint": { "type": "boolean" }
+              }
+            },
+            "statistical": {
+              "type": "object",
+              "properties": {
+                "confidence_interval": { "type": "number", "minimum": 0, "maximum": 1 },
+                "outlier_detection": { "type": "boolean" },
+                "outlier_method": { "type": "string", "enum": ["iqr", "zscore", "isolation"] }
+              }
+            }
+          }
+        },
+        "metrics": {
+          "type": "object",
+          "properties": {
+            "track_latency": { "type": "boolean" },
+            "track_memory": { "type": "boolean" },
+            "track_thermal": { "type": "boolean" },
+            "tokenization_aware": { "type": "boolean" },
+            "normalization_reference_length": { "type": "integer", "minimum": 1 }
+          }
+        },
+        "output": {
+          "type": "object",
+          "properties": {
+            "directory": { "type": "string" },
+            "formats": {
+              "type": "array",
+              "items": { "type": "string", "enum": ["json", "csv", "markdown"] }
+            },
+            "charts": {
+              "type": "array",
+              "items": { "type": "string", "enum": ["radar", "leaderboard"] }
+            }
+          }
+        },
+        "hardware": {
+          "type": "object",
+          "properties": {
+            "target": { "type": "string", "enum": ["apple_silicon", "nvidia", "cpu"] },
+            "memory_gb": { "type": "number", "minimum": 1 },
+            "architecture": { "type": "string", "enum": ["arm64", "x86_64"] }
+          }
+        },
+        "reproducibility": {
+          "type": "object",
+          "properties": {
+            "seed": { "type": ["integer", "null"] },
+            "deterministic": { "type": "boolean" },
+            "version_prompts": { "type": "boolean" }
           }
         }
       }
     },
-    
-    "metrics": {
-      "type": "object",
-      "properties": {
-        "track_latency": {
-          "type": "boolean"
-        },
-        "track_memory": {
-          "type": "boolean"
-        },
-        "track_thermal": {
-          "type": "boolean"
-        },
-        "tokenization_aware": {
-          "type": "boolean"
-        },
-        "normalization_reference_length": {
-          "type": "integer",
-          "minimum": 1
-        }
-      }
-    },
-    
     "output": {
       "type": "object",
-      "required": ["directory", "formats"],
+      "description": "Global output settings",
       "properties": {
-        "directory": {
-          "type": "string",
-          "description": "Output directory path"
-        },
+        "directory": { "type": "string" },
         "formats": {
           "type": "array",
-          "items": {
-            "type": "string",
-            "enum": ["json", "csv", "markdown"]
-          }
+          "items": { "type": "string", "enum": ["json", "csv", "html"] }
         },
-        "charts": {
-          "type": "array",
-          "items": {
-            "type": "string",
-            "enum": ["radar", "leaderboard", "scatter"]
-          }
-        },
-        "x_thread": {
-          "type": "boolean",
-          "description": "Generate X thread"
-        }
-      }
-    },
-    
-    "hardware": {
-      "type": "object",
-      "properties": {
-        "target": {
-          "type": "string",
-          "enum": ["apple_silicon", "nvidia", "cpu"]
-        },
-        "memory_gb": {
-          "type": "number",
-          "minimum": 1
-        },
-        "architecture": {
-          "type": "string",
-          "enum": ["arm64", "x86_64"]
-        }
-      }
-    },
-    
-    "reproducibility": {
-      "type": "object",
-      "properties": {
-        "seed": {
-          "type": ["integer", "null"],
-          "description": "Random seed for reproducibility"
-        },
-        "deterministic": {
-          "type": "boolean",
-          "description": "Force deterministic execution"
-        },
-        "version_prompts": {
-          "type": "boolean",
-          "description": "Version prompt sets"
-        }
+        "save_intermediate": { "type": "boolean" },
+        "verbose": { "type": "boolean" }
       }
     }
   }

@@ -121,14 +121,27 @@ async function fetchJson<T>(url: string): Promise<T> {
 /**
  * Load all benchmark results from the aggregated results.json file.
  *
- * At build time (SSR / static generation): reads results.json directly from
- * the filesystem so static pages are pre-rendered with real data.
+ * In SSR mode (``astro dev``, local build): tries SQLite first
+ * (``results/runs.db``) via ``loadResultsDb`` for O(1) queries.
+ * Falls back to the flat JSON file if SQLite is unavailable
+ * (Cloudflare Workers, missing native module, etc.).
  *
  * At browser runtime (client:load hydration): fetches /results.json over HTTP.
  */
 export async function loadResults(): Promise<BenchmarkResult[]> {
   if (import.meta.env.SSR) {
-    // ── Build-time: read from filesystem ──────────────────────
+    // ── Build-time: try SQLite first, then JSON fallback ──────
+    try {
+      const { loadResultsFromDb } = await import("./loadResultsDb");
+      const dbResults = loadResultsFromDb(undefined, 500);
+      if (dbResults && dbResults.length > 0) {
+        return dbResults;
+      }
+    } catch {
+      // better-sqlite3 not available — fall through to JSON
+    }
+
+    // ── JSON fallback ────────────────────────────────────────
     try {
       const fs = await import("fs");
       const path = await import("path");

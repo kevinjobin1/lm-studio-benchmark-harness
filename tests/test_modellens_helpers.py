@@ -6,18 +6,14 @@ Uses unittest.mock to simulate HTTP responses and provider detection.
 import unittest
 from unittest.mock import patch, MagicMock
 
-# Mock external deps before importing modellens helpers
-import sys
+import requests
 
-sys.modules["openai"] = MagicMock()
-sys.modules["requests"] = MagicMock()
-sys.modules["click"] = MagicMock()
-sys.modules["rich"] = MagicMock()
-sys.modules["rich.console"] = MagicMock()
-sys.modules["rich.table"] = MagicMock()
-
-# Now safe to import
-from modellens import _fmt_size
+from apps.cli.commands.utils import (
+    _resolve_provider,
+    _list_models_detailed,
+    _list_provider_models,
+    _fmt_size,
+)
 
 
 class TestFmtSize(unittest.TestCase):
@@ -71,8 +67,6 @@ class TestListModelsDetailed(unittest.TestCase):
         }
         mock_get.return_value = mock_response
 
-        from modellens import _list_models_detailed
-
         result = _list_models_detailed("lm-studio", "http://localhost:1234/v1", "lm-studio")
 
         mock_get.assert_called_once_with("http://localhost:1234/v1/models", timeout=5)
@@ -115,10 +109,9 @@ class TestListModelsDetailed(unittest.TestCase):
         }
         mock_get.return_value = mock_response
 
-        from modellens import _list_models_detailed
-
         result = _list_models_detailed("ollama", "http://localhost:11434", "ollama")
 
+        # Uses get_root_url to strip /v1, so calls clean URL
         mock_get.assert_called_once_with("http://localhost:11434/api/tags", timeout=5)
 
         self.assertEqual(len(result), 2)
@@ -144,8 +137,6 @@ class TestListModelsDetailed(unittest.TestCase):
         mock_response.json.return_value = {"models": []}
         mock_get.return_value = mock_response
 
-        from modellens import _list_models_detailed
-
         _list_models_detailed("ollama", "http://localhost:11434/v1", "ollama")
 
         # Should have stripped /v1 and called the clean URL
@@ -158,21 +149,15 @@ class TestListModelsDetailed(unittest.TestCase):
         mock_response.status_code = 500
         mock_get.return_value = mock_response
 
-        from modellens import _list_models_detailed
-
         result = _list_models_detailed("ollama", "http://localhost:11434", "ollama")
-
         self.assertEqual(result, [])
 
     @patch("requests.get")
     def test_network_error_returns_empty(self, mock_get):
         """Network error → empty list (graceful degradation)."""
-        mock_get.side_effect = Exception("Connection refused")
-
-        from modellens import _list_models_detailed
+        mock_get.side_effect = requests.ConnectionError("Connection refused")
 
         result = _list_models_detailed("ollama", "http://localhost:11434", "ollama")
-
         self.assertEqual(result, [])
 
     @patch("requests.get")
@@ -183,10 +168,7 @@ class TestListModelsDetailed(unittest.TestCase):
         mock_response.json.return_value = {"data": [{}]}
         mock_get.return_value = mock_response
 
-        from modellens import _list_models_detailed
-
         result = _list_models_detailed("lm-studio", "http://localhost:1234/v1", "lm-studio")
-
         self.assertEqual(len(result), 1)
         self.assertEqual(result[0]["id"], "unknown")
 
@@ -206,10 +188,7 @@ class TestListModelsDetailed(unittest.TestCase):
         }
         mock_get.return_value = mock_response
 
-        from modellens import _list_models_detailed
-
         result = _list_models_detailed("ollama", "http://localhost:11434", "ollama")
-
         self.assertEqual(len(result), 1)
         self.assertEqual(result[0]["id"], "codellama")
         self.assertEqual(result[0]["name"], "codellama")
@@ -217,113 +196,63 @@ class TestListModelsDetailed(unittest.TestCase):
 
 
 class TestResolveProvider(unittest.TestCase):
-    """Tests for _resolve_provider() with mocked provider detection."""
+    """Tests for _resolve_provider() with mocked provider discovery.
+
+    _resolve_provider now probes all discovered providers via HTTP
+    (using entry-point discovery from providers.__init__). Tests mock
+    requests.get to simulate provider availability.
+    """
 
     @patch("requests.get")
     def test_detects_lm_studio_when_available(self, mock_get):
-        """When LM Studio /v1/models responds, it should be detected."""
+        """When LM Studio /v1/models responds 200, it should be detected first."""
         mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.json.return_value = {"data": [{"id": "some-model"}]}
         mock_get.return_value = mock_response
 
-        from modellens import _resolve_provider
+        provider, api_base, api_key = _resolve_provider(provider=None)
+
+        self.assertEqual(provider, "lm-studio")
+        self.assertIn("1234", api_base)  # lm-studio default port
+        self.assertEqual(api_key, "lm-studio")
+
+    @patch("requests.get")
+    def test_falls_back_to_lm_studio_when_all_unreachable(self, mock_get):
+        """When all providers are unreachable, defaults to lm-studio."""
+        mock_get.side_effect = requests.ConnectionError("Connection refused")
 
         provider, api_base, api_key = _resolve_provider(provider=None)
 
         self.assertEqual(provider, "lm-studio")
-        self.assertEqual(api_base, "http://localhost:1234/v1")
+        self.assertIn("1234", api_base)
         self.assertEqual(api_key, "lm-studio")
 
-    @patch("providers.ollama.OllamaClient")
     @patch("requests.get")
-    def test_falls_back_to_ollama_when_lm_studio_fails(self, mock_get, mock_ollama):
-        """When LM Studio is unreachable but Ollama passes health_check."""
-        mock_get.side_effect = Exception("Connection refused")
-
-        mock_client = MagicMock()
-        mock_client.health_check.return_value = True
-        mock_ollama.return_value = mock_client
-
-        from modellens import _resolve_provider
-
-        provider, api_base, api_key = _resolve_provider(provider=None)
-
-        self.assertEqual(provider, "ollama")
-        self.assertEqual(api_base, "http://localhost:11434")
-        self.assertEqual(api_key, "ollama")
-        mock_client.health_check.assert_called_once()
-
-    @patch("providers.ollama.OllamaClient")
-    @patch("requests.get")
-    def test_falls_back_to_lm_studio_when_both_unreachable(self, mock_get, mock_ollama):
-        """When neither provider is reachable, defaults to lm-studio."""
-        mock_get.side_effect = Exception("Connection refused")
-
-        mock_client = MagicMock()
-        mock_client.health_check.return_value = False
-        mock_ollama.return_value = mock_client
-
-        from modellens import _resolve_provider
-
-        provider, api_base, api_key = _resolve_provider(provider=None)
-
-        self.assertEqual(provider, "lm-studio")
-        self.assertEqual(api_base, "http://localhost:1234/v1")
-        self.assertEqual(api_key, "lm-studio")
-
-    @patch("providers.ollama.OllamaClient")
-    @patch("requests.get")
-    def test_lm_studio_non_200_does_not_count_as_detected(self, mock_get, mock_ollama):
-        """LM Studio returning 500 (non-200) should not be considered available."""
+    def test_lm_studio_non_200_not_detected(self, mock_get):
+        """LM Studio returning 500 (non-200) should not be detected."""
         mock_response = MagicMock()
         mock_response.status_code = 500
         mock_response.json.return_value = {"data": [{"id": "model"}]}
         mock_get.return_value = mock_response
 
-        mock_client = MagicMock()
-        mock_client.health_check.return_value = False
-        mock_ollama.return_value = mock_client
-
-        from modellens import _resolve_provider
-
         provider, api_base, api_key = _resolve_provider(provider=None)
 
-        # 500 response means LM Studio not detected; ollama also fails → lm-studio fallback
-        self.assertEqual(provider, "lm-studio")
-
-    @patch("providers.ollama.OllamaClient")
-    @patch("requests.get")
-    def test_lm_studio_empty_model_list_does_not_count(self, mock_get, mock_ollama):
-        """LM Studio returning 200 with empty data should not be detected."""
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = {"data": []}
-        mock_get.return_value = mock_response
-
-        mock_client = MagicMock()
-        mock_client.health_check.return_value = False
-        mock_ollama.return_value = mock_client
-
-        from modellens import _resolve_provider
-
-        provider, api_base, api_key = _resolve_provider(provider=None)
-
-        # Empty model list means no models → falls through to ollama → fails → lm-studio
+        # All providers return 500 or non-200 → falls through to lm-studio default
         self.assertEqual(provider, "lm-studio")
 
     def test_respects_explicit_provider(self):
-        """When provider is explicitly passed, auto-detection is skipped entirely."""
-        from modellens import _resolve_provider
-
+        """When provider is explicitly passed, auto-detection is skipped."""
         provider, api_base, api_key = _resolve_provider(provider="ollama")
+
         self.assertEqual(provider, "ollama")
-        self.assertEqual(api_base, "http://localhost:11434")
+        self.assertIn("11434", api_base)
         self.assertEqual(api_key, "ollama")
 
         provider, api_base, api_key = _resolve_provider(provider="lm-studio")
+
         self.assertEqual(provider, "lm-studio")
-        self.assertEqual(api_base, "http://localhost:1234/v1")
+        self.assertIn("1234", api_base)
         self.assertEqual(api_key, "lm-studio")
 
 

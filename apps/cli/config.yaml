@@ -1,6 +1,9 @@
 # Model Lens Benchmark Configuration
 # Unified YAML for both general benchmarks and DevBench v2.
+# Validated against config_schema.json by config_manager.py.
 # The old config.json (DevBench-only, flat JSON) is deprecated.
+
+version: "2.0.0"
 
 api:
   base_url: "http://localhost:1234/v1"
@@ -14,49 +17,50 @@ model:
   max_tokens: 4096
   top_p: 1.0
 
-benchmarks:
+general:
   samples_per_benchmark: 100  # Number of samples for each benchmark
   quick_mode_samples: 10      # Reduced samples for quick mode
 
-  mmlu_pro:
-    enabled: true
-    subjects: ["math", "physics", "chemistry", "biology", "computer_science"]
+  benchmarks:
+    mmlu_pro:
+      enabled: true
+      subjects: ["math", "physics", "chemistry", "biology", "computer_science"]
 
-  gsm8k:
-    enabled: true
+    gsm8k:
+      enabled: true
 
-  aime:
-    enabled: true
+    aime:
+      enabled: true
 
-  humaneval:
-    enabled: true
+    humaneval:
+      enabled: true
 
-  swe_bench_lite:
-    enabled: true
-    max_tasks: 20
+    swe_bench_lite:
+      enabled: true
+      max_tasks: 20
 
-  ifeval:
-    enabled: true
+    ifeval:
+      enabled: true
 
-  needle_in_haystack:
-    enabled: true
-    context_lengths: [4000, 8000, 16000, 32000]
+    needle_in_haystack:
+      enabled: true
+      context_lengths: [4000, 8000, 16000, 32000]
 
-  bfcl:
-    enabled: true
-    categories: ["simple", "multi_turn", "parallel"]
+    bfcl:
+      enabled: true
+      categories: ["simple", "multi_turn", "parallel"]
 
-  speed_latency:
-    enabled: true
-    prompt_lengths: [100, 500, 1000, 2000]
+    speed_latency:
+      enabled: true
+      prompt_lengths: [100, 500, 1000, 2000]
 
-  memory:
-    enabled: true
-    monitor_interval: 1.0
+    memory:
+      enabled: true
+      monitor_interval: 1.0
 
-  creativity:
-    enabled: true
-    prompts_file: "data/creativity_prompts.json"
+    creativity:
+      enabled: true
+      prompts_file: "data/creativity_prompts.json"
 
 devbench:
   description: "DevBench v2 — TypeScript/NestJS/React evaluation"

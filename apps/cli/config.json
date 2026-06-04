@@ -1,5 +1,6 @@
 {
-  "_deprecated": "This flat JSON config is deprecated. DevBench settings have been merged into config.yaml under the 'devbench:' section.",
+  "_deprecated": "This flat JSON config is fully deprecated as of v2.0.0. All settings live in config.yaml under the 'devbench:' section. This file is kept for backward-compatibility only. Loading it will emit a deprecation warning.",
+  "_migration_guide": "Copy any custom settings from this file into config.yaml under the 'devbench:' key, then delete this file.",
   "version": "2.0.0",
   "benchmark_name": "LM Studio DevBench",
   "description": "Public benchmark for local small AI models on Apple Silicon",

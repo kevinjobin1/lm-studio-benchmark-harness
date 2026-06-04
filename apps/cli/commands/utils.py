@@ -6,6 +6,7 @@ from typing import List, Optional
 import click
 
 from packages.modellens_logging import get_logger
+from providers import discover_providers, get_provider_config
 from providers.base import get_root_url
 
 logger = get_logger(__name__)
@@ -56,16 +57,9 @@ def _fmt_size(size_bytes: int) -> str:
     return f"{size_bytes} B"
 
 
-# Provider configuration: default URLs and API keys
-PROVIDER_CONFIG = {
-    "lm-studio": {"url": "http://localhost:1234/v1", "key": "lm-studio"},
-    "ollama": {"url": "http://localhost:11434/v1", "key": "ollama"},
-    "open-webui": {"url": "http://localhost:3000/api/v1", "key": "open-webui"},
-    "jan": {"url": "http://localhost:1337/v1", "key": "jan"},
-    "llama.cpp": {"url": "http://localhost:8080/v1", "key": "llamacpp"},
-    "vllm": {"url": "http://localhost:8000/v1", "key": "vllm"},
-}
-
+# Provider configuration: auto-discovered from entry points.
+# Use ``get_provider_config(name)`` (from providers.__init__) instead of
+# directly accessing this dict.
 
 def _resolve_provider(provider: Optional[str] = None) -> tuple:
     """Resolve provider and return (provider_name, api_base, api_key).
@@ -77,28 +71,22 @@ def _resolve_provider(provider: Optional[str] = None) -> tuple:
     if provider is None:
         import requests
 
-        # Probe order: LM Studio, Ollama, llama.cpp, vLLM, Open WebUI, Jan
-        probes = [
-            ("lm-studio", "http://localhost:1234/v1/models"),
-            ("ollama", "http://localhost:11434/api/tags"),
-            ("llama.cpp", "http://localhost:8080/v1/models"),
-            ("vllm", "http://localhost:8000/v1/models"),
-            ("open-webui", "http://localhost:3000/api/v1/models"),
-            ("jan", "http://localhost:1337/v1/models"),
-        ]
-        for p_name, probe_url in probes:
+        # Probe all discovered providers in their registered order.
+        # The entry-point order determines priority (pip controls this).
+        for entry in discover_providers().values():
+            probe_url = f"{entry.default_url}/models"
             try:
                 resp = requests.get(probe_url, timeout=2)
                 if resp.status_code == 200:
-                    provider = p_name
+                    provider = entry.name
                     break
             except (requests.ConnectionError, requests.Timeout):
                 continue
         if not provider:
             provider = "lm-studio"  # Default fallback
 
-    cfg = PROVIDER_CONFIG.get(provider, PROVIDER_CONFIG["lm-studio"])
-    return provider, cfg["url"], cfg["key"]
+    url, key = get_provider_config(provider)
+    return provider, url, key
 
 
 def _list_provider_models(provider: str, api_base: str, api_key: str) -> List[str]:
@@ -196,6 +184,7 @@ def _list_models_detailed(provider: str, api_base: str, api_key: str) -> list:
     except (requests.RequestException, ValueError, KeyError) as e:
         logger.debug("Could not list detailed models for %s: %s", provider, e)
     return models
+
 
 
 def validate_provider_connection(provider: str, api_base: str) -> bool:

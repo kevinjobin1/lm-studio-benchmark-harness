@@ -32,7 +32,7 @@ if _SCRIPT_DIR not in sys.path:
     sys.path.insert(0, _SCRIPT_DIR)
 
 import click
-import yaml
+from apps.cli.config_manager import load_config, UnifiedConfig
 from benchmarks import (
     AIMEBenchmark,
     BFCLBenchmark,
@@ -56,66 +56,59 @@ from rich.table import Table
 console = Console()
 
 
-def load_config(config_file: str = "config.yaml") -> dict:
-    """Load configuration from YAML file."""
-    config_path = Path(config_file)
-    if config_path.exists():
-        with open(config_path, "r") as f:
-            return yaml.safe_load(f)
-    return {}
+def create_benchmark_suite(client, config: UnifiedConfig) -> BenchmarkSuite:
+    """Create and configure the benchmark suite from unified config."""
+    suite = BenchmarkSuite(client, config._raw)
+    benchmarks_cfg = config.general.benchmarks
+    verbose = config.output.get("verbose", False)
 
-
-def create_benchmark_suite(client, config: dict) -> BenchmarkSuite:
-    """Create and configure the benchmark suite."""
-    suite = BenchmarkSuite(client, config)
-    benchmark_config = config.get("benchmarks", {})
-    verbose = benchmark_config.get("verbose", False)
-
-    def _cfg(key: str) -> dict:
-        """Get sub-config with verbose flag injected."""
-        c = dict(benchmark_config.get(key, {}))
+    def _cfg(benchmark_attr) -> dict:
+        """Get sub-config dict from the typed GeneralBenchmarksConfig field."""
+        # benchmarks_cfg is GeneralBenchmarksConfig dataclass; each field is a dict
+        raw = getattr(benchmarks_cfg, benchmark_attr, {})
+        c = dict(raw)
         c["verbose"] = verbose or c.get("verbose", False)
         return c
 
     # Register benchmarks
-    if benchmark_config.get("mmlu_pro", {}).get("enabled", True):
+    if benchmarks_cfg.mmlu_pro.get("enabled", True):
         suite.register_benchmark("mmlu_pro", MMLUProBenchmark(client, _cfg("mmlu_pro")))
 
-    if benchmark_config.get("gsm8k", {}).get("enabled", True):
+    if benchmarks_cfg.gsm8k.get("enabled", True):
         suite.register_benchmark("gsm8k", GSM8KBenchmark(client, _cfg("gsm8k")))
 
-    if benchmark_config.get("aime", {}).get("enabled", True):
+    if benchmarks_cfg.aime.get("enabled", True):
         suite.register_benchmark("aime", AIMEBenchmark(client, _cfg("aime")))
 
-    if benchmark_config.get("humaneval", {}).get("enabled", True):
+    if benchmarks_cfg.humaneval.get("enabled", True):
         suite.register_benchmark("humaneval", HumanEvalBenchmark(client, _cfg("humaneval")))
 
-    if benchmark_config.get("swe_bench_lite", {}).get("enabled", True):
+    if benchmarks_cfg.swe_bench_lite.get("enabled", True):
         suite.register_benchmark(
             "swe_bench_lite", SWEBenchLiteBenchmark(client, _cfg("swe_bench_lite"))
         )
 
-    if benchmark_config.get("ifeval", {}).get("enabled", True):
+    if benchmarks_cfg.ifeval.get("enabled", True):
         suite.register_benchmark("if_eval", IFEvalBenchmark(client, _cfg("ifeval")))
 
-    if benchmark_config.get("needle_in_haystack", {}).get("enabled", True):
+    if benchmarks_cfg.needle_in_haystack.get("enabled", True):
         suite.register_benchmark(
             "needle_in_haystack",
             NeedleInHaystackBenchmark(client, _cfg("needle_in_haystack")),
         )
 
-    if benchmark_config.get("bfcl", {}).get("enabled", True):
+    if benchmarks_cfg.bfcl.get("enabled", True):
         suite.register_benchmark("bfcl", BFCLBenchmark(client, _cfg("bfcl")))
 
-    if benchmark_config.get("speed_latency", {}).get("enabled", True):
+    if benchmarks_cfg.speed_latency.get("enabled", True):
         suite.register_benchmark(
             "speed_latency", SpeedLatencyBenchmark(client, _cfg("speed_latency"))
         )
 
-    if benchmark_config.get("memory", {}).get("enabled", True):
+    if benchmarks_cfg.memory.get("enabled", True):
         suite.register_benchmark("memory", MemoryBenchmark(client, _cfg("memory")))
 
-    if benchmark_config.get("creativity", {}).get("enabled", True):
+    if benchmarks_cfg.creativity.get("enabled", True):
         suite.register_benchmark("creativity", CreativityBenchmark(client, _cfg("creativity")))
 
     return suite
@@ -161,27 +154,27 @@ def main(
     console.print("\n[bold blue]🔬 Model Lens[/bold blue]\n")
 
     # Load configuration
-    cfg = load_config(config)
+    unified_cfg = load_config(config)
 
     # Override config with CLI options
     if api_base:
-        cfg.setdefault("api", {})["base_url"] = api_base
+        unified_cfg.api["base_url"] = api_base
     if api_key:
-        cfg.setdefault("api", {})["api_key"] = api_key
+        unified_cfg.api["api_key"] = api_key
     if model_name:
-        cfg.setdefault("api", {})["model_name"] = model_name
+        unified_cfg.api["model_name"] = model_name
     if samples:
-        cfg.setdefault("benchmarks", {})["samples_per_benchmark"] = samples
+        unified_cfg.general.samples_per_benchmark = samples
     if quick:
-        samples = cfg.get("benchmarks", {}).get("quick_mode_samples", 10)
+        samples = unified_cfg.general.quick_mode_samples
     if verbose:
-        cfg.setdefault("benchmarks", {})["verbose"] = True
+        unified_cfg.output["verbose"] = True
 
     # Get sample count
-    sample_count = samples or cfg.get("benchmarks", {}).get("samples_per_benchmark", 100)
+    sample_count = samples or unified_cfg.general.samples_per_benchmark
 
     # Get API config
-    api_config = cfg.get("api", {})
+    api_config = unified_cfg.api
     base_url = api_config.get("base_url", api_base)
     api_key_val = api_config.get("api_key", api_key)
     model_name_val = api_config.get("model_name", model_name)
@@ -197,7 +190,7 @@ def main(
             base_url,
             api_key_val,
             model_name_val,
-            cfg,
+            unified_cfg,
             benchmarks,
             sample_count,
             output_dir,
@@ -228,7 +221,7 @@ def main(
             base_url,
             api_key_val,
             model_name_val,
-            cfg,
+            unified_cfg,
             benchmarks,
             sample_count,
             output_dir,
@@ -239,7 +232,7 @@ def main(
 
 
 def run_custom_framework(
-    console, base_url, api_key, model_name, cfg, benchmarks, sample_count, output_dir
+    console, base_url, api_key, model_name, unified_cfg, benchmarks, sample_count, output_dir
 ):
     """Run custom benchmark framework."""
     console.print(f"[dim]Connecting to {base_url}...[/dim]")
@@ -249,8 +242,8 @@ def run_custom_framework(
             base_url=base_url,
             api_key=api_key,
             model_name=model_name,
-            timeout=cfg.get("api", {}).get("timeout", 120),
-            max_retries=cfg.get("api", {}).get("max_retries", 3),
+            timeout=unified_cfg.api.get("timeout", 120),
+            max_retries=unified_cfg.api.get("max_retries", 3),
         )
         console.print("[green]✓ Connected to API[/green]\n")
     except Exception as e:
@@ -258,7 +251,7 @@ def run_custom_framework(
         return
 
     # Create benchmark suite
-    suite = create_benchmark_suite(client, cfg)
+    suite = create_benchmark_suite(client, unified_cfg)
 
     # Determine which benchmarks to run
     if benchmarks:
@@ -458,7 +451,7 @@ def run_comparison_mode(
     base_url,
     api_key,
     model_name,
-    cfg,
+    unified_cfg,
     benchmarks,
     sample_count,
     output_dir,
@@ -518,11 +511,11 @@ def run_comparison_mode(
             base_url=base_url,
             api_key=api_key,
             model_name=model_name,
-            timeout=cfg.get("api", {}).get("timeout", 120),
-            max_retries=cfg.get("api", {}).get("max_retries", 3),
+            timeout=unified_cfg.api.get("timeout", 120),
+            max_retries=unified_cfg.api.get("max_retries", 3),
         )
 
-        suite = create_benchmark_suite(client, cfg)
+        suite = create_benchmark_suite(client, unified_cfg)
         custom_results = suite.run_all(samples=sample_count, benchmark_names=benchmark_list)
         comparison_results["custom"] = suite.get_summary()
         console.print("[green]✓ Custom benchmarks complete[/green]\n")

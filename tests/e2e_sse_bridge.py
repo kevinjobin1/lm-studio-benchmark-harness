@@ -43,8 +43,9 @@ print()
 # ── 2b. Batch forward via EventBus → _forward_to_worker → POST ──
 bus = EventBus()
 server = EventBusSSEServer(bus=bus, worker_url=BRIDGE_URL)
-bus.subscribe_all(server._on_event)
-print(f"2. Pool ready (max_workers={server._worker_forwarder._max_workers})")
+# Note: __init__ auto-subscribes to bus when worker_url is set,
+# so no manual bus.subscribe_all() call is needed.
+print(f"2. Pool ready, auto-subscribed (max_workers={server._worker_forwarder._max_workers})")
 
 events = [
     TokenGeneratedEvent(model="e2e", token="Hello", index=0, timing_ms=12.5,
@@ -83,7 +84,7 @@ resp.readline()  # blank separator line
 captured: list[dict] = []
 bus2 = EventBus()
 server2 = EventBusSSEServer(bus=bus2, worker_url=BRIDGE_URL)
-bus2.subscribe_all(server2._on_event)  # required for _forward_to_worker to fire
+# Note: __init__ auto-subscribes; no manual call needed.
 
 def emit_from_bg():
     time.sleep(1)

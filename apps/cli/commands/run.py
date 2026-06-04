@@ -13,10 +13,10 @@ import click
 from rich.table import Table
 
 from core.hardware import detect_hardware
+from apps.cli.config_manager import load_config
 from .utils import (
     _echo,
     _get_git_sha,
-    PROVIDER_CONFIG,
     _resolve_provider,
     _list_provider_models,
     validate_provider_connection,
@@ -29,6 +29,11 @@ try:
     from events import default_bus
     from events.sse import EventBusSSEServer
     from events.replay import EventBusReplayWriter
+    from core.metrics_store import subscribe_to_event_bus
+
+    # Subscribe the MetricsStore to MetricEvents so every metric emitted
+    # during benchmark runs is recorded in the time-series DB.
+    subscribe_to_event_bus(default_bus)
 
     _EVENTS_AVAILABLE = True
 except ImportError:
@@ -155,9 +160,11 @@ def run(
         api_base = api_base or detected_base
         api_key = api_key or detected_key
     else:
-        cfg = PROVIDER_CONFIG.get(provider, PROVIDER_CONFIG["lm-studio"])
-        api_base = api_base or cfg["url"]
-        api_key = api_key or cfg["key"]
+        from providers import get_provider_config
+
+        url, key = get_provider_config(provider)
+        api_base = api_base or url
+        api_key = api_key or key
 
     # Validate connection
     validate_provider_connection(provider, api_base)
@@ -264,7 +271,6 @@ def _run_general_framework(
     )
     from providers.openai_compatible import OpenAICompatibleProvider
     from apps.cli.reporting import ReportGenerator
-    import yaml
 
     if not models:
         _echo("✗ --models or --model-name required for general framework", "red")
@@ -273,18 +279,16 @@ def _run_general_framework(
     model_name = models[0]
     sample_count = samples or (10 if quick else 100)
 
-    # Load config
-    cfg = {}
-    config_path = Path(config)
-    if config_path.exists():
-        with open(config_path) as f:
-            cfg = yaml.safe_load(f) or {}
+    # Load unified config
+    cfg_path = config
+    unified_cfg = load_config(cfg_path)
 
-    cfg.setdefault("api", {})["base_url"] = api_base
-    cfg.setdefault("api", {})["api_key"] = api_key
-    cfg.setdefault("api", {})["model_name"] = model_name
+    # Override with CLI arguments
+    unified_cfg.api["base_url"] = api_base
+    unified_cfg.api["api_key"] = api_key
+    unified_cfg.api["model_name"] = model_name
     if verbose:
-        cfg.setdefault("benchmarks", {})["verbose"] = True
+        unified_cfg.output["verbose"] = True
 
     if not ci_mode:
         _echo(f"   Model: {model_name}  |  Samples: {sample_count}", "dim")
@@ -316,8 +320,8 @@ def _run_general_framework(
             base_url=api_base,
             api_key=api_key,
             model_name=model_name,
-            timeout=cfg.get("api", {}).get("timeout", 120),
-            max_retries=cfg.get("api", {}).get("max_retries", 3),
+            timeout=unified_cfg.api.get("timeout", 120),
+            max_retries=unified_cfg.api.get("max_retries", 3),
             event_bus=default_bus if _EVENTS_AVAILABLE else None,
             event_source=event_source,
         )
@@ -327,12 +331,13 @@ def _run_general_framework(
         sys.exit(1)
 
     suite = BenchmarkSuite(
-        client, cfg, event_bus=default_bus if _EVENTS_AVAILABLE else None, event_source=event_source
+        client, unified_cfg._raw, event_bus=default_bus if _EVENTS_AVAILABLE else None, event_source=event_source
     )
-    bc = cfg.get("benchmarks", {})
+    benchmarks_cfg = unified_cfg.general.benchmarks
 
-    def _cfg(key):
-        c = dict(bc.get(key, {}))
+    def _cfg(benchmark_attr):
+        raw = getattr(benchmarks_cfg, benchmark_attr, {})
+        c = dict(raw)
         c["verbose"] = verbose or c.get("verbose", False)
         return c
 
@@ -414,20 +419,17 @@ def _run_devbench_framework(
     )
     from statistics import mean, stdev
     from collections import Counter
-    import yaml
 
-    # ── Load unified config (devbench section) ───────────────────
-    devbench_cfg = {}
-    config_path = Path(config) if config else Path("apps/cli/config.yaml")
-    if config_path.exists():
-        with open(config_path) as f:
-            cfg = yaml.safe_load(f) or {}
-        devbench_cfg = cfg.get("devbench", {})
-
-    # Override defaults with config values
-    num_runs = devbench_cfg.get("evaluation", {}).get("runs_per_prompt", num_runs)
-    num_prompts = devbench_cfg.get("prompts", {}).get("total_count", num_prompts)
-    parallel = devbench_cfg.get("evaluation", {}).get("parallel_execution", parallel)
+    # Resolve devbench overrides from unified config.
+    # Use raw dict access (not typed dataclass attributes) so that
+    # missing YAML keys correctly fall through to CLI flag defaults.
+    _unified = load_config(str(Path(config or "apps/cli/config.yaml")))
+    _db_raw = _unified._raw.get("devbench", {})
+    _eval_raw = _db_raw.get("evaluation", {})
+    num_runs = _eval_raw.get("runs_per_prompt", num_runs)
+    num_prompts = _db_raw.get("prompts", {}).get("total_count", num_prompts)
+    if "parallel_execution" in _eval_raw:
+        parallel = _eval_raw["parallel_execution"]
 
     # ── Set up SSE server and replay writer ───────────────────────
     sse_server = None

@@ -12,7 +12,6 @@ from .utils import (
     _resolve_provider,
     _list_models_detailed,
     _fmt_size,
-    PROVIDER_CONFIG,
 )
 
 
@@ -50,9 +49,11 @@ def info(provider, api_base, api_key, json_output):
         api_base = api_base or detected_base
         api_key = api_key or detected_key
     else:
-        cfg = PROVIDER_CONFIG.get(provider, PROVIDER_CONFIG["lm-studio"])
-        api_base = api_base or cfg["url"]
-        api_key = api_key or cfg["key"]
+        from providers import get_provider_config
+
+        url, key = get_provider_config(provider)
+        api_base = api_base or url
+        api_key = api_key or key
 
     try:
         models = _list_models_detailed(provider, api_base, api_key)
