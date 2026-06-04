@@ -54,7 +54,8 @@ const navItems = [
         icon: "architecture",
         label: "Prompt Packs",
         href: "/prompt-packs",
-    },    {
+    },
+    {
         id: "snapshots",
         icon: "camera",
         label: "Snapshots",
@@ -77,8 +78,11 @@ const navItems = [
         <script>
             (function () {
                 /* Cross-fade page transitions */
-            document.documentElement.style.setProperty('--page-transition-duration', '200ms');
-            var theme = localStorage.getItem("modellens-theme");
+                document.documentElement.style.setProperty(
+                    "--page-transition-duration",
+                    "200ms",
+                );
+                var theme = localStorage.getItem("modellens-theme");
                 if (theme === "light") {
                     document.documentElement.classList.remove("dark");
                     document.documentElement.classList.add("light");
@@ -133,7 +137,12 @@ const navItems = [
         <!-- ── Skip to content (keyboard/screenreader skip-link) ──── -->
         <a href="#main-content" class="skip-link">Skip to content</a>
         <!-- ── Mobile menu toggle (hidden checkbox) ───────────────── -->
-        <input type="checkbox" id="menu-toggle" class="menu-toggle-input" aria-hidden="true" />
+        <input
+            type="checkbox"
+            id="menu-toggle"
+            class="menu-toggle-input"
+            aria-hidden="true"
+        />
 
         <!-- ── Sidebar Navigation ──────────────────────────────────── -->
         <aside class="sidebar" transition:persist="sidebar">
@@ -161,7 +170,9 @@ const navItems = [
                     class={`sidebar-link ${activeNav === "replays" ? "sidebar-link-active" : ""}`}
                     transition:name="nav-replays"
                 >
-                    <span class="material-symbols-outlined sidebar-icon">replay</span>
+                    <span class="material-symbols-outlined sidebar-icon"
+                        >replay</span
+                    >
                     <span class="sidebar-link-label">Replay Viewer</span>
                     <ReplaySidebarBadge client:load />
                 </a>
@@ -181,25 +192,46 @@ const navItems = [
                 }
             </nav>
             <div class="sidebar-footer">
-                <button class="sidebar-link theme-toggle" id="theme-toggle" aria-label="Toggle dark/light mode" title="Toggle dark/light mode">
-                    <span class="material-symbols-outlined sidebar-icon theme-toggle-icon-dark" aria-hidden="true">dark_mode</span>
-                    <span class="material-symbols-outlined sidebar-icon theme-toggle-icon-light" style="display:none" aria-hidden="true">light_mode</span>
+                <button
+                    class="sidebar-link theme-toggle"
+                    id="theme-toggle"
+                    aria-label="Toggle dark/light mode"
+                    title="Toggle dark/light mode"
+                >
+                    <span
+                        class="material-symbols-outlined sidebar-icon theme-toggle-icon-dark"
+                        aria-hidden="true">dark_mode</span
+                    >
+                    <span
+                        class="material-symbols-outlined sidebar-icon theme-toggle-icon-light"
+                        style="display:none"
+                        aria-hidden="true">light_mode</span
+                    >
                     <span class="theme-toggle-label">Dark mode</span>
                 </button>
                 <script>
                     (function () {
                         var btn = document.getElementById("theme-toggle");
                         if (!btn) return;
-                        var darkIcon = btn.querySelector(".theme-toggle-icon-dark");
-                        var lightIcon = btn.querySelector(".theme-toggle-icon-light");
+                        var darkIcon = btn.querySelector(
+                            ".theme-toggle-icon-dark",
+                        );
+                        var lightIcon = btn.querySelector(
+                            ".theme-toggle-icon-light",
+                        );
                         var label = btn.querySelector(".theme-toggle-label");
                         var html = document.documentElement;
 
                         function updateUI() {
                             var isDark = html.classList.contains("dark");
-                            if (darkIcon) darkIcon.style.display = isDark ? "" : "none";
-                            if (lightIcon) lightIcon.style.display = isDark ? "none" : "";
-                            if (label) label.textContent = isDark ? "Dark mode" : "Light mode";
+                            if (darkIcon)
+                                darkIcon.style.display = !isDark ? "" : "none";
+                            if (lightIcon)
+                                lightIcon.style.display = !isDark ? "none" : "";
+                            if (label)
+                                label.textContent = !isDark
+                                    ? "Dark mode"
+                                    : "Light mode";
                         }
 
                         updateUI();
@@ -209,7 +241,10 @@ const navItems = [
                             if (isDark) {
                                 html.classList.remove("dark");
                                 html.classList.add("light");
-                                localStorage.setItem("modellens-theme", "light");
+                                localStorage.setItem(
+                                    "modellens-theme",
+                                    "light",
+                                );
                             } else {
                                 html.classList.remove("light");
                                 html.classList.add("dark");
@@ -223,20 +258,40 @@ const navItems = [
         </aside>
 
         <!-- ── Mobile overlay backdrop ─────────────────────────────── -->
-        <label for="menu-toggle" class="menu-backdrop" aria-hidden="true"></label>
+        <label for="menu-toggle" class="menu-backdrop" aria-hidden="true"
+        ></label>
 
         <!-- ── Top Header Bar ──────────────────────────────────────── -->
         <header class="topbar" transition:animate="slide">
             <div class="topbar-left">
                 <!-- Hamburger button (visible on mobile only) -->
-                <label for="menu-toggle" class="hamburger-btn" aria-label="Toggle navigation menu" title="Toggle navigation menu">
-                    <span class="material-symbols-outlined hamburger-icon hamburger-open">menu</span>
-                    <span class="material-symbols-outlined hamburger-icon hamburger-close">close</span>
+                <label
+                    for="menu-toggle"
+                    class="hamburger-btn"
+                    aria-label="Toggle navigation menu"
+                    title="Toggle navigation menu"
+                >
+                    <span
+                        class="material-symbols-outlined hamburger-icon hamburger-open"
+                        >menu</span
+                    >
+                    <span
+                        class="material-symbols-outlined hamburger-icon hamburger-close"
+                        >close</span
+                    >
                 </label>
-                <form class="search-wrapper" action="/" method="get" role="search">
-                    <label for="search-input" class="sr-only">Search models or benchmarks</label>
-                    <span class="material-symbols-outlined search-icon" aria-hidden="true"
-                        >search</span
+                <form
+                    class="search-wrapper"
+                    action="/"
+                    method="get"
+                    role="search"
+                >
+                    <label for="search-input" class="sr-only"
+                        >Search models or benchmarks</label
+                    >
+                    <span
+                        class="material-symbols-outlined search-icon"
+                        aria-hidden="true">search</span
                     >
                     <input
                         id="search-input"
@@ -423,12 +478,28 @@ const navItems = [
     }
 
     /* ── Smooth theme transitions ────────────────────────────────── */
-    *, *::before, *::after {
-        transition: background-color 0.2s ease, border-color 0.2s ease, color 0.15s ease;
+    *,
+    *::before,
+    *::after {
+        transition:
+            background-color 0.2s ease,
+            border-color 0.2s ease,
+            color 0.15s ease;
     }
 
     /* ── Orphan prevention ──────────────────────────────────────── */
-    h1, h2, h3, h4, h5, h6, p, li, .dashboard-title, .section-header h2, .page-hero h1, .card h3 {
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    h6,
+    p,
+    li,
+    .dashboard-title,
+    .section-header h2,
+    .page-hero h1,
+    .card h3 {
         text-wrap: pretty;
     }
 
@@ -462,7 +533,10 @@ const navItems = [
         outline-offset: 0;
     }
 
-    /* ── Reset ──────────────────────────────────────────────────── */    *, *::before, *::after {
+    /* ── Reset ──────────────────────────────────────────────────── */
+    *,
+    *::before,
+    *::after {
         box-sizing: border-box;
         margin: 0;
         padding: 0;
@@ -470,7 +544,7 @@ const navItems = [
 
     /* ── Grain overlay (subtle noise texture) — sits below floating UI ── */
     body::after {
-        content: '';
+        content: "";
         position: fixed;
         inset: 0;
         pointer-events: none;
@@ -644,7 +718,9 @@ const navItems = [
         padding: 0.5rem 0.75rem;
         color: var(--text-secondary);
         border-radius: var(--radius-md);
-        transition: background-color 0.15s, color 0.15s;
+        transition:
+            background-color 0.15s,
+            color 0.15s;
         position: relative;
     }
     .theme-toggle:hover {
@@ -718,7 +794,7 @@ const navItems = [
         padding: 0;
         margin: -1px;
         overflow: hidden;
-        clip: rect(0,0,0,0);
+        clip: rect(0, 0, 0, 0);
         white-space: nowrap;
         border: 0;
     }
@@ -983,7 +1059,9 @@ const navItems = [
         border: 1px dashed var(--border-default);
         border-radius: var(--radius-lg);
         gap: 1rem;
-        transition: border-color 0.2s, background 0.2s;
+        transition:
+            border-color 0.2s,
+            background 0.2s;
     }
     .empty-state-icon {
         font-size: 48px !important;
@@ -3140,9 +3218,10 @@ const navItems = [
         background: var(--bg-container-highest);
         border: 1px solid var(--success);
         border-radius: var(--radius-md);
-        z-index: 50;            box-shadow:
-                0 0 0 1px rgba(78, 222, 163, 0.15),
-                0 8px 24px rgba(10, 14, 30, 0.65);
+        z-index: 50;
+        box-shadow:
+            0 0 0 1px rgba(78, 222, 163, 0.15),
+            0 8px 24px rgba(10, 14, 30, 0.65);
         animation: toast-in 0.25s ease-out;
     }
     .traces-toast-icon {
@@ -3798,7 +3877,9 @@ const navItems = [
         font-weight: 600;
         cursor: pointer;
         text-decoration: none;
-        transition: opacity 0.12s, transform 0.1s;
+        transition:
+            opacity 0.12s,
+            transform 0.1s;
         flex-shrink: 0;
     }
     .pg-view-trace-btn:hover {
@@ -3943,7 +4024,9 @@ const navItems = [
         border: 1px solid var(--border-default);
         border-radius: var(--radius-md);
         cursor: pointer;
-        transition: background 0.15s, border-color 0.15s;
+        transition:
+            background 0.15s,
+            border-color 0.15s;
         flex-shrink: 0;
     }
     .hamburger-btn:hover {
@@ -4187,7 +4270,6 @@ const navItems = [
      REPLAY SIDEBAR BADGE
      ═══════════════════════════════════════════════════════════════ */
 
-
     .sidebar-link-label {
         flex: 1;
     }
@@ -4222,7 +4304,6 @@ const navItems = [
             opacity: 1;
         }
     }
-
 
     /* ═══════════════════════════════════════════════════════════════
      REPLAY VIEWER
@@ -4526,7 +4607,9 @@ const navItems = [
         z-index: 1;
         flex-shrink: 0;
         box-shadow: 0 0 6px rgba(0, 0, 0, 0.3);
-        transition: transform 0.15s ease, box-shadow 0.15s ease;
+        transition:
+            transform 0.15s ease,
+            box-shadow 0.15s ease;
     }
     .rpv-dot-pulse {
         transform: scale(1.6);
@@ -4536,7 +4619,8 @@ const navItems = [
         animation: rpv-dot-play-pulse 0.8s ease-in-out infinite;
     }
     @keyframes rpv-dot-play-pulse {
-        0%, 100% {
+        0%,
+        100% {
             box-shadow:
                 0 0 0 3px rgba(173, 198, 255, 0.15),
                 0 0 12px rgba(173, 198, 255, 0.2);
@@ -4563,7 +4647,10 @@ const navItems = [
         border-radius: var(--radius-md);
         margin-bottom: 0.5rem;
         background: var(--bg-low);
-        transition: background 0.12s, border-color 0.12s, box-shadow 0.2s ease;
+        transition:
+            background 0.12s,
+            border-color 0.12s,
+            box-shadow 0.2s ease;
         min-width: 0;
     }
     .rpv-event-current .rpv-event-card {
@@ -4686,8 +4773,13 @@ const navItems = [
         border-color: #fcd34d;
     }
     @keyframes rpv-pause-pulse {
-        0%, 100% { box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.3); }
-        50% { box-shadow: 0 0 0 4px rgba(251, 191, 36, 0); }
+        0%,
+        100% {
+            box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.3);
+        }
+        50% {
+            box-shadow: 0 0 0 4px rgba(251, 191, 36, 0);
+        }
     }
     .rpv-pb-speed {
         font-family: var(--font-mono);
@@ -4739,7 +4831,9 @@ const navItems = [
         box-shadow: 0 0 0 2px rgba(173, 198, 255, 0.2);
         opacity: 0;
         pointer-events: none;
-        transition: opacity 0.12s ease, box-shadow 0.15s ease;
+        transition:
+            opacity 0.12s ease,
+            box-shadow 0.15s ease;
         z-index: 2;
     }
     .rpv-pb-scrubbing .rpv-pb-thumb,
@@ -4930,8 +5024,13 @@ const navItems = [
         animation: lbp-cursor-blink 0.8s step-end infinite;
     }
     @keyframes lbp-cursor-blink {
-        0%, 100% { opacity: 1; }
-        50% { opacity: 0; }
+        0%,
+        100% {
+            opacity: 1;
+        }
+        50% {
+            opacity: 0;
+        }
     }
     .live-benchmark-panel .lbp-token-placeholder {
         font-family: var(--font-mono);
