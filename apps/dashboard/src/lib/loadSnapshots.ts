@@ -56,6 +56,39 @@ export interface SnapshotCreateResponse {
   url: string;
 }
 
+// ── Base64 snapshot format (no-server-state sharing) ────────────
+
+/**
+ * Decode a base64-encoded snapshot from a query parameter.
+ *
+ * The snapshot is expected to be JSON, url-safe-base64 encoded.
+ * Returns the parsed SnapshotData, or null if decoding fails.
+ */
+export function snapshotFromQuery(encoded: string): SnapshotData | null {
+  try {
+    // Replace URL-safe base64 chars back to standard
+    const standard = encoded.replace(/-/g, "+").replace(/_/g, "/");
+    // Add padding if needed
+    const padded = standard.padEnd(
+      standard.length + ((4 - (standard.length % 4)) % 4),
+      "=",
+    );
+    const decoded = atob(padded);
+    return JSON.parse(decoded) as SnapshotData;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Encode a SnapshotData as a url-safe base64 string for query params.
+ */
+export function snapshotToQuery(snapshot: SnapshotData): string {
+  const json = JSON.stringify(snapshot);
+  const base64 = btoa(json);
+  return base64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
 // ── ID generation ─────────────────────────────────────────────────
 
 /** Generate a short, human-readable snapshot ID (e.g., "snap-a3k8"). */

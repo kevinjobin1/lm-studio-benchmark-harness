@@ -22,6 +22,7 @@ try:
         MetricEvent,
         ErrorEvent,
     )
+    from core.cache import ContentAddressableCache
 
     _EVENTS_AVAILABLE = True
 except ImportError:
@@ -31,6 +32,7 @@ except ImportError:
     CompletionEvent = None  # type: ignore
     MetricEvent = None  # type: ignore
     ErrorEvent = None  # type: ignore
+    ContentAddressableCache = None  # type: ignore
     _EVENTS_AVAILABLE = False
 
 logger = get_logger(__name__)
@@ -177,7 +179,12 @@ class Benchmark:
 
 
 class BenchmarkSuite:
-    """Manages running multiple benchmarks and aggregating results."""
+    """Manages running multiple benchmarks and aggregating results.
+
+    Supports optional content-addressable caching — when a ``cache``
+    is provided, individual benchmark runs are cached by their inputs
+    (model, benchmark name, config) and reused on subsequent runs.
+    """
 
     def __init__(
         self,
@@ -185,6 +192,8 @@ class BenchmarkSuite:
         config: Dict[str, Any],
         event_bus: Optional[object] = None,
         event_source: str = "",
+        cache: Optional["ContentAddressableCache"] = None,
+        use_cache: bool = True,
     ):
         self.client = client
         self.config = config
@@ -193,6 +202,8 @@ class BenchmarkSuite:
         self.event_bus = event_bus if event_bus is not None else default_bus
         self._event_source = event_source or "benchmark_suite"
         self._events_available = _EVENTS_AVAILABLE and self.event_bus is not None
+        self.cache = cache
+        self.use_cache = use_cache
 
     def register_benchmark(self, name: str, benchmark: Benchmark):
         """Register a benchmark with the suite."""

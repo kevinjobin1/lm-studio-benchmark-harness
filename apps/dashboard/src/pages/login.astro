@@ -1,0 +1,327 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+
+const token = Astro.url.searchParams.get("token") || "";
+---
+
+<BaseLayout title="Login" description="Authenticate to access the Model Lens dashboard">
+  <div class="login-page">
+    <div class="login-card">
+      <div class="login-header">
+        <span class="material-symbols-outlined login-icon">shield_lock</span>
+        <h1>Model Lens</h1>
+        <p>Enter your access token to continue</p>
+      </div>
+
+      <form id="login-form" class="login-form">
+        <div class="input-group">
+          <label for="token-input">Access Token</label>
+          <div class="token-input-wrapper">
+            <input
+              id="token-input"
+              type="password"
+              placeholder="eyJhbGciOi..."
+              value={token}
+              autocomplete="off"
+              autofocus
+            />
+            <button
+              type="button"
+              id="toggle-visibility"
+              class="toggle-btn"
+              aria-label="Toggle token visibility"
+              title="Toggle token visibility"
+            >
+              <span class="material-symbols-outlined">visibility</span>
+            </button>
+          </div>
+        </div>
+
+        <button type="submit" class="btn-submit" id="submit-btn">
+          <span class="material-symbols-outlined">login</span>
+          Authenticate
+        </button>
+
+        <p id="error-msg" class="error-msg" style="display:none"></p>
+      </form>
+
+      <div class="login-footer">
+        <p class="mono-label">How to get a token</p>
+        <code class="inline-code">modellens auth token</code>
+        <p class="hint">Generates a short-lived JWT. For CI, use <code>--ttl 1440</code>.</p>
+      </div>
+    </div>
+  </div>
+</BaseLayout>
+
+<script>
+  const form = document.getElementById("login-form") as HTMLFormElement;
+  const input = document.getElementById("token-input") as HTMLInputElement;
+  const submitBtn = document.getElementById("submit-btn") as HTMLButtonElement;
+  const errorMsg = document.getElementById("error-msg") as HTMLParagraphElement;
+  const toggleBtn = document.getElementById("toggle-visibility") as HTMLButtonElement;
+  const toggleIcon = toggleBtn.querySelector(".material-symbols-outlined")!;
+
+  // Toggle password visibility
+  toggleBtn.addEventListener("click", () => {
+    const isPassword = input.type === "password";
+    input.type = isPassword ? "text" : "password";
+    toggleIcon.textContent = isPassword ? "visibility_off" : "visibility";
+  });
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const token = input.value.trim();
+
+    if (!token) {
+      showError("Please enter a token.");
+      return;
+    }
+
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<span class="material-symbols-outlined spin">progress_activity</span> Verifying...';
+
+    try {
+      // Verify the token against the health endpoint
+      const resp = await fetch("/api/health", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!resp.ok) {
+        const data = await resp.json().catch(() => ({}));
+        showError(data.message || "Invalid or expired token.");
+        return;
+      }
+
+      // Token is valid — store and redirect
+      localStorage.setItem("modellens-token", token);
+      const redirectTo = new URLSearchParams(window.location.search).get("redirect") || "/";
+      window.location.href = redirectTo;
+    } catch (err) {
+      showError("Cannot reach the dashboard. Is it running?");
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = '<span class="material-symbols-outlined">login</span> Authenticate';
+    }
+  });
+
+  function showError(msg: string) {
+    errorMsg.textContent = msg;
+    errorMsg.style.display = "block";
+  }
+
+  // Auto-submit if token was passed in URL
+  if (input.value.trim()) {
+    form.dispatchEvent(new Event("submit"));
+  }
+</script>
+
+<style>
+  .login-page {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: calc(100vh - var(--topbar-h) - 4rem);
+    padding: 2rem;
+  }
+
+  .login-card {
+    width: 100%;
+    max-width: 420px;
+    background: var(--bg-container);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-lg);
+    padding: 2.5rem 2rem;
+    animation: fadeInSlideUp 0.5s ease-out;
+  }
+
+  .login-header {
+    text-align: center;
+    margin-bottom: 2rem;
+  }
+
+  .login-icon {
+    font-size: 48px !important;
+    color: var(--brand-primary);
+    margin-bottom: 0.75rem;
+    display: block;
+  }
+
+  .login-header h1 {
+    font-family: var(--font-ui);
+    font-size: 24px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    color: var(--text-primary);
+    margin-bottom: 0.375rem;
+  }
+
+  .login-header p {
+    font-family: var(--font-ui);
+    font-size: 14px;
+    color: var(--text-secondary);
+  }
+
+  .login-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+  }
+
+  .input-group label {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .token-input-wrapper {
+    display: flex;
+    position: relative;
+  }
+
+  .token-input-wrapper input {
+    flex: 1;
+    padding: 0.625rem 2.5rem 0.625rem 0.75rem;
+    background: var(--bg-lowest);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--text-primary);
+    outline: none;
+    transition: border-color 0.15s;
+  }
+
+  .token-input-wrapper input:focus {
+    border-color: var(--brand-primary);
+    box-shadow: 0 0 0 2px rgba(173, 198, 255, 0.25);
+  }
+
+  .toggle-btn {
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    padding: 0 0.75rem;
+    background: none;
+    border: none;
+    color: var(--text-tertiary);
+    cursor: pointer;
+    transition: color 0.15s;
+    display: flex;
+    align-items: center;
+  }
+
+  .toggle-btn:hover {
+    color: var(--text-primary);
+  }
+
+  .toggle-btn .material-symbols-outlined {
+    font-size: 20px !important;
+  }
+
+  .btn-submit {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.625rem 1rem;
+    background: var(--brand-primary);
+    color: var(--brand-on-primary);
+    border: none;
+    border-radius: var(--radius-md);
+    font-family: var(--font-ui);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.15s, transform 0.1s;
+    margin-top: 0.25rem;
+  }
+
+  .btn-submit:hover {
+    opacity: 0.9;
+  }
+
+  .btn-submit:active {
+    transform: scale(0.97);
+  }
+
+  .btn-submit:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  .btn-submit .material-symbols-outlined {
+    font-size: 18px !important;
+  }
+
+  .spin {
+    animation: spin 1s linear infinite;
+  }
+
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+
+  .error-msg {
+    font-family: var(--font-ui);
+    font-size: 13px;
+    color: var(--error);
+    text-align: center;
+    padding: 0.5rem;
+    background: rgba(255, 180, 171, 0.08);
+    border: 1px solid rgba(255, 180, 171, 0.2);
+    border-radius: var(--radius-sm);
+  }
+
+  .login-footer {
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border-subtle);
+    text-align: center;
+  }
+
+  .login-footer .mono-label {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    margin-bottom: 0.5rem;
+  }
+
+  .login-footer .inline-code {
+    display: inline-block;
+    background: var(--bg-lowest);
+    padding: 0.375rem 0.75rem;
+    border-radius: var(--radius-sm);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--brand-primary);
+    margin-bottom: 0.5rem;
+  }
+
+  .login-footer .hint {
+    font-family: var(--font-ui);
+    font-size: 12px;
+    color: var(--text-tertiary);
+  }
+
+  .login-footer .hint code {
+    font-family: var(--font-mono);
+    background: var(--bg-lowest);
+    padding: 1px 4px;
+    border-radius: var(--radius-sm);
+    font-size: 11px;
+  }
+</style>

@@ -40,6 +40,12 @@ from apps.cli.commands.workload import workload
 from apps.cli.commands.migrate import migrate
 from apps.cli.commands.auth import auth
 from apps.cli.commands.sse import sse
+from apps.cli.commands.trace import trace
+from apps.cli.commands.skill import skill
+from apps.cli.commands.mcp import mcp
+from apps.cli.commands.cache import cache as cache_command
+from apps.cli.commands.otel import otel
+from apps.cli.commands.regression import regression
 
 
 @click.group()
@@ -64,6 +70,12 @@ cli.add_command(workload)
 cli.add_command(migrate)
 cli.add_command(auth)
 cli.add_command(sse)
+cli.add_command(trace)
+cli.add_command(skill)
+cli.add_command(mcp)
+cli.add_command(cache_command)
+cli.add_command(otel)
+cli.add_command(regression)
 
 
 def main():

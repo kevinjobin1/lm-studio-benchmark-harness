@@ -169,8 +169,132 @@ class Trace:
         """Serialize to JSON string."""
         return json.dumps(self.to_dict(), indent=indent, default=str, ensure_ascii=False)
 
+    # ── Snapshot export ────────────────────────────────────────────
 
-# ── Schema migration ──────────────────────────────────────────────
+    def to_snapshot(self, compress: bool = True) -> Dict[str, Any]:
+        """Export a compressed, shareable snapshot of this trace.
+
+        The snapshot is a self-contained dict that includes all trace
+        data plus metadata for display.  When ``compress=True``, long
+        text fields (prompt, response) are truncated to keep the
+        snapshot small enough for URL embedding (base64).
+
+        Returns:
+            A dict that can be serialized to JSON, then base64-encoded
+            for URL sharing.  The dict has keys:
+            - snapshot_id: Short unique ID
+            - version: Schema version
+            - trace_id / model / provider / pack: Identifying metadata
+            - prompt: Truncated prompt
+            - response: Truncated response text
+            - totalTimeMs / steps / metrics: Full trace data
+            - hardware: Hardware snapshot (if available)
+            - created_at: ISO 8601 timestamp
+        """
+        import hashlib
+
+        trace_dict = self.to_dict()
+        steps = trace_dict.get("steps", [])
+        metrics = trace_dict.get("metrics", {})
+        artifacts = trace_dict.get("artifacts", {})
+
+        # Truncate long text fields when compressing
+        prompt = self.prompt
+        response_text = artifacts.get("response", "")
+        if compress and len(prompt) > 200:
+            prompt = prompt[:200] + "..."
+        if compress and len(response_text) > 500:
+            response_text = response_text[:500] + "..."
+
+        # Generate a short snapshot ID from the trace_id hash
+        snap_id = f"snap-{hashlib.sha256(self.trace_id.encode()).hexdigest()[:4]}"
+
+        return {
+            "snapshot_id": snap_id,
+            "version": CURRENT_TRACE_VERSION,
+            "trace_id": self.trace_id,
+            "model": self.model,
+            "provider": self.provider,
+            "pack": self.pack,
+            "prompt": prompt,
+            "response": response_text,
+            "totalTimeMs": metrics.get("total_latency_ms", 0),
+            "metrics": {
+                "ttft_ms": metrics.get("ttft_ms", 0),
+                "tokens_per_second": metrics.get("tokens_per_second", 0),
+                "total_tokens": metrics.get("total_tokens", 0),
+            },
+            "steps": steps,
+            "hardware": self.hardware,
+            "created_at": self.started_at,
+        }
+
+    def to_snapshot_json(self, compress: bool = True) -> str:
+        """Export as JSON string (ready for base64 encoding)."""
+        return json.dumps(self.to_snapshot(compress=compress), indent=None, default=str, ensure_ascii=False)
+
+    def to_snapshot_base64(self, compress: bool = True) -> str:
+        """Export as a base64-encoded, URL-safe snapshot string.
+
+        The resulting string can be used as a query parameter for
+        no-server-state sharing:
+
+            /runs?snap=eyJzbmFwc2hvdF9pZCI6...
+        """
+        import base64
+
+        json_str = self.to_snapshot_json(compress=compress)
+        return base64.urlsafe_b64encode(json_str.encode()).decode()
+
+
+# ── Snapshot deserialization ────────────────────────────────────────
+
+
+def snapshot_from_dict(data: Dict[str, Any]) -> Dict[str, Any]:
+    """Deserialize a snapshot dict (as produced by ``Trace.to_snapshot()``)."""
+    return data
+
+
+def snapshot_from_base64(encoded: str) -> Dict[str, Any]:
+    """Decode a base64-encoded snapshot string back to a dict."""
+    import base64
+
+    try:
+        decoded = base64.urlsafe_b64decode(encoded.encode())
+        return json.loads(decoded.decode())
+    except Exception as exc:
+        raise ValueError(f"Invalid base64 snapshot: {exc}") from exc
+
+
+def snapshot_to_share_url(snapshot_data: Dict[str, Any], base_url: str = "") -> str:
+    """Build a shareable URL from a snapshot dict.
+
+    Embeds the snapshot as a base64 query parameter so no server-side
+    storage is needed ("no server state" sharing).
+
+    Returns:
+        A URL like ``/runs?snap=eyJzbmFwc2hvdF9pZCI6...``
+    """
+    import json
+    import base64
+
+    json_str = json.dumps(snapshot_data, indent=None, default=str, ensure_ascii=False)
+    encoded = base64.urlsafe_b64encode(json_str.encode()).decode()
+    return f"{base_url}/runs?snap={encoded}"
+
+
+__all__ = [
+    "TokenEvent",
+    "TraceEvent",
+    "TraceMetrics",
+    "TraceArtifacts",
+    "Trace",
+    "CURRENT_TRACE_VERSION",
+    "migrate_trace",
+    "snapshot_from_dict",
+    "snapshot_from_base64",
+    "snapshot_to_share_url",
+]
 
 # Registry of migration functions, keyed by source version.
 # Each function receives the trace dict and returns it upgraded to the

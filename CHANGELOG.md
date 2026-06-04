@@ -106,10 +106,91 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Health monitoring endpoints
 - Wrangler configuration improvements
 
+#### Trace Diffing Engine
+
+- `packages/core/trace_diff.py` — three-level diff engine: step alignment (timing/type/status), token-level text diff (`difflib.SequenceMatcher`), metric/artifact deltas
+- `apps/cli/commands/trace.py` — `modellens trace diff` and `trace text-diff` CLI commands with `--json` output
+- `apps/dashboard/src/pages/api/traces/diff.ts` — `/api/traces/diff` endpoint (shell-injection-safe via regex validation + `spawnSync` args)
+- `apps/dashboard/src/lib/traceDiff.ts` — TypeScript types + `computeTraceDiff()` client-side fallback
+
+#### Snapshot Export & Shareable URLs
+
+- `Trace.to_snapshot()`, `to_snapshot_json()`, `to_snapshot_base64()` with compressed text fields and proper hashing
+- `snapshot_from_base64()` / `snapshot_to_share_url()` for no-server-state sharing via `/runs?snap=BASE64`
+- `modellens trace snapshot <trace_id>` CLI with `--base64` and `--url` flags
+- `apps/dashboard/src/pages/runs/[...id].astro` — individual snapshot viewer supporting both server-side and base64-query sharing
+- `apps/dashboard/src/lib/loadSnapshots.ts` — `snapshotFromQuery()` / `snapshotToQuery()` for base64 query params
+
+#### Skills Runtime Executor
+
+- `packages/skills/runner.py` — `SkillRunner` class with `execute()` / `execute_sync()` for single skill runs, `execute_batch()` / `execute_batch_sync()` for sequential batch execution
+- Input validation against skill schema, ToolCallEvent emission to EventBus
+- `modellens skill list`, `skill info <name>`, `skill run <name> '<json>'`, `skill run --batch` CLI commands
+
+#### MCP Server Mode
+
+- `packages/providers/mcp/server.py` — Full MCP server with JSON-RPC 2.0 protocol: `MCPServerStdio` (stdin/stdout transport) and `MCPServerHTTP` (SSE transport with `/sse`, `/messages`, `/tools/call`, `/health`)
+- Tools: `list_models`, `run_prompt`, `chat_completion`, `ping`
+- `modellens mcp serve --transport stdio|sse` CLI with provider resolution and signal handling
+
+#### Benchmark Result Caching
+
+- `packages/core/cache.py` — `ContentAddressableCache` with SHA-256 content-addressed keys, two-level directory prefix, full CRUD + status/listing
+- `WorkloadRunner` now accepts optional `cache` parameter: checks cache before API calls, stores results after successful runs
+- `BenchmarkSuite` accepts cache plumbing (parameter + forward reference)
+- `modellens cache status|list|clear|inspect|config` CLI commands with rich table output
+- Cache wired into `modellens workload run` by default (`--cache/--no-cache` toggle, `--cache-dir` option) with aggregate hit count display
+
+#### OpenTelemetry Collector
+
+- `packages/events/otel.py` — `OtelCollector` subscribes to all EventBus events and exports spans + metrics via OTLP (gRPC/HTTP, no hard dependency on SDK)
+- RunLifecycleEvent → span lifecycle; CompletionEvent → LLM completion span + histogram; MetricEvent → gauges; TokenGenerated/Error/ToolCall events → counters
+- Configurable via standard `OTEL_EXPORTER_OTLP_*` env vars
+- `modellens otel status|serve|test` CLI commands with signal handling and SDK availability checks
+
+#### Dashboard Authentication
+
+- JWT token system (`packages/core/jwt_utils.py`) — stdlib-only, no PyJWT dependency
+- Login page (`apps/dashboard/src/pages/login.astro`) with token input and session storage
+- SSE authentication via `?token=` query parameter with JWT verification
+- `modellens auth token --ttl <hours>` CLI for generating tokens
+
+#### SQLite Migration
+
+- `packages/core/results_store.py` — SQLite-backed `ResultsStore` with CRUD, filtering, pagination, and migration from `runs_index.json`
+- `scripts/migrate_to_sqlite.py` and `modellens migrate sqlite --dry-run` CLI
+- Integration tests (`tests/test_migrate_sqlite.py`) covering dry-run, full migration, empty index, missing index, and corrupt detail files
+
+#### Standalone SSE Server
+
+- `modellens sse serve --port N` — standalone EventBus SSE server that decouples streaming from benchmark processes
+- `subscribe_existing=False` support for deferred subscription
+- Dashboard auto-detection of standalone SSE servers
+
+#### Unified Configuration
+
+- Single `config.yaml` with `general:` + `devbench:` sections, validated by JSON Schema (`apps/cli/config_schema.json`)
+- `apps/cli/config.json` deprecated with `_deprecated` and `_migration_guide` fields
+
+#### Provider Plugin System
+
+- Entry-point-based provider discovery via `pyproject.toml` entry-points
+- `discover_providers()`, `get_provider()`, `get_provider_config()` with fallback to built-in registry for dev mode
+- `LMStudioProvider` subclass with correct defaults (port 1234, key `lm-studio`)
+
+#### Historical Regression Detection
+
+- `packages/core/regression.py` — CUSUM/Page-Hinkley change-point detection engine with z-score fallback; `detect_regression()`, `detect_all()`, `RegressionAlert` dataclass
+- `packages/core/regression.py` — `AlertStore` (SQLite persistence for alert history), `subscribe_to_run_events()` (auto-check after benchmark runs)
+- `apps/cli/commands/regression.py` — `modellens regression detect|history|monitor|stats` with rich table output, JSON flag, and signal-safe monitoring
+- `apps/dashboard/src/pages/api/regression/index.ts` — `GET /api/regression` dashboard endpoint with model/metric/severity filtering
+- Unit tests (`tests/test_regression.py` — 61 tests covering CUSUM, z-score, dataclass, detection, AlertStore, edge cases)
+
 #### Testing
 
 - 11 pre-existing test failures resolved: patch target correction in `test_provider_clients.py`, abstract method contract fix in `test_mcp_bridge.py`
 - Additional provider integration, MCP bridge, CLI command, workload, trace capture, and provider client tests
+- Migration integration tests: dry-run, full migration, empty/missing index, corrupt detail files
 
 ### Changed
 

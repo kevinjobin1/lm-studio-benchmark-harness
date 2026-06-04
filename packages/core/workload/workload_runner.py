@@ -23,6 +23,7 @@ from events import (
 )
 
 
+
 @dataclass
 class WorkloadResult:
     """Result from evaluating a model on a single workload task."""
@@ -60,6 +61,10 @@ class WorkloadRunner:
     Connects to a provider (LM Studio, Ollama), sends tasks,
     collects responses, and scores them.
 
+    Supports optional content-addressable caching — when a ``cache``
+    is provided, ``run_task()`` checks for a cache hit before making
+    the API call and stores the result afterward.
+
     Emits events via EventBus for observability:
     - RunLifecycleEvent at batch start/completion
     - TokenGeneratedEvent for each token (when streaming=True)
@@ -76,6 +81,8 @@ class WorkloadRunner:
         scorer: Optional[WorkloadScorer] = None,
         event_bus: Optional[EventBus] = None,
         stream: bool = False,
+        cache: Optional["ContentAddressableCache"] = None,
+        use_cache: bool = True,
     ):
         self.api_base = api_base
         self.api_key = api_key
@@ -83,7 +90,28 @@ class WorkloadRunner:
         self.scorer = scorer or WorkloadScorer()
         self.event_bus = event_bus or default_bus
         self.stream = stream
+        self.cache = cache
+        self.use_cache = use_cache
         self._client = None
+        self._cache_hits: int = 0
+
+    def _cache_key(self, task: WorkloadTask) -> str:
+        """Build a deterministic cache key for a task + model combination."""
+        from core.cache import ContentAddressableCache
+
+        return ContentAddressableCache.make_key(
+            model=self.model,
+            provider=self.api_base,
+            task_id=task.task_id,
+            task_title=task.title,
+            task_prompt=task.prompt,
+            task_type=task.task_type.value,
+            difficulty=task.difficulty.value,
+            project=task.project_name,
+            target_file=task.target_file,
+            temperature=0.2,
+            max_tokens=2000,
+        )
 
     @property
     def client(self):
@@ -97,6 +125,10 @@ class WorkloadRunner:
     def run_task(self, task: WorkloadTask, verbose: bool = False) -> WorkloadResult:
         """Run a single workload task against the model.
 
+        If a cache is configured, checks for a cache hit before making
+        the API call. Cache hits return the stored result directly,
+        still emitting lifecycle events for observability.
+
         Args:
             task: The workload task to evaluate
             verbose: Print progress information
@@ -106,6 +138,39 @@ class WorkloadRunner:
         """
         source = f"workload.{task.project_name}"
         run_id = f"workload_{task.project_name}_{task.task_id[:8]}"
+
+        # ── Cache check ───────────────────────────────────────────
+        if self.cache is not None and self.use_cache:
+            ck = self._cache_key(task)
+            cached = self.cache.get(ck)
+            if cached is not None:
+                self._cache_hits += 1
+                if verbose:
+                    print(f"  ↻ Cache hit: {task.title}")
+                # Emit lifecycle events even for cache hits so
+                # event bus observers stay consistent
+                self.event_bus.emit_sync(
+                    RunLifecycleEvent(
+                        status="started",
+                        model=self.model,
+                        workload=task.project_name,
+                        run_id=run_id,
+                        source=source,
+                    )
+                )
+                result_data = cached.get("result", cached)
+                result = WorkloadResult(**result_data)
+                self.event_bus.emit_sync(
+                    RunLifecycleEvent(
+                        status="completed",
+                        model=self.model,
+                        workload=task.project_name,
+                        run_id=run_id,
+                        source=source,
+                        duration_ms=result.response_time_ms,
+                    )
+                )
+                return result
 
         if verbose:
             print(f"  Running: {task.title}")
@@ -272,7 +337,7 @@ class WorkloadRunner:
                     f"  ✓ Score: {score_result.overall:.3f} ({len(response_text.split(chr(10)))} lines, {total_time:.1f}s, {tokens_used} tok)"
                 )
 
-            return WorkloadResult(
+            result = WorkloadResult(
                 task_id=task.task_id,
                 model=self.model,
                 provider=self.api_base,
@@ -298,6 +363,20 @@ class WorkloadRunner:
                 language=task.language,
                 framework=task.framework,
             )
+
+            # ── Cache store ───────────────────────────────────
+            if self.cache is not None and self.use_cache:
+                self.cache.put(
+                    self._cache_key(task),
+                    {"result": result.__dict__},
+                    metadata={
+                        "model": self.model,
+                        "task_id": task.task_id,
+                        "project": task.project_name,
+                    },
+                )
+
+            return result
 
         except Exception as e:
             total_time = time.time() - start_time
@@ -488,6 +567,11 @@ class WorkloadRunner:
         )
 
         return results
+
+    @property
+    def cache_hits(self) -> int:
+        """Number of tasks served from cache this session."""
+        return self._cache_hits
 
     def _error_result(self, task: WorkloadTask, error_msg: str) -> WorkloadResult:
         """Create a failed WorkloadResult from an exception."""

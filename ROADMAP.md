@@ -41,7 +41,7 @@ Status: **In Progress** (core event infrastructure done, visualization in progre
 
 Status: **In Progress** (providers expanded, skills foundation laid)
 
-- [ ] Regression detection between model versions
+- [x] Regression detection between model versions
 - [x] Skill system (extensible benchmark logic — types, registry, lockfile, builtins)
 - [ ] WASM sandbox for skills
 - [x] MCP server integration (bridge foundation)
@@ -87,7 +87,7 @@ Status: **In Progress** (providers expanded, skills foundation laid)
 - SSE forwarding (ThreadPoolExecutor, User-Agent, URL edge cases) ✅
 - WASM sandbox
 - Workload evaluation ✅
-- Regression detection
+- Regression detection ✅
 
 ### V4 🚧 (Phase 1: Foundation & Immediate Fixes)
 - Dashboard authentication
@@ -150,8 +150,8 @@ Model Lens now includes:
 - [x] SSE Bridge Worker — Cloudflare Durable Objects for production SSE
 - [x] SSE forwarding — ThreadPoolExecutor, User-Agent, URL edge cases
 - [x] E2E SSE bridge tests (unit + live integration)
-- [ ] Regression detection
-- [ ] Skills runtime
+- [x] Regression detection
+- [x] Skills runtime
 - [ ] Skill registry
 - [ ] WASM isolation
 - [ ] MCP server mode
@@ -256,7 +256,7 @@ See [docs/specs/v4-plan.md](docs/specs/v4-plan.md) for detailed implementation p
 | 2.1 | **Time-series metrics backend (DuckDB or SQLite + hyperfunctions)** | Backend | 1.2 | `MetricEvent` → DuckDB; `/api/metrics?model=X&metric=tokens_per_second` returns aggregated series; <50ms p99 |
 | 2.2 | **Trace diffing engine (side-by-side comparison)** | Core | 1.5 | `diff_traces(trace_a, trace_b)` → token-level diff (insert/delete/replace), latency delta, memory delta; dashboard Compare page |
 | 2.3 | **Snapshot export + shareable URLs** | Core | 1.5 | `Trace.to_snapshot()` → compressed JSON + base64 URL param; `/snapshots/[id]` loads snapshot; no server state |
-| 2.4 | **Historical regression detection** | Core | 2.1 | `detect_regression(model, metric, window=10)` → statistical change-point detection (CUSUM/Page-Hinkley); alert event |
+| 2.4 | **Historical regression detection** | Core | 2.1 | `detect_regression(model, metric, window=10)` → statistical change-point detection (CUSUM/Page-Hinkley); alert event | ✅ Complete |
 | 2.5 | **Skills runtime executor (no WASM yet)** | Skills | — | `SkillRunner.execute(skill_name, input)` → runs built-in skills (json_parse, diff, read_file, write_file); emits `ToolCallEvent` |
 | 2.6 | **MCP server mode (stdio + SSE)** | Providers | 1.3 | `modellens mcp serve` → exposes `list_models`, `run_prompt`, `chat_completion` as MCP tools; dashboard can connect |
 | 2.7 | **Benchmark result caching (avoid re-running identical configs)** | CLI | 1.6 | Content-addressable cache keyed by `(model, provider, benchmark_config_hash)`; `--force` to bypass |
@@ -320,6 +320,8 @@ modellens trace diff <trace_a> <trace_b>  # Side-by-side diff
 modellens trace snapshot <trace_id>       # Export shareable URL
 modellens mcp serve                       # MCP server (stdio/SSE)
 modellens skill run <name> --input '{}'   # Execute skill
+modellens regression detect --model <name> --metric <metric>  # Detect regressions
+modellens regression monitor            # Watch for regressions continuously
 
 # Phase 3
 modellens pack publish                    # Publish prompt pack to GitHub

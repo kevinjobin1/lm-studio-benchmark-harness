@@ -30,10 +30,14 @@ try:
     from events.sse import EventBusSSEServer
     from events.replay import EventBusReplayWriter
     from core.metrics_store import subscribe_to_event_bus
+    from core.regression import subscribe_to_run_events
 
     # Subscribe the MetricsStore to MetricEvents so every metric emitted
     # during benchmark runs is recorded in the time-series DB.
     subscribe_to_event_bus(default_bus)
+
+    # Auto-detect regressions after each completed run
+    subscribe_to_run_events(default_bus)
 
     _EVENTS_AVAILABLE = True
 except ImportError:

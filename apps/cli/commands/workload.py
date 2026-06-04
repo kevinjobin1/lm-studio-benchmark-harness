@@ -89,6 +89,18 @@ def workload_list_projects():
     help="Start SSE event bridge on this port for real-time dashboard updates. "
     "0 = auto-select (prints SSE_PORT:N to stdout on start).",
 )
+@click.option(
+    "--cache/--no-cache",
+    "use_cache",
+    default=True,
+    show_default=True,
+    help="Enable/disable result caching (content-addressed by model + task)",
+)
+@click.option(
+    "--cache-dir",
+    default=None,
+    help="Cache directory (default: results/cache)",
+)
 def run(
     api_base,
     api_key,
@@ -101,6 +113,8 @@ def run(
     verbose,
     json_output,
     sse_port,
+    use_cache,
+    cache_dir,
 ):
     """Run workload evaluation against a model.
 
@@ -152,8 +166,10 @@ def run(
         from events.sse import EventBusSSEServer
         from events.replay import EventBusReplayWriter
         from core.metrics_store import subscribe_to_event_bus
+        from core.regression import subscribe_to_run_events
 
         subscribe_to_event_bus(default_bus)
+        subscribe_to_run_events(default_bus)
         _EVENTS_AVAILABLE = True
     except ImportError:
         default_bus = None
@@ -214,11 +230,29 @@ def run(
     # 3. Run evaluation
     _echo(f"\n🔍 Evaluating model on {len(workload_tasks)} tasks...\n", "bold")
     scorer = WorkloadScorer()
+
+    # ── Cache setup ───────────────────────────────────────────
+    resolved_cache_dir = cache_dir or "results/cache"
+    if use_cache:
+        from core.cache import ContentAddressableCache
+
+        workload_cache = ContentAddressableCache(resolved_cache_dir)
+        cache_status = workload_cache.status()
+        if cache_status["entries_exist"]:
+            _echo(f"   📦 Cache: {cache_status['total_entries']} existing entries", "dim")
+        else:
+            _echo("   📦 Cache: empty", "dim")
+    else:
+        workload_cache = None
+        _echo("   📦 Caching disabled (--no-cache)", "dim")
+
     runner = WorkloadRunner(
         api_base=api_base,
         api_key=api_key,
         model=model,
         scorer=scorer,
+        cache=workload_cache,
+        use_cache=use_cache,
     )
 
     # Wrap execution in try/finally to ensure SSE server is stopped
@@ -322,6 +356,12 @@ def run(
         json_file = output_path / f"{project.name}.json"
         with open(json_file, "w") as f:
             json.dump(results_data, f, indent=2, default=str)
+
+        # 6. Show cache summary
+        if use_cache and runner.cache_hits > 0:
+            _echo(f"\n   ↻ Cache hits: {runner.cache_hits} / {len(results)} tasks ({100 * runner.cache_hits // len(results) if results else 0}%)", "cyan")
+        elif use_cache:
+            _echo(f"\n   📦 Cache: no hits (all tasks freshly evaluated)", "dim")
 
         _echo(f"\n📁 Results saved to {json_file}", "bold green")
 

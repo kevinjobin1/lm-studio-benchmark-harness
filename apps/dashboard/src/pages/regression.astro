@@ -1,0 +1,664 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import RegressionAlertsTable from "../components/RegressionAlertsTable";
+import ErrorBoundary from "../components/ErrorBoundary";
+---
+
+<BaseLayout
+    title="Regression Alerts"
+    description="Historical model regression detection — CUSUM change-point alerts for performance degradation and recovery."
+    activeNav="regression"
+>
+    <!-- ═══ Page Header ═══════════════════════════════════════════ -->
+    <div class="dashboard-header animate-entrance">
+        <div>
+            <h2 class="dashboard-title">Regression Alerts</h2>
+            <p class="dashboard-subtitle">
+                Statistical change-point detection for model performance metrics.
+                Alerts are auto-generated after each benchmark run using CUSUM analysis.
+            </p>
+        </div>
+        <div class="dashboard-actions">
+            <a href="/workload" class="btn-outline">
+                <span class="material-symbols-outlined">info</span>
+                <span>About Workload Eval</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- ═══ CLI Quick-Start ═══════════════════════════════════════ -->
+    <div class="card rg-quickstart animate-entrance" style="animation-delay:0.05s; margin-bottom: 1.5rem;">
+        <div class="rg-quickstart-header">
+            <span class="material-symbols-outlined rg-qs-icon">terminal</span>
+            <div>
+                <div class="rg-qs-title">CLI Commands</div>
+                <div class="rg-qs-desc">Detect regressions from the terminal</div>
+            </div>
+        </div>
+        <div class="rg-quickstart-commands">
+            <div class="rg-qs-code-block">
+                <code>modellens regression detect --all</code>
+                <button class="rg-copy-btn" onclick="navigator.clipboard.writeText('modellens regression detect --all')" title="Copy">
+                    <span class="material-symbols-outlined">content_copy</span>
+                </button>
+            </div>
+            <div class="rg-qs-code-block">
+                <code>modellens regression monitor</code>
+                <button class="rg-copy-btn" onclick="navigator.clipboard.writeText('modellens regression monitor')" title="Copy">
+                    <span class="material-symbols-outlined">content_copy</span>
+                </button>
+            </div>
+            <div class="rg-qs-code-block">
+                <code>modellens regression history --limit 20</code>
+                <button class="rg-copy-btn" onclick="navigator.clipboard.writeText('modellens regression history --limit 20')" title="Copy">
+                    <span class="material-symbols-outlined">content_copy</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ Alerts Table (client-side React) ═══════════════════════ -->
+    <section class="animate-entrance" style="animation-delay:0.1s;">
+        <ErrorBoundary client:load>
+            <RegressionAlertsTable client:load />
+        </ErrorBoundary>
+    </section>
+
+    <!-- ═══ Methodology ════════════════════════════════════════════ -->
+    <section class="section-mt animate-entrance" style="animation-delay:0.3s;">
+        <div class="section-header">
+            <h2>Methodology</h2>
+            <p>How regression detection works</p>
+        </div>
+        <div class="rg-methodology-grid">
+            <div class="card methodology-card">
+                <div class="rg-method-icon-wrapper rg-method-icon-primary">
+                    <span class="material-symbols-outlined">show_chart</span>
+                </div>
+                <h4>CUSUM Change-Point Detection</h4>
+                <p>
+                    Cumulative Sum (CUSUM) tracks deviations from the mean over a sliding window.
+                    When the cumulative drift exceeds a threshold (&gt;5&sigma;), a change point is flagged,
+                    indicating a sustained shift in performance.
+                </p>
+            </div>
+            <div class="card methodology-card">
+                <div class="rg-method-icon-wrapper rg-method-icon-success">
+                    <span class="material-symbols-outlined">functions</span>
+                </div>
+                <h4>Z-Score Fallback</h4>
+                <p>
+                    When CUSUM is unavailable or the window is too small, a z-score comparison
+                    between the baseline (75% of window) and recent values (25% of window) is used.
+                    Alerts trigger at |z| &ge; 2.0.
+                </p>
+            </div>
+            <div class="card methodology-card">
+                <div class="rg-method-icon-wrapper rg-method-icon-warning">
+                    <span class="material-symbols-outlined">auto_awesome</span>
+                </div>
+                <h4>Automatic Detection</h4>
+                <p>
+                    Every completed benchmark run triggers automatic regression checks across
+                    all tracked metrics. Critical regressions also emit system events via the
+                    EventBus for real-time notification.
+                </p>
+            </div>
+        </div>
+    </section>
+</BaseLayout>
+
+<style is:global>
+    /* ═══════════════════════════════════════════════════════════════
+       REGRESSION ALERTS PAGE
+       ═══════════════════════════════════════════════════════════════ */
+
+    /* ── Quickstart Bar ────────────────────────────────────────── */
+    .rg-quickstart {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 1rem 1.25rem;
+    }
+    .rg-quickstart-header {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        flex-shrink: 0;
+    }
+    .rg-qs-icon {
+        font-size: 24px !important;
+        color: var(--success);
+    }
+    .rg-qs-title {
+        font-family: var(--font-ui);
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+    .rg-qs-desc {
+        font-family: var(--font-ui);
+        font-size: 12px;
+        color: var(--text-tertiary);
+    }
+    .rg-quickstart-commands {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+    .rg-qs-code-block {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.375rem;
+        background: var(--bg-lowest);
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-sm);
+        padding: 0.375rem 0.625rem;
+    }
+    .rg-qs-code-block code {
+        font-family: var(--font-mono);
+        font-size: 11px;
+        color: var(--brand-primary);
+        white-space: nowrap;
+    }
+    .rg-copy-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 22px;
+        height: 22px;
+        background: none;
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-sm);
+        color: var(--text-tertiary);
+        cursor: pointer;
+        transition: all 0.12s;
+        flex-shrink: 0;
+    }
+    .rg-copy-btn:hover {
+        background: var(--bg-container);
+        color: var(--brand-primary);
+        border-color: var(--brand-primary);
+    }
+    .rg-copy-btn .material-symbols-outlined {
+        font-size: 12px !important;
+    }
+
+    @media (max-width: 768px) {
+        .rg-quickstart {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        .rg-quickstart-commands {
+            width: 100%;
+        }
+        .rg-qs-code-block {
+            flex: 1;
+        }
+        .rg-qs-code-block code {
+            font-size: 10px;
+        }
+    }
+
+    /* ── Stats Grid ────────────────────────────────────────────── */
+    .rg-wrapper {
+        width: 100%;
+    }
+    .rg-stats-grid {
+        display: grid;
+        grid-template-columns: repeat(6, 1fr);
+        gap: 0.75rem;
+        margin-bottom: 0.5rem;
+    }
+    .rg-stat-card {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        padding: 1rem 0.75rem;
+        gap: 0.25rem;
+    }
+    .rg-stat-icon {
+        font-size: 22px !important;
+        margin-bottom: 0.125rem;
+    }
+    .rg-stat-value {
+        font-family: var(--font-mono);
+        font-size: 24px;
+        font-weight: 700;
+        color: var(--text-primary);
+        line-height: 1;
+    }
+    .rg-stat-critical { color: var(--error); }
+    .rg-stat-warning { color: var(--warning); }
+    .rg-stat-info { color: var(--success); }
+    .rg-stat-label {
+        font-family: var(--font-mono);
+        font-size: 10px;
+        font-weight: 500;
+        color: var(--text-tertiary);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+
+    @media (max-width: 900px) {
+        .rg-stats-grid {
+            grid-template-columns: repeat(3, 1fr);
+        }
+    }
+    @media (max-width: 500px) {
+        .rg-stats-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+
+    /* ── Error Card ────────────────────────────────────────────── */
+    .rg-error-card {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 1rem 1.25rem;
+        margin-top: 1rem;
+        border-color: rgba(255, 180, 171, 0.3);
+        background: rgba(255, 180, 171, 0.04);
+    }
+    .rg-error-title {
+        font-family: var(--font-ui);
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--error);
+    }
+    .rg-error-detail {
+        font-family: var(--font-mono);
+        font-size: 11px;
+        color: var(--text-tertiary);
+        margin-top: 2px;
+    }
+
+    /* ── Table Header (with filters) ───────────────────────────── */
+    .rg-table-header {
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid var(--border-default);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+    }
+    .rg-table-header h3 {
+        font-family: var(--font-ui);
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--text-primary);
+        line-height: 24px;
+    }
+    .rg-filters {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+    }
+    .rg-filter-group {
+        display: flex;
+        align-items: center;
+        gap: 0.375rem;
+    }
+    .rg-filter-label {
+        font-family: var(--font-mono);
+        font-size: 10px;
+        font-weight: 500;
+        color: var(--text-tertiary);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+    .rg-filter-select {
+        background: var(--bg-low);
+        border: 1px solid var(--border-default);
+        border-radius: var(--radius-sm);
+        padding: 0.25rem 0.5rem;
+        font-family: var(--font-mono);
+        font-size: 11px;
+        color: var(--text-primary);
+        cursor: pointer;
+        outline: none;
+        min-width: 80px;
+    }
+    .rg-filter-select:focus {
+        border-color: var(--brand-primary);
+    }
+    .rg-filter-input {
+        background: var(--bg-low);
+        border: 1px solid var(--border-default);
+        border-radius: var(--radius-sm);
+        padding: 0.25rem 0.5rem;
+        font-family: var(--font-mono);
+        font-size: 11px;
+        color: var(--text-primary);
+        outline: none;
+        width: 140px;
+    }
+    .rg-filter-input:focus {
+        border-color: var(--brand-primary);
+    }
+    .rg-filter-input::placeholder {
+        color: var(--text-tertiary);
+    }
+    .rg-refresh-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        background: var(--bg-container-high);
+        border: 1px solid var(--border-default);
+        border-radius: var(--radius-sm);
+        color: var(--text-secondary);
+        cursor: pointer;
+        transition: all 0.12s;
+    }
+    .rg-refresh-btn:hover {
+        color: var(--brand-primary);
+        border-color: var(--brand-primary);
+    }
+    .rg-refresh-btn:active {
+        transform: rotate(180deg);
+    }
+    .rg-refresh-btn .material-symbols-outlined {
+        font-size: 16px !important;
+    }
+
+    /* ── Table ─────────────────────────────────────────────────── */
+    .rg-table-wrapper {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: thin;
+    }
+    .rg-table {
+        width: 100%;
+        min-width: 700px;
+        border-collapse: collapse;
+    }
+    .rg-th {
+        padding: 0.625rem 0.75rem;
+        text-align: left;
+        font-family: var(--font-mono);
+        font-size: 10px;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--text-tertiary);
+        background: var(--bg-low);
+        border-bottom: 1px solid var(--border-default);
+        white-space: nowrap;
+    }
+    .rg-th-sort {
+        cursor: pointer;
+        user-select: none;
+        transition: color 0.12s;
+    }
+    .rg-th-sort:hover {
+        color: var(--brand-primary);
+    }
+    .rg-td {
+        padding: 0.625rem 0.75rem;
+        border-bottom: 1px solid var(--border-subtle);
+        vertical-align: middle;
+        font-family: var(--font-mono);
+        font-size: 12px;
+    }
+    .rg-td-num {
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+    }
+    .rg-td-ts {
+        white-space: nowrap;
+    }
+    .rg-td-bar {
+        width: 80px;
+        min-width: 80px;
+    }
+
+    .rg-table tbody tr {
+        transition: background 0.12s ease;
+    }
+    .rg-table tbody tr:hover {
+        background: var(--bg-container-high);
+    }
+
+    /* ── Severity Badges ────────────────────────────────────────── */
+    .rg-severity-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        padding: 2px 8px;
+        border-radius: var(--radius-sm);
+        font-family: var(--font-mono);
+        font-size: 10px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+    .rg-sev-critical {
+        background: rgba(255, 180, 171, 0.12);
+        color: var(--error);
+        border: 1px solid rgba(255, 180, 171, 0.2);
+    }
+    .rg-sev-warning {
+        background: rgba(251, 191, 36, 0.12);
+        color: var(--warning);
+        border: 1px solid rgba(251, 191, 36, 0.2);
+    }
+    .rg-sev-info {
+        background: rgba(78, 222, 163, 0.12);
+        color: var(--success);
+        border: 1px solid rgba(78, 222, 163, 0.2);
+    }
+    .rg-sev-icon {
+        font-size: 12px !important;
+    }
+
+    /* ── Model/Metric chips ────────────────────────────────────── */
+    .rg-model-name {
+        font-family: var(--font-ui);
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--text-primary);
+    }
+    .rg-metric-chip {
+        display: inline-block;
+        padding: 1px 6px;
+        background: rgba(173, 198, 255, 0.08);
+        border: 1px solid rgba(173, 198, 255, 0.15);
+        border-radius: var(--radius-sm);
+        font-family: var(--font-mono);
+        font-size: 10px;
+        color: var(--brand-primary);
+    }
+
+    /* ── Direction ─────────────────────────────────────────────── */
+    .rg-direction {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.125rem;
+        font-family: var(--font-mono);
+        font-size: 10px;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+    .rg-dir-icon {
+        font-size: 14px !important;
+    }
+
+    /* ── Delta values ──────────────────────────────────────────── */
+    .rg-delta {
+        font-family: var(--font-mono);
+        font-size: 13px;
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+    }
+
+    /* ── Mini bar ──────────────────────────────────────────────── */
+    .rg-mini-bar-track {
+        width: 100%;
+        height: 6px;
+        background: var(--bg-container-highest);
+        border-radius: 3px;
+        overflow: hidden;
+    }
+    .rg-mini-bar-fill {
+        height: 100%;
+        border-radius: 3px;
+        transition: width 0.4s ease;
+        min-width: 2px;
+    }
+
+    /* ── Z-Score ───────────────────────────────────────────────── */
+    .rg-zscore {
+        font-family: var(--font-mono);
+        font-size: 12px;
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+    }
+
+    /* ── Confidence ────────────────────────────────────────────── */
+    .rg-confidence {
+        font-family: var(--font-mono);
+        font-size: 12px;
+        color: var(--text-secondary);
+        font-variant-numeric: tabular-nums;
+    }
+
+    /* ── Timestamp ─────────────────────────────────────────────── */
+    .rg-timestamp {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.375rem;
+        font-family: var(--font-mono);
+        font-size: 11px;
+        color: var(--text-tertiary);
+    }
+
+    /* ── Severity Dot ──────────────────────────────────────────── */
+    .rg-severity-dot {
+        display: inline-block;
+        border-radius: 50%;
+        flex-shrink: 0;
+    }
+
+    /* ── No results ────────────────────────────────────────────── */
+    .rg-no-results {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.75rem;
+        padding: 2rem;
+        font-family: var(--font-ui);
+        font-size: 13px;
+        color: var(--text-tertiary);
+    }
+
+    /* ── Footnote ──────────────────────────────────────────────── */
+    .rg-footnote {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.625rem 1.5rem;
+        background: var(--bg-low);
+        border-top: 1px solid var(--border-subtle);
+        flex-wrap: wrap;
+    }
+    .rg-footnote-icon {
+        font-size: 14px !important;
+        color: var(--success);
+    }
+    .rg-footnote-text {
+        font-family: var(--font-mono);
+        font-size: 10px;
+        color: var(--text-secondary);
+        flex: 1;
+    }
+    .rg-api-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        font-family: var(--font-mono);
+        font-size: 10px;
+        color: var(--brand-primary);
+        text-decoration: none;
+        transition: opacity 0.12s;
+        padding: 2px 6px;
+        border: 1px solid rgba(173, 198, 255, 0.2);
+        border-radius: var(--radius-sm);
+    }
+    .rg-api-link:hover {
+        opacity: 0.8;
+    }
+    .rg-api-link .material-symbols-outlined {
+        font-size: 12px !important;
+    }
+
+    /* ── Methodology Grid ──────────────────────────────────────── */
+    .rg-methodology-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1rem;
+    }
+    .methodology-card {
+        padding: 1.25rem;
+    }
+    .methodology-card h4 {
+        font-family: var(--font-ui);
+        font-size: 15px;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 0.5rem;
+    }
+    .methodology-card p {
+        font-family: var(--font-ui);
+        font-size: 13px;
+        color: var(--text-secondary);
+        line-height: 1.6;
+    }
+    .rg-method-icon-wrapper {
+        width: 36px;
+        height: 36px;
+        border-radius: var(--radius-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 0.75rem;
+    }
+    .rg-method-icon-wrapper .material-symbols-outlined {
+        font-size: 18px !important;
+    }
+    .rg-method-icon-primary {
+        background: rgba(173, 198, 255, 0.1);
+        color: var(--brand-primary);
+    }
+    .rg-method-icon-success {
+        background: rgba(78, 222, 163, 0.1);
+        color: var(--success);
+    }
+    .rg-method-icon-warning {
+        background: rgba(251, 191, 36, 0.1);
+        color: var(--warning);
+    }
+
+    @media (max-width: 768px) {
+        .rg-methodology-grid {
+            grid-template-columns: 1fr;
+        }
+        .rg-table-header {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        .rg-filters {
+            width: 100%;
+        }
+        .rg-filter-input {
+            flex: 1;
+            min-width: 0;
+        }
+    }
+</style>

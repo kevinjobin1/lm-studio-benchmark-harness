@@ -11,7 +11,8 @@ export interface Props {
         | "leaderboard"
         | "packs"
         | "history"
-        | "replays";
+        | "replays"
+        | "regression";
 }
 
 import RunBenchmarkButton from "../components/RunBenchmarkButton";
@@ -68,6 +69,12 @@ const navItems = [
         href: "/workload",
     },
     { id: "history", icon: "history", label: "Runs History", href: "/history" },
+    {
+        id: "regression",
+        icon: "monitoring",
+        label: "Regressions",
+        href: "/regression",
+    },
 ] as const;
 ---
 

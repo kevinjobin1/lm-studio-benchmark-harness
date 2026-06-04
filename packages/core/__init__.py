@@ -33,6 +33,13 @@ from core.trace_capture import (
     wrap_stream,
 )
 
+from core.cache import (
+    ContentAddressableCache,
+    open_cache,
+    cache_result,
+    load_cached,
+)
+
 __all__ = [
     # Benchmark
     "Benchmark",
@@ -53,4 +60,9 @@ __all__ = [
     "Trace",
     "TraceCapture",
     "wrap_stream",
+    # Cache
+    "ContentAddressableCache",
+    "open_cache",
+    "cache_result",
+    "load_cached",
 ]

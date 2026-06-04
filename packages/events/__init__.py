@@ -437,4 +437,7 @@ __all__ = [
     "ErrorEvent",
     "RunLifecycleEvent",
     "default_bus",
+    # OTel
+    "subscribe_otel",
+    "is_otel_available",
 ]
